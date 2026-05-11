@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>홈 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      colors: {
+        primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
+        'on-primary':'#fff','on-primary-fixed-variant':'#005313','on-primary-fixed':'#002204',
+        'primary-container':'#4caf50','on-primary-container':'#003c0b',
+        secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870',
+        'on-secondary-container':'#653900','on-secondary-fixed-variant':'#693c00',
+        tertiary:'#466270','tertiary-container':'#829fae','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda',
+        'on-tertiary-container':'#183642',
+        surface:'#f8f9fa','surface-container-lowest':'#ffffff','surface-container-low':'#f3f4f5',
+        'surface-container':'#edeeef','surface-container-high':'#e7e8e9','surface-container-highest':'#e1e3e4',
+        'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',
+        outline:'#6f7a6b','outline-variant':'#becab9', background:'#f8f9fa',
+        warm:'#faf9f5'
+      },
+      fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] }
+    }}
+  }
+</script>
+<style>
+  body { background: #faf9f5; min-height: max(884px,100dvh); }
+  .gradient-hero {
+    background:
+      radial-gradient(1200px 200px at 0% 0%, rgba(148,249,144,.35), transparent 60%),
+      radial-gradient(800px 240px at 100% 0%, rgba(255,184,112,.25), transparent 60%),
+      linear-gradient(180deg, #f4f6ef, #faf9f5 70%);
+  }
+  .card { background:#fff; border:1px solid rgba(0,0,0,.04); border-radius:16px; }
+  .ph { background:
+    repeating-linear-gradient(135deg, #eef2ea 0 8px, #e4ebe0 8px 16px);
+  }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-28">
+
+<!-- Top Bar -->
+<header class="sticky top-0 z-50 bg-warm/90 backdrop-blur border-b border-black/[.04]">
+  <div class="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+    <button class="flex items-center gap-1.5 text-on-surface">
+      <span class="material-symbols-outlined text-primary" style="font-size:20px;font-variation-settings:'FILL' 1;">location_on</span>
+      <span class="text-[15px] font-bold">한들마을 3단지</span>
+      <span class="material-symbols-outlined text-on-surface-variant" style="font-size:18px;">expand_more</span>
+    </button>
+    <div class="flex items-center gap-1">
+      <button class="p-2 rounded-full hover:bg-black/5"><span class="material-symbols-outlined" style="font-size:22px">search</span></button>
+      <button class="p-2 rounded-full hover:bg-black/5 relative">
+        <span class="material-symbols-outlined" style="font-size:22px">notifications</span>
+        <span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-secondary-container"></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4">
+
+  <!-- Greeting + summary -->
+  <section class="gradient-hero rounded-3xl p-5 mt-4 ring-1 ring-black/[.04]">
+    <p class="text-[12px] font-semibold text-primary tracking-wide">월요일 오후 · 흐림 18°</p>
+    <h1 class="text-[22px] font-bold leading-snug mt-1 text-on-surface">
+      안녕하세요, 지수님 🌱<br/>
+      <span class="text-on-surface-variant font-medium text-[16px]">오늘 이웃과 나눌 식재료, 뭐가 있을까요?</span>
+    </h1>
+    <div class="grid grid-cols-3 gap-2 mt-4">
+      <div class="bg-white/70 rounded-xl p-3 ring-1 ring-black/[.04]">
+        <p class="text-[11px] text-on-surface-variant">내 냉장고</p>
+        <p class="text-[20px] font-bold mt-0.5">14<span class="text-[11px] font-medium text-on-surface-variant ml-0.5">개</span></p>
+        <p class="text-[10.5px] text-secondary mt-0.5 font-semibold">⏳ 임박 2개</p>
+      </div>
+      <div class="bg-white/70 rounded-xl p-3 ring-1 ring-black/[.04]">
+        <p class="text-[11px] text-on-surface-variant">진행 중 거래</p>
+        <p class="text-[20px] font-bold mt-0.5">3<span class="text-[11px] font-medium text-on-surface-variant ml-0.5">건</span></p>
+        <p class="text-[10.5px] text-primary mt-0.5 font-semibold">예약 1건</p>
+      </div>
+      <div class="bg-white/70 rounded-xl p-3 ring-1 ring-black/[.04]">
+        <p class="text-[11px] text-on-surface-variant">신뢰 온도</p>
+        <p class="text-[20px] font-bold mt-0.5">38.2<span class="text-[11px] font-medium text-on-surface-variant ml-0.5">°</span></p>
+        <p class="text-[10.5px] text-on-surface-variant mt-0.5">▲ 0.3</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI insight strip -->
+  <section class="mt-4 card overflow-hidden">
+    <div class="flex items-stretch">
+      <div class="w-1.5 bg-tertiary-fixed-dim shrink-0"></div>
+      <div class="p-3.5 flex-1">
+        <p class="text-[11px] font-bold text-tertiary tracking-wide flex items-center gap-1">
+          <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1;">auto_awesome</span> 오늘의 추천
+        </p>
+        <p class="text-[14.5px] text-on-surface mt-1 leading-snug">
+          냉장고 속 <b>시금치·우유</b>가 이번 주말까지예요. 이웃 <b>3명</b>이 시금치 나눔을 찾고 있어요.
+        </p>
+      </div>
+      <button class="self-center mr-3 text-[12px] font-semibold bg-tertiary text-white px-3 py-2 rounded-lg shrink-0">
+        나눔 등록
+      </button>
+    </div>
+  </section>
+
+  <!-- Categories -->
+  <section class="mt-5">
+    <div class="flex justify-between items-baseline mb-2">
+      <h2 class="text-[16px] font-bold">동네에서 둘러보기</h2>
+      <a href="#" class="text-[12px] text-primary font-semibold">전체 →</a>
+    </div>
+    <div class="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+      <button class="shrink-0 bg-primary text-white text-[12.5px] font-semibold px-3.5 py-1.5 rounded-full">전체</button>
+      <button class="shrink-0 bg-white text-on-surface text-[12.5px] font-medium px-3.5 py-1.5 rounded-full ring-1 ring-black/5">🥬 채소</button>
+      <button class="shrink-0 bg-white text-on-surface text-[12.5px] font-medium px-3.5 py-1.5 rounded-full ring-1 ring-black/5">🍎 과일</button>
+      <button class="shrink-0 bg-white text-on-surface text-[12.5px] font-medium px-3.5 py-1.5 rounded-full ring-1 ring-black/5">🥩 육류</button>
+      <button class="shrink-0 bg-white text-on-surface text-[12.5px] font-medium px-3.5 py-1.5 rounded-full ring-1 ring-black/5">🍞 베이커리</button>
+      <button class="shrink-0 bg-white text-on-surface text-[12.5px] font-medium px-3.5 py-1.5 rounded-full ring-1 ring-black/5">🥛 유제품</button>
+      <button class="shrink-0 bg-white text-on-surface text-[12.5px] font-medium px-3.5 py-1.5 rounded-full ring-1 ring-black/5">🌾 양념·가루</button>
+    </div>
+  </section>
+
+  <!-- Featured group buy -->
+  <section class="mt-3">
+    <div class="card overflow-hidden">
+      <div class="relative h-44 ph">
+        <div class="absolute inset-0 flex items-center justify-center text-on-surface-variant/60 text-[11px] font-mono">[농장 직송 채소박스]</div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent"></div>
+        <div class="absolute top-3 left-3 flex gap-1.5">
+          <span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[10.5px] font-bold">공동구매</span>
+          <span class="bg-white/95 text-on-surface px-2 py-0.5 rounded text-[10.5px] font-bold">D-2</span>
+        </div>
+        <div class="absolute bottom-3 left-3 right-3 text-white">
+          <p class="text-[15px] font-semibold leading-snug">팔당 농장 채소박스 5인 모집</p>
+          <div class="flex items-end justify-between mt-1.5">
+            <div class="flex items-center -space-x-1.5">
+              <span class="w-6 h-6 rounded-full bg-primary-fixed border-2 border-white"></span>
+              <span class="w-6 h-6 rounded-full bg-secondary-fixed-dim border-2 border-white"></span>
+              <span class="w-6 h-6 rounded-full bg-tertiary-fixed-dim border-2 border-white"></span>
+              <span class="text-[11px] font-semibold ml-2">3/5명 참여 중</span>
+            </div>
+            <p class="text-[15px] font-bold bg-black/30 backdrop-blur px-2 py-0.5 rounded">12,000<span class="text-[10px] font-medium ml-0.5">원/인</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Item grid -->
+  <section class="mt-5">
+    <div class="flex justify-between items-baseline mb-2">
+      <h2 class="text-[16px] font-bold">내 주변 1km 이내</h2>
+      <button class="text-[12px] text-on-surface-variant flex items-center gap-0.5">최신순 <span class="material-symbols-outlined" style="font-size:14px">expand_more</span></button>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+
+      <!-- Item -->
+      <article class="card overflow-hidden">
+        <div class="aspect-square ph relative">
+          <span class="absolute top-2 left-2 text-[10px] font-bold bg-primary text-white px-1.5 py-0.5 rounded">나눔</span>
+          <button class="absolute top-2 right-2 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:16px">favorite_border</span></button>
+          <span class="absolute bottom-2 left-2 text-[10px] font-mono text-on-surface-variant/70 bg-white/80 px-1.5 py-0.5 rounded">[사워도우 스타터]</span>
+        </div>
+        <div class="p-2.5">
+          <p class="text-[13.5px] font-semibold leading-snug line-clamp-1">활성 사워도우 스타터</p>
+          <p class="text-[11px] text-on-surface-variant mt-0.5">한들마을 · 도보 3분</p>
+          <p class="text-[11px] text-on-surface-variant mt-0.5 flex items-center gap-1"><span class="w-1 h-1 rounded-full bg-on-surface-variant/50"></span>방금 전</p>
+        </div>
+      </article>
+
+      <article class="card overflow-hidden">
+        <div class="aspect-square ph relative">
+          <span class="absolute top-2 left-2 text-[10px] font-bold bg-secondary-container text-on-secondary-container px-1.5 py-0.5 rounded">교환</span>
+          <span class="absolute bottom-2 left-2 text-[10px] font-mono text-on-surface-variant/70 bg-white/80 px-1.5 py-0.5 rounded">[레몬 한 바구니]</span>
+        </div>
+        <div class="p-2.5">
+          <p class="text-[13.5px] font-semibold leading-snug line-clamp-1">직접 딴 레몬 12개</p>
+          <p class="text-[11px] text-on-surface-variant mt-0.5">앞동 · 도보 1분</p>
+          <p class="text-[11px] text-secondary mt-0.5 font-semibold">⏳ 2시간 후 마감</p>
+        </div>
+      </article>
+
+      <article class="card overflow-hidden">
+        <div class="aspect-square ph relative">
+          <span class="absolute top-2 left-2 text-[10px] font-bold bg-primary text-white px-1.5 py-0.5 rounded">나눔</span>
+          <span class="absolute bottom-2 left-2 text-[10px] font-mono text-on-surface-variant/70 bg-white/80 px-1.5 py-0.5 rounded">[유기농 시금치]</span>
+        </div>
+        <div class="p-2.5">
+          <p class="text-[13.5px] font-semibold leading-snug line-clamp-1">유기농 시금치 두 봉지</p>
+          <p class="text-[11px] text-on-surface-variant mt-0.5">3단지 · 도보 4분</p>
+          <p class="text-[11px] text-on-surface-variant mt-0.5">예약중 · 1시간 전</p>
+        </div>
+      </article>
+
+      <article class="card overflow-hidden">
+        <div class="aspect-square ph relative">
+          <span class="absolute top-2 left-2 text-[10px] font-bold bg-tertiary-fixed-dim text-on-tertiary-container px-1.5 py-0.5 rounded">공구</span>
+          <span class="absolute bottom-2 left-2 text-[10px] font-mono text-on-surface-variant/70 bg-white/80 px-1.5 py-0.5 rounded">[제주 감귤 10kg]</span>
+        </div>
+        <div class="p-2.5">
+          <p class="text-[13.5px] font-semibold leading-snug line-clamp-1">제주 노지귤 10kg 같이 사요</p>
+          <p class="text-[11px] text-on-surface-variant mt-0.5">2단지 · 도보 7분</p>
+          <p class="text-[11px] text-primary mt-0.5 font-semibold">2/4명 모집</p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- Community line -->
+  <section class="mt-6">
+    <div class="card p-4 flex items-center gap-3">
+      <div class="w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-on-primary-fixed-variant" style="font-size:22px;font-variation-settings:'FILL' 1;">restaurant</span>
+      </div>
+      <div class="flex-1">
+        <p class="text-[14px] font-semibold">이번 주 우리 동네 레시피</p>
+        <p class="text-[12px] text-on-surface-variant">시금치를 활용한 7가지 가정식 모음</p>
+      </div>
+      <span class="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+    </div>
+  </section>
+
+  <div class="h-8"></div>
+</main>
+
+<!-- FAB -->
+<button class="fixed bottom-24 right-4 w-14 h-14 bg-primary text-white rounded-2xl flex items-center justify-center shadow-[0_8px_20px_rgba(0,110,28,.35)] active:scale-95 transition z-40">
+  <span class="material-symbols-outlined" style="font-size:26px">add</span>
+</button>
+
+<!-- Bottom Nav -->
+<nav class="fixed bottom-0 left-0 w-full bg-white border-t border-black/[.06] z-50 flex justify-around items-center pt-2 pb-5 px-2">
+  <a class="flex flex-col items-center text-primary" href="Home.html"><span class="material-symbols-outlined" style="font-size:24px;font-variation-settings:'FILL' 1;">home</span><span class="text-[10px] font-bold mt-0.5">홈</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Map.html"><span class="material-symbols-outlined" style="font-size:24px">map</span><span class="text-[10px] mt-0.5">지도</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Register.html"><span class="material-symbols-outlined" style="font-size:24px">add_circle</span><span class="text-[10px] mt-0.5">등록</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="My_Activity.html"><span class="material-symbols-outlined" style="font-size:24px">interests</span><span class="text-[10px] mt-0.5">내 활동</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="My_Page.html"><span class="material-symbols-outlined" style="font-size:24px">person</span><span class="text-[10px] mt-0.5">마이</span></a>
+</nav>
+
+</body>
+</html>

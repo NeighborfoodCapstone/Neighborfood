@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>지도 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=YOUR_APP_KEY&libraries=clusterer,services"></script>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
+    'on-primary':'#fff','on-primary-fixed-variant':'#005313',
+    'primary-container':'#4caf50','on-primary-container':'#003c0b',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed-dim':'#ffb870',
+    'on-secondary-container':'#653900',
+    tertiary:'#466270','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+    'surface-container-lowest':'#fff','surface-container':'#edeeef','surface-container-high':'#e7e8e9',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',
+    outline:'#6f7a6b','outline-variant':'#becab9',
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { min-height: max(884px, 100dvh); overflow:hidden; }
+  /* Stylized SVG-like map (no real map service) */
+  .map {
+    background-color: #eef1ea;
+    background-image:
+      linear-gradient(135deg, rgba(190,202,185,.45) 1px, transparent 1px),
+      linear-gradient(45deg, rgba(190,202,185,.45) 1px, transparent 1px),
+      radial-gradient(closest-side at 20% 30%, #d8e6cf 0 80px, transparent 110px),
+      radial-gradient(closest-side at 75% 70%, #d8e6cf 0 100px, transparent 130px),
+      radial-gradient(closest-side at 60% 20%, #cde0ea 0 70px, transparent 100px),
+      radial-gradient(closest-side at 30% 80%, #e5dfd0 0 70px, transparent 100px);
+    background-size: 28px 28px, 28px 28px, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  }
+  .road {
+    position:absolute; background:#ffffffd9; border:1px solid rgba(0,0,0,.04);
+  }
+  @keyframes pin-in { from { opacity:0; transform: translate(-50%, -90%) scale(.8);} to { opacity:1; transform: translate(-50%, -100%) scale(1);} }
+  .pin { animation: pin-in .35s ease-out both; }
+  @keyframes ping {
+    0% { transform: scale(.8); opacity:.6; }
+    80%,100% { transform: scale(2.4); opacity:0; }
+  }
+  .me-ping { animation: ping 1.8s ease-out infinite; }
+
+  .sheet { transition: transform .35s ease; }
+</style>
+</head>
+<body class="text-on-surface antialiased relative h-screen">
+
+<!-- Map -->
+<div id="map" class="absolute inset-0">
+  <!-- pretend roads -->
+  <div class="road" style="left:0; right:0; top:46%; height:14px; transform:rotate(-2deg);"></div>
+  <div class="road" style="left:8%; top:0; bottom:0; width:12px;"></div>
+  <div class="road" style="right:18%; top:0; bottom:0; width:8px;"></div>
+  <div class="road" style="left:0; right:0; top:78%; height:8px;"></div>
+
+  <!-- District labels -->
+  <span class="absolute left-[12%] top-[12%] text-[11px] font-semibold text-on-surface-variant/70">한들마을 1단지</span>
+  <span class="absolute right-[12%] top-[28%] text-[11px] font-semibold text-on-surface-variant/70">한들마을 2단지</span>
+  <span class="absolute left-[40%] bottom-[18%] text-[11px] font-semibold text-on-surface-variant/70">한들로 상가</span>
+
+  <!-- Cluster -->
+  <div class="absolute left-[68%] top-[22%] -translate-x-1/2 -translate-y-1/2">
+    <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-[15px] ring-4 ring-white shadow-lg">12</div>
+  </div>
+
+  <!-- My location -->
+  <div class="absolute left-[42%] top-[58%]">
+    <span class="absolute inset-0 -m-2 rounded-full bg-primary/30 me-ping"></span>
+    <span class="block w-4 h-4 rounded-full bg-primary border-[3px] border-white shadow"></span>
+  </div>
+
+  <!-- Pins -->
+  <!-- Selected: 시금치 (highlighted) -->
+  <button class="pin absolute left-[33%] top-[42%]" style="animation-delay:.05s">
+    <div class="bg-primary text-white px-3 py-1.5 rounded-full text-[12.5px] font-bold flex items-center gap-1 shadow-[0_6px_18px_rgba(0,110,28,.35)] scale-110">
+      <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1;">eco</span>
+      시금치 나눔
+    </div>
+    <div class="w-3 h-3 bg-primary rotate-45 -mt-1.5 mx-auto rounded-sm"></div>
+  </button>
+
+  <!-- Onion -->
+  <button class="pin absolute left-[55%] top-[35%]" style="animation-delay:.15s">
+    <div class="bg-white text-on-surface px-3 py-1.5 rounded-full text-[12px] font-semibold flex items-center gap-1 shadow ring-1 ring-black/5">
+      <span class="material-symbols-outlined text-primary" style="font-size:14px;font-variation-settings:'FILL' 1;">volunteer_activism</span>
+      햇양파 3개
+    </div>
+    <div class="w-2.5 h-2.5 bg-white rotate-45 -mt-1.5 mx-auto ring-1 ring-black/5"></div>
+  </button>
+
+  <!-- Group buy -->
+  <button class="pin absolute left-[24%] top-[64%]" style="animation-delay:.25s">
+    <div class="bg-white text-on-surface px-3 py-1.5 rounded-full text-[12px] font-semibold flex items-center gap-1 shadow ring-1 ring-black/5">
+      <span class="material-symbols-outlined text-secondary" style="font-size:14px;font-variation-settings:'FILL' 1;">group</span>
+      대파 공구 2/4
+    </div>
+    <div class="w-2.5 h-2.5 bg-white rotate-45 -mt-1.5 mx-auto ring-1 ring-black/5"></div>
+  </button>
+
+  <!-- Milk -->
+  <button class="pin absolute left-[64%] top-[58%]" style="animation-delay:.35s">
+    <div class="bg-white text-on-surface px-3 py-1.5 rounded-full text-[12px] font-semibold flex items-center gap-1 shadow ring-1 ring-black/5">
+      <span class="material-symbols-outlined text-tertiary" style="font-size:14px;font-variation-settings:'FILL' 1;">local_drink</span>
+      우유 1팩
+    </div>
+    <div class="w-2.5 h-2.5 bg-white rotate-45 -mt-1.5 mx-auto ring-1 ring-black/5"></div>
+  </button>
+
+  <!-- Lemon -->
+  <button class="pin absolute left-[80%] top-[48%]" style="animation-delay:.45s">
+    <div class="bg-white text-on-surface px-3 py-1.5 rounded-full text-[12px] font-semibold flex items-center gap-1 shadow ring-1 ring-black/5">
+      <span class="material-symbols-outlined text-secondary" style="font-size:14px;font-variation-settings:'FILL' 1;">eco</span>
+      레몬 12개
+    </div>
+    <div class="w-2.5 h-2.5 bg-white rotate-45 -mt-1.5 mx-auto ring-1 ring-black/5"></div>
+  </button>
+</div>
+
+<!-- Floating search -->
+<div class="absolute top-0 left-0 right-0 z-30 pt-3 px-3 pb-2 bg-gradient-to-b from-white/85 to-transparent">
+  <div class="max-w-md mx-auto bg-white rounded-2xl shadow-[0_6px_20px_rgba(0,0,0,.08)] flex items-center px-3 py-2.5">
+    <button class="p-1 -ml-1"><span class="material-symbols-outlined text-on-surface-variant">arrow_back</span></button>
+    <input class="flex-1 bg-transparent border-0 focus:ring-0 text-[14.5px] px-2 placeholder:text-outline" placeholder="이 지역에서 검색"/>
+    <button class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center"><span class="material-symbols-outlined text-on-surface-variant" style="font-size:18px">tune</span></button>
+  </div>
+  <div class="max-w-md mx-auto flex gap-2 overflow-x-auto no-scrollbar mt-2.5 pb-1">
+    <button class="shrink-0 bg-primary text-white text-[12px] font-semibold px-3 py-1.5 rounded-full shadow">전체</button>
+    <button class="shrink-0 bg-white text-on-surface text-[12px] font-medium px-3 py-1.5 rounded-full ring-1 ring-black/5">🌱 무료나눔</button>
+    <button class="shrink-0 bg-white text-on-surface text-[12px] font-medium px-3 py-1.5 rounded-full ring-1 ring-black/5">👥 공동구매</button>
+    <button class="shrink-0 bg-white text-on-surface text-[12px] font-medium px-3 py-1.5 rounded-full ring-1 ring-black/5">🔄 교환</button>
+    <button class="shrink-0 bg-white text-on-surface text-[12px] font-medium px-3 py-1.5 rounded-full ring-1 ring-black/5">⏳ 임박</button>
+  </div>
+</div>
+
+<!-- Side controls -->
+<div class="absolute right-3 bottom-[280px] z-30 flex flex-col gap-2">
+  <button class="w-11 h-11 rounded-full bg-white shadow ring-1 ring-black/5 flex items-center justify-center"><span class="material-symbols-outlined text-primary">my_location</span></button>
+  <button class="w-11 h-11 rounded-full bg-white shadow ring-1 ring-black/5 flex items-center justify-center"><span class="material-symbols-outlined text-on-surface-variant">layers</span></button>
+  <button class="w-11 h-11 rounded-full bg-white shadow ring-1 ring-black/5 flex items-center justify-center"><span class="material-symbols-outlined text-on-surface-variant">refresh</span></button>
+</div>
+
+<!-- "이 지역 다시 검색" button -->
+<button class="absolute left-1/2 -translate-x-1/2 bottom-[260px] z-30 bg-white text-on-surface text-[12.5px] font-semibold px-4 py-2 rounded-full shadow-[0_6px_18px_rgba(0,0,0,.1)] flex items-center gap-1.5 ring-1 ring-black/5">
+  <span class="material-symbols-outlined text-primary" style="font-size:16px">refresh</span>
+  이 지역 다시 검색
+</button>
+
+<!-- Bottom sheet (peek) -->
+<div class="absolute bottom-[72px] left-0 right-0 z-30 sheet">
+  <div class="bg-white rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,.08)] pt-2">
+    <div class="w-10 h-1 bg-on-surface-variant/30 rounded-full mx-auto"></div>
+    <div class="px-4 pt-2 pb-3 flex items-center justify-between">
+      <p class="text-[14px] font-bold">이 지역 결과 <span class="text-primary">12</span>건</p>
+      <button class="text-[12px] text-on-surface-variant flex items-center gap-0.5">가까운순 <span class="material-symbols-outlined" style="font-size:14px">expand_more</span></button>
+    </div>
+
+    <!-- Highlighted card (selected pin) -->
+    <div class="mx-3 rounded-2xl ring-1 ring-primary/30 bg-[#f1f8ed] p-3 flex gap-3">
+      <div class="w-16 h-16 rounded-xl shrink-0 ph relative" style="background:repeating-linear-gradient(135deg,#cfe6c2 0 8px,#a8d090 8px 16px);">
+        <span class="absolute top-1 left-1 text-[9px] font-bold bg-primary text-white px-1 py-0.5 rounded">나눔</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-[13.5px] font-semibold leading-snug truncate">유기농 시금치 두 봉지</p>
+        <p class="text-[11.5px] text-on-surface-variant mt-0.5 line-clamp-1">오늘 텃밭에서 막 뜯어왔어요. 한 봉지 약 300g입니다.</p>
+        <div class="flex items-center gap-2 mt-1.5 text-[11px] text-on-surface-variant">
+          <span class="flex items-center gap-0.5"><span class="material-symbols-outlined" style="font-size:13px">location_on</span>180m</span>
+          <span>·</span>
+          <span>도보 3분</span>
+          <span>·</span>
+          <span class="text-primary font-semibold">방금</span>
+        </div>
+      </div>
+      <button class="self-center w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center shrink-0"><span class="material-symbols-outlined" style="font-size:18px">interests</span></button>
+    </div>
+
+    <!-- Compact list -->
+    <div class="mt-2 px-3 pb-3 max-h-[120px] overflow-hidden">
+      <div class="flex items-center gap-3 py-2 border-t border-black/[.05]">
+        <div class="w-10 h-10 rounded-lg shrink-0" style="background:repeating-linear-gradient(135deg,#fde7d6 0 8px,#ffd29a 8px 16px);"></div>
+        <div class="flex-1 min-w-0">
+          <p class="text-[13px] font-semibold truncate">햇양파 3개 나눕니다</p>
+          <p class="text-[11px] text-on-surface-variant">앞동 · 80m · 5분 전</p>
+        </div>
+        <span class="text-[10.5px] font-bold text-primary bg-primary-fixed/60 px-2 py-0.5 rounded-full">나눔</span>
+      </div>
+      <div class="flex items-center gap-3 py-2 border-t border-black/[.05]">
+        <div class="w-10 h-10 rounded-lg shrink-0" style="background:repeating-linear-gradient(135deg,#dfe7d3 0 8px,#bcd0a3 8px 16px);"></div>
+        <div class="flex-1 min-w-0">
+          <p class="text-[13px] font-semibold truncate">대파 1박스 같이 사요</p>
+          <p class="text-[11px] text-on-surface-variant">2단지 · 320m · 12분 전</p>
+        </div>
+        <span class="text-[10.5px] font-bold text-on-secondary-container bg-secondary-fixed-dim/70 px-2 py-0.5 rounded-full">공구</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="fixed bottom-0 left-0 w-full bg-white border-t border-black/[.06] z-50 flex justify-around items-center pt-2 pb-5 px-2">
+  <a class="flex flex-col items-center text-on-surface-variant" href="Home.html"><span class="material-symbols-outlined" style="font-size:24px">home</span><span class="text-[10px] mt-0.5">홈</span></a>
+  <a class="flex flex-col items-center text-primary" href="Map.html"><span class="material-symbols-outlined" style="font-size:24px;font-variation-settings:'FILL' 1;">map</span><span class="text-[10px] font-bold mt-0.5">지도</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Register.html"><span class="material-symbols-outlined" style="font-size:24px">add_circle</span><span class="text-[10px] mt-0.5">등록</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="My_Activity.html"><span class="material-symbols-outlined" style="font-size:24px">interests</span><span class="text-[10px] mt-0.5">내 활동</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="My_Page.html"><span class="material-symbols-outlined" style="font-size:24px">person</span><span class="text-[10px] mt-0.5">마이</span></a>
+</nav>
+<script>
+// 지도 초기화
+const mapContainer = document.getElementById('map');
+const map = new kakao.maps.Map(mapContainer, {
+  center: new kakao.maps.LatLng(37.5024, 127.0246), // 사용자 위치
+  level: 3 // 동네 단위 줌
+});
+
+// 클러스터러 (현재 "12" 디자인 재현)
+const clusterer = new kakao.maps.MarkerClusterer({
+  map, averageCenter: true, minLevel: 4,
+  styles: [{
+    width: '48px', height: '48px',
+    background: '#006e1c', color: '#fff',
+    borderRadius: '50%', textAlign: 'center', lineHeight: '48px',
+    fontWeight: 'bold', border: '4px solid white',
+    boxShadow: '0 4px 12px rgba(0,0,0,.2)'
+  }]
+});
+
+// 핀 색상/아이콘 매핑
+const PIN_STYLE = {
+  share:    { bg:'#006e1c', icon:'eco',                 label:'나눔' },
+  groupbuy: { bg:'#ff9800', icon:'group',               label:'공구' },
+  exchange: { bg:'#466270', icon:'swap_horiz',          label:'교환' },
+};
+
+// 커스텀 오버레이로 말풍선 핀 만들기 (현재 디자인 그대로)
+function createPin(post, isSelected = false) {
+  const s = PIN_STYLE[post.type];
+  const content = document.createElement('div');
+  content.className = 'pin';
+  content.innerHTML = `
+    <div class="${isSelected ? 'bg-primary text-white scale-110' : 'bg-white text-on-surface'} 
+                px-3 py-1.5 rounded-full text-[12.5px] font-bold flex items-center gap-1 
+                shadow ring-1 ring-black/5">
+      <span class="material-symbols-outlined" style="font-size:14px">${s.icon}</span>
+      ${post.title}
+    </div>
+    <div class="w-2.5 h-2.5 ${isSelected ? 'bg-primary' : 'bg-white'} 
+                rotate-45 -mt-1.5 mx-auto"></div>
+  `;
+  content.onclick = () => selectPost(post.id);
+  
+  return new kakao.maps.CustomOverlay({
+    position: new kakao.maps.LatLng(post.lat, post.lng),
+    content, yAnchor: 1
+  });
+}
+
+// 데이터 로드 → 핀 렌더
+async function loadPosts() {
+  const res = await fetch('/data/posts.json');
+  const posts = await res.json();
+  const overlays = posts.map(p => createPin(p));
+  overlays.forEach(o => o.setMap(map));
+  // 클러스터러는 Marker만 받으므로, 줌아웃 시 클러스터링하려면
+  // CustomOverlay 대신 MarkerImage 방식을 병행하거나 줌 레벨에 따라 토글
+}
+
+// "이 지역 다시 검색" 버튼 활성화
+let mapMoved = false;
+kakao.maps.event.addListener(map, 'dragend', () => {
+  document.querySelector('#research-btn').classList.remove('hidden');
+});
+
+// 내 위치 버튼
+navigator.geolocation.getCurrentPosition(pos => {
+  map.setCenter(new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
+});
+
+loadPosts();
+</script>
+</body>
+</html>

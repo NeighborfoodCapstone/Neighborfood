@@ -1,0 +1,82 @@
+[
+  {
+    "id": "post_001",
+    "type": "share",
+    "title": "유기농 시금치 두 봉지",
+    "description": "오늘 텃밭에서 막 뜯어왔어요. 한 봉지 약 300g입니다.",
+    "lat": 37.5024,
+    "lng": 127.0246,
+    "address": "한들마을 1단지",
+    "thumbnail": "/images/spinach.jpg",
+    "createdAt": "2026-05-10T14:32:00Z",
+    "expiresAt": "2026-05-11T14:32:00Z",
+    "authorId": "user_123"
+  },
+  {
+    "id": "post_002",
+    "type": "share",
+    "title": "햇양파 3개",
+    "description": "양파 너무 많이 사서 나눔합니다. 앞동에서 만나요.",
+    "lat": 37.5028,
+    "lng": 127.0252,
+    "address": "한들마을 1단지 105동",
+    "thumbnail": "/images/onion.jpg",
+    "createdAt": "2026-05-10T14:25:00Z",
+    "expiresAt": "2026-05-12T14:25:00Z",
+    "authorId": "user_456"
+  },
+  {
+    "id": "post_003",
+    "type": "groupbuy",
+    "title": "대파 1박스 같이 사요",
+    "description": "코스트코 대파 박스 2/4명 모집 중. 1인당 5,000원.",
+    "lat": 37.5018,
+    "lng": 127.0238,
+    "address": "한들마을 2단지",
+    "thumbnail": "/images/greenonion.jpg",
+    "createdAt": "2026-05-10T14:20:00Z",
+    "expiresAt": "2026-05-11T20:00:00Z",
+    "groupBuy": { "current": 2, "target": 4 },
+    "authorId": "user_789"
+  },
+  {
+    "id": "post_004",
+    "type": "share",
+    "title": "우유 1팩",
+    "description": "출장 가서 못 먹어요. 유통기한 5/13까지.",
+    "lat": 37.5031,
+    "lng": 127.0260,
+    "address": "한들로 상가 카페 앞",
+    "thumbnail": "/images/milk.jpg",
+    "createdAt": "2026-05-10T14:00:00Z",
+    "expiresAt": "2026-05-13T23:59:00Z",
+    "authorId": "user_111"
+  },
+  {
+    "id": "post_005",
+    "type": "exchange",
+    "title": "레몬 12개 ↔ 사과",
+    "description": "레몬 너무 많아서 사과랑 교환해요.",
+    "lat": 37.5020,
+    "lng": 127.0270,
+    "address": "한들로 상가",
+    "thumbnail": "/images/lemon.jpg",
+    "createdAt": "2026-05-10T13:50:00Z",
+    "expiresAt": "2026-05-15T23:59:00Z",
+    "authorId": "user_222"
+  },
+  {
+    "id": "post_006",
+    "type": "groupbuy",
+    "title": "유기농 계란 30구",
+    "description": "한 판에 12,000원. 3/5명 모집 중.",
+    "lat": 37.5015,
+    "lng": 127.0255,
+    "address": "한들마을 2단지 정문",
+    "thumbnail": "/images/egg.jpg",
+    "createdAt": "2026-05-10T13:30:00Z",
+    "expiresAt": "2026-05-11T18:00:00Z",
+    "groupBuy": { "current": 3, "target": 5 },
+    "authorId": "user_333"
+  }
+]
