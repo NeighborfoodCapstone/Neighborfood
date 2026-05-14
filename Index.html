@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NeighborFood — 페이지 둘러보기</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:#faf9f5; --ink:#191c1d; --muted:#3f4a3c; --line:rgba(0,0,0,.08);
+    --primary:#006e1c; --primary-soft:#e3efd8;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: 'Plus Jakarta Sans','Noto Sans KR',system-ui,sans-serif;
+    min-height: 100dvh;
+  }
+  header.top { padding: 28px 24px 8px; max-width: 1440px; margin: 0 auto; }
+  header.top .eyebrow { color: var(--primary); font-weight: 700; letter-spacing: .12em; font-size: 11px; text-transform: uppercase; }
+  header.top h1 { font-size: 28px; margin: 6px 0 4px; letter-spacing: -.02em; }
+  header.top p { color: var(--muted); font-size: 14px; margin: 0; }
+
+  .toolbar {
+    position: sticky; top: 0; z-index: 20; background: rgba(250,249,245,.92);
+    backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+    margin-top: 16px;
+  }
+  .toolbar-inner {
+    max-width: 1440px; margin: 0 auto; padding: 10px 24px;
+    display:flex; gap: 10px; align-items:center; flex-wrap:wrap;
+  }
+  .nav-btn {
+    border: 1px solid var(--line); background:#fff; padding: 7px 12px;
+    border-radius: 9999px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    display:inline-flex; gap: 6px; align-items:center; color: var(--ink); text-decoration:none;
+  }
+  .nav-btn[disabled] { opacity:.4; cursor:not-allowed; }
+  .nav-btn.primary { background: var(--primary); color: #fff; border-color: var(--primary);}
+  .toolbar .pos { font-size: 12px; color: var(--muted); margin-left:auto; }
+  .toolbar .pos b { color: var(--ink); }
+
+  .stage {
+    max-width: 1440px; margin: 18px auto 40px; padding: 0 24px;
+    display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start;
+  }
+  @media (max-width: 980px) { .stage { grid-template-columns: 1fr; } }
+
+  aside.list-pane {
+    background:#fff; border:1px solid var(--line); border-radius: 16px;
+    position: sticky; top: 64px; max-height: calc(100dvh - 80px); overflow-y: auto;
+  }
+  .group-title { font-size: 10px; font-weight: 800; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; padding: 14px 16px 6px; }
+  .group-title:first-child { padding-top: 10px; }
+  ol.page-list { list-style: none; padding: 4px 6px; margin: 0; }
+  ol.page-list li button {
+    width:100%; text-align:left; background: transparent; border: 0; cursor: pointer;
+    padding: 9px 10px; border-radius: 10px; display:flex; gap: 10px; align-items:center;
+    font: inherit; color: var(--ink);
+  }
+  ol.page-list li button:hover { background: #f3f1ea; }
+  ol.page-list li button .num {
+    width: 22px; height: 22px; border-radius: 50%; background: #ececeb; color: var(--muted);
+    display:inline-flex; align-items:center; justify-content:center; font-size: 11px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  ol.page-list li button .meta { display:flex; flex-direction:column; line-height: 1.3; min-width:0; }
+  ol.page-list li button .meta .name { font-size: 13px; font-weight: 600; }
+  ol.page-list li button .meta small { color: var(--muted); font-size: 10.5px; }
+  ol.page-list li.active button { background: var(--primary-soft); }
+  ol.page-list li.active button .num { background: var(--primary); color: #fff; }
+  ol.page-list li.admin button .num { background: #2c322b; color:#fff; }
+  ol.page-list li.admin.active button { background: #2c322b; color:#fff; }
+  ol.page-list li.admin.active button .meta small { color: rgba(255,255,255,.65); }
+  ol.page-list li.admin.active button .num { background:#94f990; color:#005313; }
+
+  .frame-wrap {
+    background: #ececeb; border-radius: 22px; padding: 18px;
+    border: 1px solid var(--line);
+  }
+  .frame-wrap.desktop { background:#dadcd6; }
+  .frame-meta {
+    display:flex; align-items:center; justify-content:space-between; gap: 12px;
+    padding: 0 4px 12px; flex-wrap: wrap;
+  }
+  .frame-meta h2 { margin: 0; font-size: 16px; letter-spacing: -.01em; display:flex; align-items:center; gap:8px; }
+  .frame-meta h2 .badge { font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 6px; letter-spacing:.06em; text-transform: uppercase; }
+  .badge.user { background: var(--primary-soft); color: var(--primary); }
+  .badge.admin { background: #2c322b; color:#fff; }
+  .frame-meta a.open { font-size: 12px; color: var(--primary); font-weight: 700; text-decoration: none; display: inline-flex; gap: 4px; align-items: center; }
+
+  /* Mobile device */
+  .device {
+    background: #fff; border-radius: 28px; overflow: hidden;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,.18), 0 6px 16px rgba(0,0,0,.05);
+    margin: 0 auto; width: min(420px, 100%); height: 820px;
+    border: 8px solid #1f1f1f;
+  }
+  /* Desktop frame */
+  .desktop-frame {
+    background: #fff; border-radius: 14px; overflow: hidden;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,.22), 0 8px 18px rgba(0,0,0,.06);
+    margin: 0 auto; width: 100%; height: min(840px, 80dvh);
+    border: 1px solid rgba(0,0,0,.08);
+  }
+  .desktop-frame .chrome {
+    background: #f3f4f5; border-bottom: 1px solid rgba(0,0,0,.06);
+    height: 30px; display: flex; align-items: center; padding: 0 12px; gap: 6px;
+  }
+  .desktop-frame .chrome .dot { width: 10px; height: 10px; border-radius: 50%; background:#e7e8e9; }
+  .desktop-frame .chrome .dot:nth-child(1) { background:#ff6259; }
+  .desktop-frame .chrome .dot:nth-child(2) { background:#febd2f; }
+  .desktop-frame .chrome .dot:nth-child(3) { background:#27c93f; }
+  .desktop-frame .chrome .url { margin-left: auto; margin-right: auto; background: #fff; border: 1px solid rgba(0,0,0,.06); padding: 2px 12px; border-radius: 6px; font-size: 11px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .desktop-frame iframe { width:100%; height: calc(100% - 30px); border:0; display:block; }
+  .device iframe { width: 100%; height: 100%; border: 0; display:block; background:#fff; }
+
+  kbd {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: #fff; border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 6px; padding: 1px 6px; font-size: 11px; color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <p class="eyebrow">NeighborFood · 페이지 둘러보기</p>
+  <h1>전체 화면 한 번에 보기</h1>
+  <p>사용자 화면은 모바일 프레임, 관리자 화면은 데스크탑 프레임으로 렌더돼요. 키보드 <kbd>←</kbd> <kbd>→</kbd>로도 넘길 수 있어요.</p>
+</header>
+
+<div class="toolbar">
+  <div class="toolbar-inner">
+    <button class="nav-btn" id="prev"><span class="material-symbols-outlined" style="font-size:16px">arrow_back</span> 이전</button>
+    <button class="nav-btn primary" id="next">다음 <span class="material-symbols-outlined" style="font-size:16px">arrow_forward</span></button>
+    <a class="nav-btn" id="open-tab" target="_blank" href="#"><span class="material-symbols-outlined" style="font-size:16px">open_in_new</span> 새 탭에서 열기</a>
+    <span class="pos"><b id="cur">1</b> / <span id="total">0</span> · <span id="curname">홈</span></span>
+  </div>
+</div>
+
+<div class="stage">
+  <aside class="list-pane">
+    <div id="list-container"></div>
+  </aside>
+  <div>
+    <div class="frame-wrap" id="frame-wrap">
+      <div class="frame-meta">
+        <h2 id="title">홈 <span class="badge user" id="kind-badge">USER</span></h2>
+        <a class="open" id="open-link" target="_blank" href="#">파일 열기 →</a>
+      </div>
+      <div id="frame-slot"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const PAGES = [
+    // ====== 일반 사용자 화면 ======
+    { kind:'mobile', section:'사용자',   name: '홈',              file: 'Home.html',                 desc: '메인 피드' },
+    { kind:'mobile', section:'사용자',   name: '지도 탐색',        file: 'Map.html',                  desc: '주변 둘러보기' },
+    { kind:'mobile', section:'사용자',   name: '검색 결과',        file: 'Search Results.html',       desc: '게시판형 검색' },
+    { kind:'mobile', section:'사용자',   name: '등록 유형 선택',    file: 'Register.html',             desc: '나눔/공구/교환' },
+    { kind:'mobile', section:'사용자',   name: '나눔 글쓰기',      file: 'Create Post.html',          desc: '게시글 작성 폼' },
+    { kind:'mobile', section:'사용자',   name: '나눔 상세',        file: 'Product Detail.html',       desc: '게시글 상세' },
+    { kind:'mobile', section:'사용자',   name: '공동구매 상세',    file: 'Group Buy Detail.html',     desc: '모집 + 일정 + 가격' },
+    { kind:'mobile', section:'사용자',   name: '거래 장소',        file: 'Location Detail.html',      desc: '지도 + 길찾기' },
+    { kind:'mobile', section:'사용자',   name: '내 활동',          file: 'My Activity.html',          desc: '채팅 + 내 글 + 거래' },
+    { kind:'mobile', section:'사용자',   name: '채팅 목록',        file: 'Chat List.html',            desc: '진행 중 대화' },
+    { kind:'mobile', section:'사용자',   name: '채팅 상세',        file: 'Chat Detail.html',          desc: '1:1 메시지' },
+    { kind:'mobile', section:'사용자',   name: '마이',             file: 'My Page.html',              desc: '프로필 + 메뉴' },
+    { kind:'mobile', section:'사용자',   name: '프로필 수정',      file: 'Edit Profile.html',         desc: '닉네임 · 관심사' },
+    { kind:'mobile', section:'사용자',   name: '동네 설정',        file: 'Neighborhood Setting.html', desc: '위치 인증' },
+    { kind:'mobile', section:'사용자',   name: '관심 목록',        file: 'Wishlist.html',             desc: '저장한 글' },
+    { kind:'mobile', section:'사용자',   name: '거래 내역',        file: 'Transaction History.html',  desc: '완료 · 진행 중' },
+
+    // ====== 기능/유틸 ======
+    { kind:'mobile', section:'유틸',     name: '본인 인증',         file: 'Identity Verify.html',     desc: '통신사 본인 확인' },
+    { kind:'mobile', section:'유틸',     name: '영수증 인증',       file: 'Receipt Verify.html',      desc: 'OCR + 정품 매칭' },
+    { kind:'mobile', section:'유틸',     name: 'QR · 바코드 스캔',   file: 'QR Scan.html',             desc: '거래 확인 · 정품' },
+    { kind:'mobile', section:'유틸',     name: '신고하기',          file: 'Report.html',              desc: '사유 · 증빙 첨부' },
+    { kind:'mobile', section:'유틸',     name: '정산 요청',         file: 'Settlement.html',          desc: '공구 호스트' },
+    { kind:'mobile', section:'유틸',     name: '회원 탈퇴',         file: 'Withdraw.html',            desc: '영구 삭제 동의' },
+
+    // ====== 관리자 ======
+    { kind:'desktop', section:'관리자',  admin:true, name: '관리자 대시보드',  file: 'Admin Dashboard.html',     desc: 'KPI · 신고 · 차트' },
+    { kind:'desktop', section:'관리자',  admin:true, name: '신고 상세 처리',   file: 'Admin Report Detail.html', desc: '케이스 검토 · 조치' },
+    { kind:'desktop', section:'관리자',  admin:true, name: '채팅 기록 모니터',  file: 'Admin Chat History.html',  desc: '3-패널 분석' },
+    { kind:'desktop', section:'관리자',  admin:true, name: '사용자 관리',     file: 'Admin Users.html',         desc: '검색 · 정지 · 경고' },
+    { kind:'desktop', section:'관리자',  admin:true, name: '공지 관리',       file: 'Admin Notices.html',       desc: '작성 · 예약 · 발송' },
+    { kind:'desktop', section:'관리자',  admin:true, name: '운영진 초대',     file: 'Admin Staff Invite.html',  desc: '역할 · 권한 부여' },
+  ];
+
+  const listContainer = document.getElementById('list-container');
+  const frameSlot = document.getElementById('frame-slot');
+  const frameWrap = document.getElementById('frame-wrap');
+  const titleEl = document.getElementById('title');
+  const badgeEl = document.getElementById('kind-badge');
+  const curEl = document.getElementById('cur');
+  const curName = document.getElementById('curname');
+  const totalEl = document.getElementById('total');
+  const openLink = document.getElementById('open-link');
+  const openTab = document.getElementById('open-tab');
+  const prevBtn = document.getElementById('prev');
+  const nextBtn = document.getElementById('next');
+
+  totalEl.textContent = PAGES.length;
+  let idx = Number(new URLSearchParams(location.search).get('i')) || 0;
+  if (idx < 0 || idx >= PAGES.length) idx = 0;
+
+  // Render grouped list
+  const groups = {};
+  PAGES.forEach((p, i) => {
+    if (!groups[p.section]) groups[p.section] = [];
+    groups[p.section].push({ ...p, i });
+  });
+  Object.entries(groups).forEach(([section, items]) => {
+    const h = document.createElement('div');
+    h.className = 'group-title';
+    h.textContent = section;
+    listContainer.appendChild(h);
+    const ol = document.createElement('ol');
+    ol.className = 'page-list';
+    items.forEach(p => {
+      const li = document.createElement('li');
+      if (p.admin) li.classList.add('admin');
+      li.dataset.i = p.i;
+      li.innerHTML = `
+        <button data-i="${p.i}">
+          <span class="num">${p.i+1}</span>
+          <span class="meta">
+            <span class="name">${p.name}</span>
+            <small>${p.desc}</small>
+          </span>
+        </button>`;
+      ol.appendChild(li);
+    });
+    listContainer.appendChild(ol);
+  });
+
+  function renderFrame(p) {
+    frameSlot.innerHTML = '';
+    if (p.kind === 'desktop') {
+      frameWrap.classList.add('desktop');
+      const wrap = document.createElement('div');
+      wrap.className = 'desktop-frame';
+      wrap.innerHTML = `
+        <div class="chrome">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="url">admin.neighborfood.com / ${encodeURI(p.file)}</span>
+        </div>
+        <iframe src="${encodeURI(p.file)}" title="preview"></iframe>`;
+      frameSlot.appendChild(wrap);
+    } else {
+      frameWrap.classList.remove('desktop');
+      const wrap = document.createElement('div');
+      wrap.className = 'device';
+      wrap.innerHTML = `<iframe src="${encodeURI(p.file)}" title="preview"></iframe>`;
+      frameSlot.appendChild(wrap);
+    }
+  }
+
+  function go(i) {
+    idx = (i + PAGES.length) % PAGES.length;
+    const p = PAGES[idx];
+    renderFrame(p);
+    titleEl.firstChild.textContent = p.name + ' ';
+    badgeEl.textContent = p.admin ? 'ADMIN' : 'USER';
+    badgeEl.className = 'badge ' + (p.admin ? 'admin' : 'user');
+    curEl.textContent = idx + 1;
+    curName.textContent = p.name;
+    openLink.href = encodeURI(p.file);
+    openTab.href = encodeURI(p.file);
+    document.querySelectorAll('ol.page-list li').forEach(li => {
+      li.classList.toggle('active', Number(li.dataset.i) === idx);
+    });
+    prevBtn.disabled = idx === 0;
+    nextBtn.disabled = idx === PAGES.length - 1;
+    history.replaceState(null, '', '?i=' + idx);
+  }
+
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-i]');
+    if (b) go(Number(b.dataset.i));
+  });
+  prevBtn.addEventListener('click', () => go(idx - 1));
+  nextBtn.addEventListener('click', () => go(idx + 1));
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowLeft') go(idx - 1);
+    if (e.key === 'ArrowRight') go(idx + 1);
+  });
+
+  go(idx);
+</script>
+</body>
+</html>
