@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>검색 결과 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313','on-primary-fixed':'#002204',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870','on-secondary-fixed-variant':'#693c00','on-secondary-container':'#653900',
+    tertiary:'#466270','tertiary-fixed-dim':'#adcbda','tertiary-fixed':'#c9e7f7','on-tertiary-container':'#183642',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+    'surface-container-low':'#f3f4f5','surface-container':'#edeeef','surface-container-high':'#e7e8e9',
+    warm:'#faf9f5'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:max(884px,100dvh); font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+  .ph  { background: repeating-linear-gradient(135deg, #eef2ea 0 8px, #e4ebe0 8px 16px); }
+  .ph2 { background: repeating-linear-gradient(135deg, #f3eee4 0 8px, #ebe3d4 8px 16px); }
+  .ph3 { background: repeating-linear-gradient(135deg, #e7eef6 0 8px, #d8e4ef 8px 16px); }
+  mark { background:#94f990; color:#005313; padding:0 2px; border-radius:3px; }
+  .tab-on { color:#006e1c; border-color:#006e1c; }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-24">
+
+<header class="sticky top-0 z-40 bg-warm/95 backdrop-blur border-b border-black/[.04]">
+  <div class="max-w-2xl mx-auto px-3 h-14 flex items-center gap-2">
+    <button onclick="history.back()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">arrow_back</span></button>
+    <div class="flex-1 flex items-center bg-white rounded-2xl ring-1 ring-outline-variant pl-3 pr-1 py-1.5">
+      <span class="material-symbols-outlined text-on-surface-variant" style="font-size:18px">search</span>
+      <input id="searchInput" class="flex-1 bg-transparent px-2 text-[14px] outline-none"/>
+      <button id="clearInputBtn" class="w-7 h-7 rounded-full bg-surface-container-low flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:14px">close</span></button>
+    </div>
+  </div>
+  <!-- Tabs -->
+  <div id="tabBar" class="max-w-2xl mx-auto px-4 flex gap-5 text-[13px] overflow-x-auto no-scrollbar">
+    <button data-tab="all"      class="py-2.5 border-b-2 tab-on font-bold">전체 <span data-count="all" class="text-[11px] font-semibold opacity-70">0</span></button>
+    <button data-tab="share"    class="py-2.5 border-b-2 border-transparent text-on-surface-variant whitespace-nowrap">나눔 <span data-count="share" class="text-[11px] opacity-70">0</span></button>
+    <button data-tab="groupbuy" class="py-2.5 border-b-2 border-transparent text-on-surface-variant whitespace-nowrap">공구 <span data-count="groupbuy" class="text-[11px] opacity-70">0</span></button>
+    <button data-tab="exchange" class="py-2.5 border-b-2 border-transparent text-on-surface-variant whitespace-nowrap">교환 <span data-count="exchange" class="text-[11px] opacity-70">0</span></button>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pt-3">
+
+  <!-- Filter row (시연 단순화: 결과 요약 + 정렬) -->
+  <div class="flex items-center justify-between mb-3">
+    <p id="resultMeta" class="text-[12px] text-on-surface-variant">검색 중…</p>
+    <button class="text-[11.5px] text-on-surface-variant flex items-center gap-0.5 shrink-0 ml-2">
+      최신순 <span class="material-symbols-outlined" style="font-size:14px">expand_more</span>
+    </button>
+  </div>
+
+  <!-- 결과 영역 -->
+  <section id="resultGrid" class="grid grid-cols-2 gap-3 mb-5">
+    <!-- 검색 결과 카드가 JS로 채워짐 -->
+  </section>
+
+  <!-- 빈 상태 메시지 -->
+  <div id="emptyState" class="hidden text-center py-12 text-on-surface-variant">
+    <span class="material-symbols-outlined" style="font-size:48px; opacity:.4;">search_off</span>
+    <p class="text-[13px] mt-2">검색 결과가 없어요.</p>
+    <p class="text-[11.5px] mt-1 opacity-70">다른 키워드로 다시 시도해 보세요.</p>
+  </div>
+
+</main>
+
+<!-- ─────────── 검색 결과 동적 렌더링 ─────────── -->
+<script>
+  const API_BASE = 'http://127.0.0.1:8000';
+
+  // URL 쿼리스트링에서 검색어 읽기
+  const params  = new URLSearchParams(location.search);
+  const keyword = params.get('keyword') || '';
+
+  // 검색바에 키워드 채워주기
+  const searchInput   = document.getElementById('searchInput');
+  const clearInputBtn = document.getElementById('clearInputBtn');
+  searchInput.value   = keyword;
+
+  // 검색바에서 Enter → 같은 페이지로 재요청 (탭은 '전체'로 리셋)
+  searchInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const kw = searchInput.value.trim();
+      if (!kw) return;
+      location.href = `Search_Results.html?keyword=${encodeURIComponent(kw)}`;
+    }
+  });
+  clearInputBtn.addEventListener('click', () => { searchInput.value = ''; searchInput.focus(); });
+
+  // 현재 선택된 탭 (all | share | groupbuy | exchange)
+  let currentTab  = 'all';
+  // 마지막으로 가져온 결과 (탭 전환 시 재요청 없이 필터링)
+  let allResults  = [];
+
+  const resultGrid = document.getElementById('resultGrid');
+  const emptyState = document.getElementById('emptyState');
+  const resultMeta = document.getElementById('resultMeta');
+  const tabBar     = document.getElementById('tabBar');
+
+  // ── 탭 전환 ──
+  tabBar.querySelectorAll('button[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabBar.querySelectorAll('button[data-tab]').forEach(b => {
+        b.classList.remove('tab-on','font-bold');
+        b.classList.add('border-transparent','text-on-surface-variant');
+      });
+      btn.classList.add('tab-on','font-bold');
+      btn.classList.remove('border-transparent','text-on-surface-variant');
+      currentTab = btn.dataset.tab;
+      renderResults();
+    });
+  });
+
+  // ── 백엔드 호출 ──
+  async function fetchResults() {
+    try {
+      const url = keyword
+        ? `${API_BASE}/posts?keyword=${encodeURIComponent(keyword)}`
+        : `${API_BASE}/posts`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('서버 오류 (' + res.status + ')');
+      const data = await res.json();
+      allResults = data.items;
+      updateTabCounts();
+      renderResults();
+    } catch (err) {
+      resultMeta.textContent = '검색 실패: ' + err.message;
+      resultMeta.classList.add('text-error');
+      console.error(err);
+    }
+  }
+
+  // ── 탭별 카운트 계산 ──
+  function updateTabCounts() {
+    const counts = { all: allResults.length, share:0, exchange:0, groupbuy:0 };
+    allResults.forEach(p => { if (counts[p.type] !== undefined) counts[p.type]++; });
+    tabBar.querySelectorAll('span[data-count]').forEach(s => {
+      s.textContent = counts[s.dataset.count];
+    });
+  }
+
+  // ── 결과 카드 렌더링 ──
+  function renderResults() {
+    const items = currentTab === 'all'
+      ? allResults
+      : allResults.filter(p => p.type === currentTab);
+
+    resultGrid.innerHTML = '';
+    emptyState.classList.toggle('hidden', items.length > 0);
+
+    resultMeta.classList.remove('text-error');
+    resultMeta.textContent = keyword
+      ? `"${keyword}" 검색 결과 ${items.length}건`
+      : `전체 게시글 ${items.length}건`;
+
+    items.forEach(p => resultGrid.appendChild(buildCard(p)));
+  }
+
+  // ── 카드 컴포넌트 ──
+  function buildCard(post) {
+    const a = document.createElement('a');
+    const detailPage = post.type === 'groupbuy' ? 'Group_Buy_Detail.html' : 'Product_Detail.html';
+    a.href = `${detailPage}?id=${post.id}`;
+    a.className = 'bg-white rounded-2xl ring-soft overflow-hidden block';
+
+    const badge =
+      post.type === 'share'    ? '<span class="absolute top-2 left-2 text-[10px] font-bold bg-primary text-white px-1.5 py-0.5 rounded">나눔</span>'
+    : post.type === 'exchange' ? '<span class="absolute top-2 left-2 text-[10px] font-bold bg-secondary-container text-on-secondary-container px-1.5 py-0.5 rounded">교환</span>'
+    :                            '<span class="absolute top-2 left-2 text-[10px] font-bold bg-tertiary-fixed-dim text-on-tertiary-container px-1.5 py-0.5 rounded">공구</span>';
+
+    const thumb = (post.images && post.images.length > 0)
+      ? `<div class="aspect-square relative bg-cover bg-center" style="background-image:url('${API_BASE}/uploads/${post.images[0]}')">${badge}</div>`
+      : `<div class="aspect-square ph relative">${badge}</div>`;
+
+    let footer = '';
+    if (post.type === 'groupbuy') {
+      footer = `<p class="text-[11px] text-primary font-bold mt-0.5">${post.gb_current ?? 0}/${post.gb_target ?? 0} 모집중</p>
+                <p class="text-[11px] text-on-surface-variant mt-0.5">${(post.gb_price ?? 0).toLocaleString()}원/인</p>`;
+    } else if (post.type === 'exchange') {
+      footer = `<p class="text-[11px] text-on-surface-variant mt-0.5">교환 희망: ${escapeHtml(post.exchange_want || '-')}</p>`;
+    } else {
+      footer = `<p class="text-[11px] text-primary font-bold mt-0.5">무료 나눔</p>`;
+    }
+
+    a.innerHTML = `
+      ${thumb}
+      <div class="p-2.5">
+        <p class="text-[13px] font-semibold line-clamp-1">${highlight(escapeHtml(post.title), keyword)}</p>
+        <p class="text-[11px] text-on-surface-variant mt-0.5 line-clamp-1">${escapeHtml(post.address || '동네 미설정')}</p>
+        ${footer}
+      </div>`;
+    return a;
+  }
+
+  function highlight(escaped, kw) {
+    if (!kw) return escaped;
+    const safeKw = escapeHtml(kw);
+    const re = new RegExp(safeKw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
+    return escaped.replace(re, m => `<mark>${m}</mark>`);
+  }
+
+  function escapeHtml(s) {
+    return (s ?? '').toString().replace(/[&<>"']/g, c => (
+      {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+    ));
+  }
+
+  fetchResults();
+</script>
+
+</body>
+</html>

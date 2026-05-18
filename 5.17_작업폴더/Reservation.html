@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>거래 신청 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870','on-secondary-fixed-variant':'#693c00',
+    tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+    'surface-container-low':'#f3f4f5','surface-container':'#edeeef',
+    warm:'#faf9f5'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:max(884px,100dvh); font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ph { background: repeating-linear-gradient(135deg, #eef2ea 0 8px, #e4ebe0 8px 16px); }
+  .seg { background:#eef2ea; padding:3px; border-radius:9999px; display:inline-flex; }
+  .seg button { padding:7px 14px; border-radius:9999px; font-size:12.5px; font-weight:600; color:#3f4a3c; }
+  .seg button.on { background:#fff; color:#006e1c; box-shadow:0 1px 2px rgba(0,0,0,.06); }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-32">
+
+<header class="sticky top-0 z-40 bg-warm/90 backdrop-blur border-b border-black/[.04]">
+  <div class="max-w-2xl mx-auto px-3 h-14 flex items-center">
+    <button onclick="history.back()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">arrow_back</span></button>
+    <h1 class="text-[15px] font-bold ml-1">거래 신청</h1>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pt-4">
+
+  <!-- Item -->
+  <section class="bg-white rounded-2xl ring-soft p-3 flex gap-3">
+    <div class="w-20 h-20 rounded-xl ph relative shrink-0">
+      <span class="absolute top-1.5 left-1.5 text-[9px] font-bold bg-primary text-white px-1.5 py-0.5 rounded">나눔</span>
+    </div>
+    <div class="flex-1 min-w-0">
+      <p class="text-[14px] font-semibold leading-snug">유기농 시금치 두 봉지</p>
+      <p class="text-[11.5px] text-on-surface-variant mt-1">민지 이웃 · 한들마을 3단지</p>
+      <p class="text-[13px] font-bold text-primary mt-1.5">무료 나눔</p>
+    </div>
+  </section>
+
+  <!-- Quantity -->
+  <section class="mt-4">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">받고 싶은 수량</p>
+    <div class="bg-white rounded-2xl ring-soft p-4 flex items-center justify-between">
+      <p class="text-[14px] font-semibold">봉지</p>
+      <div class="flex items-center gap-2">
+        <button class="w-9 h-9 rounded-full bg-surface-container-low text-[18px] font-bold">−</button>
+        <p class="text-[18px] font-bold w-7 text-center">1</p>
+        <button class="w-9 h-9 rounded-full bg-primary-fixed text-on-primary-fixed-variant text-[18px] font-bold">+</button>
+      </div>
+    </div>
+    <p class="text-[11px] text-on-surface-variant mt-1.5 px-1">남은 수량 · 1봉지 (마지막!)</p>
+  </section>
+
+  <!-- Method -->
+  <section class="mt-4">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">받는 방법</p>
+    <div class="seg w-full">
+      <button class="on flex-1">🚶 직접 만나서</button>
+      <button class="flex-1">📦 비대면 픽업</button>
+    </div>
+  </section>
+
+  <!-- Time picker -->
+  <section class="mt-4">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">희망 시간</p>
+    <div class="bg-white rounded-2xl ring-soft p-4">
+      <p class="text-[12px] font-semibold text-on-surface-variant mb-2">오늘 · 5월 16일 (목)</p>
+      <div class="grid grid-cols-4 gap-2">
+        <button class="text-[12.5px] font-semibold py-2.5 rounded-lg ring-1 ring-outline-variant bg-white">5시</button>
+        <button class="text-[12.5px] font-semibold py-2.5 rounded-lg ring-1 ring-outline-variant bg-white">5시 반</button>
+        <button class="text-[12.5px] font-bold py-2.5 rounded-lg bg-primary text-white ring-2 ring-primary">6시</button>
+        <button class="text-[12.5px] font-semibold py-2.5 rounded-lg ring-1 ring-outline-variant bg-white">6시 반</button>
+        <button class="text-[12.5px] font-semibold py-2.5 rounded-lg ring-1 ring-outline-variant bg-white">7시</button>
+        <button class="text-[12.5px] font-semibold py-2.5 rounded-lg ring-1 ring-outline-variant bg-white">7시 반</button>
+        <button class="text-[12.5px] font-semibold py-2.5 rounded-lg ring-1 ring-outline-variant bg-white">8시</button>
+        <button class="text-[12.5px] font-semibold py-2.5 rounded-lg ring-1 ring-outline-variant bg-on-surface text-white">직접 입력</button>
+      </div>
+      <a class="mt-3 inline-flex items-center gap-1 text-[12px] text-primary font-bold">다른 날짜 보기 <span class="material-symbols-outlined" style="font-size:14px">calendar_today</span></a>
+    </div>
+  </section>
+
+  <!-- Location -->
+  <section class="mt-3 bg-white rounded-2xl ring-soft overflow-hidden">
+    <div class="p-4 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">location_on</span>
+        <div>
+          <p class="text-[13.5px] font-bold">한들마을 3단지 정문 앞</p>
+          <p class="text-[11px] text-on-surface-variant">도보 4분 · 280m</p>
+        </div>
+      </div>
+      <a href="Location Detail.html" class="text-[12px] font-bold text-primary">지도 →</a>
+    </div>
+  </section>
+
+  <!-- Message -->
+  <section class="mt-4">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">상대방에게 한마디 <span class="text-on-surface-variant/60 font-medium">(선택)</span></p>
+    <textarea rows="3" class="w-full bg-white rounded-2xl ring-1 ring-outline-variant px-4 py-3 text-[13.5px] focus:ring-2 focus:ring-primary outline-none resize-none" placeholder="감사 인사나 도착 안내 등을 적어주세요">안녕하세요! 시금치 두고두고 잘 먹을게요. 약속 시간 맞춰 정문 앞에서 뵐게요 :)</textarea>
+  </section>
+
+  <!-- Etiquette -->
+  <section class="mt-4 bg-primary-fixed/30 ring-1 ring-primary-fixed-dim/40 rounded-2xl p-4 flex gap-2.5">
+    <span class="material-symbols-outlined text-primary shrink-0" style="font-variation-settings:'FILL' 1;">handshake</span>
+    <div>
+      <p class="text-[12.5px] font-bold text-on-primary-fixed-variant">매너 있는 거래를 부탁드려요</p>
+      <p class="text-[11.5px] text-on-primary-fixed-variant/90 mt-1 leading-relaxed">시간을 잘 지키면 신뢰 온도가 올라가요. 부득이하게 늦으면 미리 채팅으로 알려주세요.</p>
+    </div>
+  </section>
+
+  <!-- Summary card -->
+  <section class="mt-4 bg-white rounded-2xl ring-soft p-4">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">신청 요약</p>
+    <ul class="text-[12.5px] space-y-1.5">
+      <li class="flex justify-between"><span class="text-on-surface-variant">상품</span><b>유기농 시금치 1봉지</b></li>
+      <li class="flex justify-between"><span class="text-on-surface-variant">일시</span><b>오늘 18:00</b></li>
+      <li class="flex justify-between"><span class="text-on-surface-variant">장소</span><b>한들마을 3단지 정문</b></li>
+      <li class="flex justify-between"><span class="text-on-surface-variant">방식</span><b>직접 만나서</b></li>
+    </ul>
+  </section>
+</main>
+
+<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-black/[.06] z-40">
+  <div class="max-w-2xl mx-auto px-4 py-3 pb-6">
+    <a href="Chat Detail.html" class="block bg-primary text-white rounded-2xl py-3.5 text-center text-[14px] font-bold flex items-center justify-center gap-1.5">
+      <span class="material-symbols-outlined" style="font-size:18px">send</span>
+      신청 보내고 채팅 시작
+    </a>
+    <p class="text-center text-[10.5px] text-on-surface-variant mt-2">상대방이 수락하면 채팅이 활성화돼요</p>
+  </div>
+</div>
+</body>
+</html>

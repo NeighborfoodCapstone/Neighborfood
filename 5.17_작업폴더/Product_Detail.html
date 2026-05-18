@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>나눔 상세 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: {
+      primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
+      'on-primary':'#fff','on-primary-fixed-variant':'#005313',
+      secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870',
+      tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+      'surface-container-lowest':'#ffffff','surface-container-low':'#f3f4f5',
+      'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',
+      outline:'#6f7a6b','outline-variant':'#becab9',
+      warm:'#faf9f5'
+    },
+    fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] }
+  }}}
+</script>
+<style>
+  body { background:#faf9f5; }
+  .ph { background: repeating-linear-gradient(135deg, #eef2ea 0 8px, #e4ebe0 8px 16px); }
+  .ph2 { background: repeating-linear-gradient(135deg, #f3eee4 0 8px, #ebe3d4 8px 16px); }
+  .card { background:#fff; border:1px solid rgba(0,0,0,.04); border-radius:16px; }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-28">
+
+<!-- Hero header -->
+<header class="relative">
+  <div id="heroImage" class="aspect-[4/3] ph relative bg-cover bg-center">
+    <div id="heroPlaceholder" class="absolute inset-0 flex items-center justify-center text-on-surface-variant/60 text-[11px] font-mono">[이미지 없음]</div>
+    <div class="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black/30 to-transparent"></div>
+    <div class="absolute top-3 left-2 right-2 flex items-center justify-between">
+      <button onclick="history.back()" class="w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center"><span class="material-symbols-outlined">arrow_back</span></button>
+      <div class="flex gap-1.5">
+        <button class="w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center"><span class="material-symbols-outlined">share</span></button>
+        <button class="w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center"><span class="material-symbols-outlined">more_vert</span></button>
+      </div>
+    </div>
+    <div id="heroIndex" class="absolute bottom-3 right-3 bg-black/55 text-white text-[11px] px-2 py-1 rounded-full hidden">1 / 1</div>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4">
+
+  <!-- Seller -->
+  <section class="card flex items-center gap-3 p-3 -mt-6 relative z-10">
+    <div class="w-12 h-12 rounded-full ph2 ring-2 ring-white shrink-0"></div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-1.5">
+        <p id="authorName" class="text-[14px] font-bold truncate">로딩 중…</p>
+        <span class="material-symbols-outlined text-primary" style="font-size:14px;font-variation-settings:'FILL' 1;">verified</span>
+      </div>
+      <p id="authorSub" class="text-[11.5px] text-on-surface-variant">동네 미설정</p>
+    </div>
+    <div class="text-right">
+      <div class="text-[12.5px] font-bold text-primary flex items-center gap-0.5">
+        <span class="material-symbols-outlined" style="font-size:14px">thermostat</span> 38.6°
+      </div>
+      <p class="text-[10px] text-on-surface-variant">신뢰 온도</p>
+    </div>
+  </section>
+
+  <!-- Title -->
+  <section class="mt-4">
+    <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
+      <span id="typeBadge" class="text-[10.5px] font-bold bg-primary text-white px-1.5 py-0.5 rounded">나눔</span>
+      <span id="categoryBadge" class="text-[10.5px] font-semibold bg-primary-fixed/60 text-on-primary-fixed-variant px-1.5 py-0.5 rounded">🥬 채소</span>
+      <span id="exchangeWantBadge" class="text-[10.5px] font-semibold bg-secondary-fixed text-on-secondary-container px-1.5 py-0.5 rounded hidden"></span>
+    </div>
+    <h1 id="titleText" class="text-[20px] font-bold leading-snug">불러오는 중…</h1>
+    <p id="metaText" class="text-[11.5px] text-on-surface-variant mt-1">방금 등록</p>
+  </section>
+
+  <!-- Description -->
+  <section class="card p-4 mt-4">
+    <p id="descText" class="text-[13.5px] leading-7 text-on-surface whitespace-pre-line">불러오는 중…</p>
+  </section>
+
+  <!-- Verification -->
+  <section class="card p-4 mt-3">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="material-symbols-outlined text-tertiary" style="font-size:18px;font-variation-settings:'FILL' 1;">verified</span>
+      <p class="text-[13.5px] font-bold">인증 정보</p>
+    </div>
+    <div class="space-y-2.5">
+      <div class="flex items-center gap-2.5">
+        <span class="w-7 h-7 rounded-full bg-primary-fixed/50 flex items-center justify-center"><span class="material-symbols-outlined text-primary" style="font-size:16px">receipt_long</span></span>
+        <p class="text-[12.5px] flex-1">로컬푸드마트 영수증 인증 완료</p>
+        <button class="text-[11px] font-bold text-primary">보기</button>
+      </div>
+      <div class="flex items-center gap-2.5">
+        <span class="w-7 h-7 rounded-full bg-tertiary-fixed flex items-center justify-center"><span class="material-symbols-outlined text-tertiary" style="font-size:16px">person_check</span></span>
+        <p class="text-[12.5px] flex-1">본인 인증된 이웃</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Location -->
+  <section class="card mt-3 overflow-hidden">
+    <div class="p-4 flex items-center justify-between">
+      <div>
+        <p class="text-[13.5px] font-bold">거래 희망 장소</p>
+        <p id="locationText" class="text-[11.5px] text-on-surface-variant mt-0.5">동네 미설정</p>
+      </div>
+      <a href="Location_Detail.html" class="text-[12px] font-bold text-primary">상세 →</a>
+    </div>
+    <a href="Location_Detail.html" class="block h-36 ph relative">
+      <div class="absolute inset-0 flex items-center justify-center">
+        <div class="bg-white rounded-full p-2 shadow-md">
+          <span class="material-symbols-outlined text-error" style="font-variation-settings:'FILL' 1;">location_on</span>
+        </div>
+      </div>
+    </a>
+  </section>
+
+  <!-- Other posts by seller -->
+  <section class="mt-5">
+    <div class="flex justify-between items-baseline mb-2">
+      <h2 class="text-[14px] font-bold">민지 이웃의 다른 나눔</h2>
+      <a href="#" class="text-[11.5px] text-primary font-semibold">전체 →</a>
+    </div>
+    <div class="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
+      <a class="shrink-0 w-32" href="#">
+        <div class="aspect-square ph2 rounded-xl ring-1 ring-black/5"></div>
+        <p class="text-[12px] font-semibold mt-1.5 line-clamp-1">홈베이킹 통밀가루</p>
+        <p class="text-[10.5px] text-on-surface-variant">2일 전</p>
+      </a>
+      <a class="shrink-0 w-32" href="#">
+        <div class="aspect-square ph rounded-xl ring-1 ring-black/5"></div>
+        <p class="text-[12px] font-semibold mt-1.5 line-clamp-1">애호박 4개</p>
+        <p class="text-[10.5px] text-on-surface-variant">1주 전 · 거래완료</p>
+      </a>
+      <a class="shrink-0 w-32" href="#">
+        <div class="aspect-square ph2 rounded-xl ring-1 ring-black/5"></div>
+        <p class="text-[12px] font-semibold mt-1.5 line-clamp-1">자몽 2개</p>
+        <p class="text-[10.5px] text-on-surface-variant">2주 전 · 거래완료</p>
+      </a>
+    </div>
+  </section>
+
+  <!-- Report -->
+  <section class="mt-5">
+    <a href="Report.html" class="text-[12px] text-on-surface-variant flex items-center gap-1.5 px-2 py-2">
+      <span class="material-symbols-outlined" style="font-size:16px">flag</span>
+      이 게시글 신고하기
+    </a>
+  </section>
+
+</main>
+
+<!-- Bottom action -->
+<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-black/[.06] z-40">
+  <div class="max-w-2xl mx-auto px-3 py-2.5 pb-6 flex items-center gap-2">
+    <button class="w-12 h-12 rounded-2xl bg-surface-container-low flex items-center justify-center">
+      <span class="material-symbols-outlined text-error" style="font-variation-settings:'FILL' 1;">favorite</span>
+    </button>
+    <div class="px-2 flex-shrink-0">
+      <p id="priceLabel" class="text-[16px] font-bold text-primary">무료 나눔</p>
+      <p id="priceSub"   class="text-[10.5px] text-on-surface-variant">선착순 채팅</p>
+    </div>
+    <a id="joinBtn" href="#" class="flex-1 bg-primary text-white rounded-2xl h-12 flex items-center justify-center text-[14px] font-bold active:scale-[.99] transition">신청하기</a>
+  </div>
+</div>
+
+<!-- ─────────── 게시글 상세 로딩 ─────────── -->
+<script>
+  const API_BASE = 'http://127.0.0.1:8000';
+
+  // URL에서 ?id=... 읽기
+  const postId = new URLSearchParams(location.search).get('id');
+
+  // 카테고리 → 이모지 매핑
+  const CATEGORY_ICON = {
+    '채소':'🥬', '과일':'🍎', '육류':'🥩', '베이커리':'🍞',
+    '유제품':'🥛', '기본 식재료':'🌾', '기타':'📦'
+  };
+
+  // 타입별 라벨
+  const TYPE_LABEL = { share:'나눔', exchange:'교환', groupbuy:'공구' };
+
+  if (!postId) {
+    alert('잘못된 접근입니다. (게시글 ID 누락)');
+    history.back();
+  } else {
+    loadPost(postId);
+  }
+
+  async function loadPost(id) {
+    try {
+      const res = await fetch(`${API_BASE}/posts/${id}`);
+      if (res.status === 404) throw new Error('게시글을 찾을 수 없습니다.');
+      if (!res.ok) throw new Error('서버 오류 (' + res.status + ')');
+      const post = await res.json();
+
+      // ── 공구라면 전용 페이지로 리다이렉트 ──
+      if (post.type === 'groupbuy') {
+        location.replace(`Group_Buy_Detail.html?id=${id}`);
+        return;
+      }
+
+      // ── 텍스트 데이터 채우기 ──
+      document.getElementById('titleText').textContent = post.title;
+      document.getElementById('descText').textContent  = post.description || '';
+      document.getElementById('locationText').textContent = post.address || '동네 미설정';
+
+      document.getElementById('authorName').textContent = post.author_id;
+      document.getElementById('authorSub').textContent  =
+        (post.address || '') + (post.address ? ' · ' : '') + '도보 5분';
+
+      // ── 등록 시각 메타 ──
+      document.getElementById('metaText').textContent =
+        `${formatRelative(post.created_at)} 등록 · 상태: ${post.status}`;
+
+      // ── 배지 ──
+      const typeBadge = document.getElementById('typeBadge');
+      typeBadge.textContent = TYPE_LABEL[post.type] || post.type;
+      if (post.type === 'exchange') {
+        typeBadge.className =
+          'text-[10.5px] font-bold bg-secondary-container text-on-secondary-container px-1.5 py-0.5 rounded';
+      }
+
+      if (post.category) {
+        document.getElementById('categoryBadge').textContent =
+          (CATEGORY_ICON[post.category] || '🍽️') + ' ' + post.category;
+      } else {
+        document.getElementById('categoryBadge').classList.add('hidden');
+      }
+
+      // ── 교환이면 원하는 품목 배지 ──
+      if (post.type === 'exchange' && post.exchange_want) {
+        const ex = document.getElementById('exchangeWantBadge');
+        ex.textContent = '🔄 원함: ' + post.exchange_want;
+        ex.classList.remove('hidden');
+      }
+
+      // ── 이미지 ──
+      const hero        = document.getElementById('heroImage');
+      const placeholder = document.getElementById('heroPlaceholder');
+      const indexBadge  = document.getElementById('heroIndex');
+      if (post.images && post.images.length > 0) {
+        hero.style.backgroundImage = `url("${API_BASE}/uploads/${post.images[0]}")`;
+        placeholder.classList.add('hidden');
+        if (post.images.length > 1) {
+          indexBadge.textContent = `1 / ${post.images.length}`;
+          indexBadge.classList.remove('hidden');
+        }
+      } else {
+        placeholder.textContent = `[${post.title}]`;
+      }
+
+      // ── 하단 가격/CTA ──
+      if (post.type === 'exchange') {
+        document.getElementById('priceLabel').textContent = '교환 희망';
+        document.getElementById('priceSub').textContent   = post.exchange_want || '-';
+      } else {
+        document.getElementById('priceLabel').textContent = '무료 나눔';
+        document.getElementById('priceSub').textContent   = '선착순 신청';
+      }
+      // Reservation.html로 게시글 ID 전달
+      document.getElementById('joinBtn').href = `Reservation.html?id=${id}`;
+
+    } catch (err) {
+      alert('게시글 로드 실패: ' + err.message);
+      console.error(err);
+    }
+  }
+
+  // ── 상대 시간 포맷 ──
+  function formatRelative(iso) {
+    if (!iso) return '방금';
+    const t = new Date(iso).getTime();
+    const diff = Math.floor((Date.now() - t) / 1000);
+    if (diff < 60)     return '방금 전';
+    if (diff < 3600)   return Math.floor(diff/60)   + '분 전';
+    if (diff < 86400)  return Math.floor(diff/3600) + '시간 전';
+    return Math.floor(diff/86400) + '일 전';
+  }
+</script>
+
+</body>
+</html>
