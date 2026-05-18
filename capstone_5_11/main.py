@@ -1,6 +1,13 @@
 # 마지막 수정 : 2026.05.10
 # 깃헙 저장소 주소 : https://github.com/NeighborfoodCapstone/Neighborfood.git
-
+from fastapi import Request
+from pydantic import BaseModel
+from datetime import datetime, timedelta, timezone
+from urllib.parse import urlparse, parse_qs
+import sqlite3
+import hashlib
+import secrets
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -123,3 +130,394 @@ async def verify_auth(req: VerifyRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+
+# =========================================================
+# QR 거래 인증 API
+# =========================================================
+
+QR_DB_PATH = os.path.join(os.path.dirname(__file__), "qr_auth.db")
+
+
+def qr_get_conn():
+    conn = sqlite3.connect(QR_DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def qr_now_utc():
+    return datetime.now(timezone.utc)
+
+
+def qr_to_iso(dt: datetime):
+    return dt.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def qr_from_iso(value: str):
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def qr_hash_token(token: str):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def qr_parse_token(raw_value: str):
+    if not raw_value:
+        return ""
+
+    value = raw_value.strip()
+
+    if value.startswith("http://") or value.startswith("https://"):
+        parsed = urlparse(value)
+
+        query = parse_qs(parsed.query)
+        if "token" in query:
+            return query["token"][0]
+
+        path_parts = [p for p in parsed.path.split("/") if p]
+        if path_parts:
+            return path_parts[-1]
+
+    return value
+
+
+def qr_row_to_dict(row):
+    return {
+        "id": row["id"],
+        "subjectId": row["subject_id"],
+        "purpose": row["purpose"],
+        "status": row["status"],
+        "issuedAt": row["issued_at"],
+        "expiresAt": row["expires_at"],
+        "usedAt": row["used_at"],
+        "lastScannedAt": row["last_scanned_at"],
+    }
+
+
+def qr_init_db():
+    with qr_get_conn() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS qr_sessions (
+                id TEXT PRIMARY KEY,
+                subject_id TEXT NOT NULL,
+                purpose TEXT NOT NULL,
+                token_hash TEXT NOT NULL UNIQUE,
+                status TEXT NOT NULL DEFAULT 'ISSUED'
+                    CHECK (status IN ('ISSUED', 'VERIFIED', 'EXPIRED')),
+                issued_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                used_at TEXT,
+                last_scanned_at TEXT,
+                scanner_ip TEXT,
+                scanner_user_agent TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_qr_sessions_subject_issued
+            ON qr_sessions (subject_id, issued_at)
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_qr_sessions_status_expires
+            ON qr_sessions (status, expires_at)
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_qr_sessions_token_hash
+            ON qr_sessions (token_hash)
+            """
+        )
+
+        conn.commit()
+
+
+def qr_expire_old_sessions():
+    current_time = qr_to_iso(qr_now_utc())
+
+    with qr_get_conn() as conn:
+        conn.execute(
+            """
+            UPDATE qr_sessions
+            SET status = 'EXPIRED',
+                updated_at = ?
+            WHERE status = 'ISSUED'
+              AND expires_at < ?
+            """,
+            (current_time, current_time),
+        )
+        conn.commit()
+
+
+class QrIssueRequest(BaseModel):
+    subjectId: str
+    purpose: str = "pickup_confirm"
+    ttlSeconds: int = 300
+
+
+class QrVerifyRequest(BaseModel):
+    token: str | None = None
+    rawValue: str | None = None
+
+
+@app.post("/api/qr/request")
+def issue_qr(body: QrIssueRequest):
+    qr_init_db()
+
+    subject_id = body.subjectId.strip()
+
+    if not subject_id:
+        return {
+            "ok": False,
+            "message": "subjectId가 비어 있습니다."
+        }
+
+    ttl = max(60, min(body.ttlSeconds, 900))
+
+    session_id = f"qrs_{secrets.token_hex(8)}"
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = qr_hash_token(raw_token)
+
+    issued_at = qr_now_utc()
+    expires_at = issued_at + timedelta(seconds=ttl)
+
+    issued_at_text = qr_to_iso(issued_at)
+    expires_at_text = qr_to_iso(expires_at)
+
+    with qr_get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO qr_sessions (
+                id,
+                subject_id,
+                purpose,
+                token_hash,
+                status,
+                issued_at,
+                expires_at,
+                used_at,
+                last_scanned_at,
+                scanner_ip,
+                scanner_user_agent,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, 'ISSUED', ?, ?, NULL, NULL, NULL, NULL, ?, ?)
+            """,
+            (
+                session_id,
+                subject_id,
+                body.purpose,
+                token_hash,
+                issued_at_text,
+                expires_at_text,
+                issued_at_text,
+                issued_at_text,
+            ),
+        )
+        conn.commit()
+
+    verify_url = f"http://127.0.0.1:8000/api/qr/verify/{raw_token}"
+
+    return {
+        "ok": True,
+        "session": {
+            "id": session_id,
+            "subjectId": subject_id,
+            "purpose": body.purpose,
+            "status": "ISSUED",
+            "issuedAt": issued_at_text,
+            "expiresAt": expires_at_text,
+            "usedAt": None,
+            "lastScannedAt": None,
+            "token": raw_token,
+            "verifyUrl": verify_url,
+        },
+    }
+
+
+@app.post("/api/qr/verify")
+def verify_qr(body: QrVerifyRequest, request: Request):
+    qr_init_db()
+    qr_expire_old_sessions()
+
+    raw_value = body.token or body.rawValue or ""
+    token = qr_parse_token(raw_value)
+
+    if not token:
+        return {
+            "ok": False,
+            "result": "invalid_input",
+            "message": "QR 토큰이 비어 있습니다.",
+        }
+
+    token_hash = qr_hash_token(token)
+    scanned_at = qr_to_iso(qr_now_utc())
+
+    scanner_ip = request.client.host if request.client else None
+    scanner_user_agent = request.headers.get("user-agent")
+
+    with qr_get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM qr_sessions
+            WHERE token_hash = ?
+            """,
+            (token_hash,),
+        ).fetchone()
+
+        if row is None:
+            return {
+                "ok": False,
+                "result": "not_found",
+                "message": "저장된 인증 세션을 찾을 수 없습니다.",
+            }
+
+        conn.execute(
+            """
+            UPDATE qr_sessions
+            SET last_scanned_at = ?,
+                scanner_ip = ?,
+                scanner_user_agent = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                scanned_at,
+                scanner_ip,
+                scanner_user_agent,
+                scanned_at,
+                row["id"],
+            ),
+        )
+        conn.commit()
+
+        row = conn.execute(
+            """
+            SELECT *
+            FROM qr_sessions
+            WHERE id = ?
+            """,
+            (row["id"],),
+        ).fetchone()
+
+        if row["status"] == "EXPIRED":
+            return {
+                "ok": False,
+                "result": "expired",
+                "message": "만료된 QR입니다.",
+                "session": qr_row_to_dict(row),
+            }
+
+        if row["status"] == "VERIFIED":
+            return {
+                "ok": False,
+                "result": "already_used",
+                "message": "이미 사용된 QR입니다.",
+                "session": qr_row_to_dict(row),
+            }
+
+        if qr_from_iso(row["expires_at"]) < qr_now_utc():
+            conn.execute(
+                """
+                UPDATE qr_sessions
+                SET status = 'EXPIRED',
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (scanned_at, row["id"]),
+            )
+            conn.commit()
+
+            row = conn.execute(
+                """
+                SELECT *
+                FROM qr_sessions
+                WHERE id = ?
+                """,
+                (row["id"],),
+            ).fetchone()
+
+            return {
+                "ok": False,
+                "result": "expired",
+                "message": "만료된 QR입니다.",
+                "session": qr_row_to_dict(row),
+            }
+
+        conn.execute(
+            """
+            UPDATE qr_sessions
+            SET status = 'VERIFIED',
+                used_at = ?,
+                last_scanned_at = ?,
+                scanner_ip = ?,
+                scanner_user_agent = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                scanned_at,
+                scanned_at,
+                scanner_ip,
+                scanner_user_agent,
+                scanned_at,
+                row["id"],
+            ),
+        )
+        conn.commit()
+
+        updated = conn.execute(
+            """
+            SELECT *
+            FROM qr_sessions
+            WHERE id = ?
+            """,
+            (row["id"],),
+        ).fetchone()
+
+    return {
+        "ok": True,
+        "result": "verified",
+        "message": "QR 인증이 완료되었습니다.",
+        "session": qr_row_to_dict(updated),
+    }
+
+
+@app.get("/api/qr/verify/{token}")
+def verify_qr_by_url(token: str, request: Request):
+    body = QrVerifyRequest(token=token)
+    return verify_qr(body, request)
+
+
+@app.get("/api/qr/history")
+def get_qr_history(limit: int = 20):
+    qr_init_db()
+    qr_expire_old_sessions()
+
+    limit = max(1, min(limit, 50))
+
+    with qr_get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM qr_sessions
+            ORDER BY issued_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+    return {
+        "ok": True,
+        "items": [qr_row_to_dict(row) for row in rows],
+    }
