@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>신고 상세 (관리자) - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','on-secondary-fixed-variant':'#693c00',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+    error:'#ba1a1a','error-container':'#ffdad6','on-error-container':'#93000a',
+    'surface-container-low':'#f3f4f5','surface-container':'#edeeef','surface-container-high':'#e7e8e9'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#f3f4f5; min-height:max(884px,100dvh); font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
+  .ph { background: repeating-linear-gradient(135deg, #eef2ea 0 8px, #e4ebe0 8px 16px); }
+  .ph2 { background: repeating-linear-gradient(135deg, #f3eee4 0 8px, #ebe3d4 8px 16px); }
+  .badge-admin { background: #2c322b; color: #fff; }
+  .bubble { background:#fff; border-radius:14px; padding:8px 11px; font-size:12.5px; max-width:80%; }
+  .bubble-other { background:#eef2ea; }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-32">
+
+<!-- Admin top bar -->
+<header class="sticky top-0 z-40 bg-[#2c322b] text-white border-b border-black/20">
+  <div class="max-w-3xl mx-auto px-3 h-14 flex items-center">
+    <button onclick="history.back()" class="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center"><span class="material-symbols-outlined">arrow_back</span></button>
+    <div class="ml-1 flex items-center gap-2">
+      <span class="badge-admin text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded">ADMIN</span>
+      <h1 class="text-[15px] font-bold">신고 상세 #R-2841</h1>
+    </div>
+    <div class="ml-auto flex items-center gap-1">
+      <button class="text-[11px] px-2.5 py-1.5 rounded-lg ring-1 ring-white/20 hover:bg-white/10">이전</button>
+      <button class="text-[11px] px-2.5 py-1.5 rounded-lg ring-1 ring-white/20 hover:bg-white/10">다음</button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-3xl mx-auto px-4 pt-4">
+
+  <!-- Header card -->
+  <section class="bg-white rounded-2xl ring-soft p-4">
+    <div class="flex items-start gap-3">
+      <div class="w-12 h-12 rounded-xl bg-error/15 flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-error" style="font-variation-settings:'FILL' 1;">flag</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-[10px] font-bold bg-error text-white px-1.5 py-0.5 rounded uppercase tracking-wider">긴급</span>
+          <span class="text-[10px] font-bold bg-error-container text-on-error-container px-1.5 py-0.5 rounded">식품 신선도</span>
+          <span class="text-[10px] font-bold bg-secondary-fixed text-on-secondary-fixed-variant px-1.5 py-0.5 rounded">위생 위험</span>
+        </div>
+        <p class="text-[15.5px] font-bold mt-1.5">식품 신선도 불만족 및 비위생적 교환</p>
+        <p class="text-[11.5px] text-on-surface-variant mt-1">접수 · 2026.05.13 14:22 · SLA 마감까지 <b class="text-error">8시간 4분</b></p>
+      </div>
+      <div class="text-right">
+        <p class="text-[10px] text-on-surface-variant">신고 누적</p>
+        <p class="text-[18px] font-bold">3<span class="text-[11px] font-medium text-on-surface-variant ml-0.5">건</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- People row -->
+  <section class="grid grid-cols-2 gap-3 mt-3">
+    <div class="bg-white rounded-2xl ring-soft p-3">
+      <p class="text-[10px] font-bold text-on-surface-variant tracking-wider">REPORTER · 신고자</p>
+      <div class="flex items-center gap-2 mt-2">
+        <div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[12px] font-bold">김</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-[13px] font-semibold truncate">김지연 · 매너 39.8°</p>
+          <p class="text-[10.5px] text-on-surface-variant">한들마을 3단지 · 가입 11개월</p>
+        </div>
+      </div>
+      <div class="mt-2 flex flex-wrap gap-1 text-[10px]">
+        <span class="bg-surface-container-low px-1.5 py-0.5 rounded text-on-surface-variant">신고 이력 1회</span>
+        <span class="bg-primary-fixed/40 text-on-primary-fixed-variant px-1.5 py-0.5 rounded font-semibold">정상 활동</span>
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl ring-soft p-3">
+      <p class="text-[10px] font-bold text-on-surface-variant tracking-wider">REPORTED · 신고 대상</p>
+      <div class="flex items-center gap-2 mt-2">
+        <div class="w-10 h-10 rounded-full bg-secondary-fixed-dim flex items-center justify-center text-on-secondary-fixed-variant text-[12px] font-bold">이</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-[13px] font-semibold truncate">이○○ · 매너 33.1°</p>
+          <p class="text-[10.5px] text-on-surface-variant">한들마을 1단지 · 가입 22일</p>
+        </div>
+      </div>
+      <div class="mt-2 flex flex-wrap gap-1 text-[10px]">
+        <span class="bg-error-container text-on-error-container px-1.5 py-0.5 rounded font-bold">누적 신고 3건</span>
+        <span class="bg-secondary-fixed text-on-secondary-fixed-variant px-1.5 py-0.5 rounded font-semibold">신규 가입자</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Subject post -->
+  <section class="mt-3 bg-white rounded-2xl ring-soft overflow-hidden">
+    <div class="px-4 py-2.5 border-b border-black/[.05] flex items-center justify-between">
+      <p class="text-[12.5px] font-bold">신고된 게시글</p>
+      <a class="text-[11px] font-bold text-primary">원본 보기 →</a>
+    </div>
+    <div class="p-3 flex gap-3">
+      <div class="w-20 h-20 rounded-xl ph relative shrink-0">
+        <span class="absolute top-1.5 left-1.5 text-[9px] font-bold bg-secondary-container text-white px-1.5 py-0.5 rounded">교환</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-[13.5px] font-semibold leading-snug">남는 우유 1팩 / 계란 6알 교환해요</p>
+        <p class="text-[11.5px] text-on-surface-variant mt-1 line-clamp-2">유통기한 임박이라 빨리 가져가실 분 환영합니다. 오늘 안 픽업 가능하신 분만 연락 주세요.</p>
+        <p class="text-[10.5px] text-on-surface-variant mt-1">2026.05.13 12:08 · 조회 87 · 채팅 4</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Evidence -->
+  <section class="mt-3 bg-white rounded-2xl ring-soft p-4">
+    <p class="text-[12.5px] font-bold mb-2">증빙 자료 (3장)</p>
+    <div class="grid grid-cols-3 gap-2">
+      <div class="aspect-square ph2 rounded-xl ring-1 ring-black/5"></div>
+      <div class="aspect-square ph rounded-xl ring-1 ring-black/5"></div>
+      <div class="aspect-square ph2 rounded-xl ring-1 ring-black/5"></div>
+    </div>
+    <p class="text-[12px] text-on-surface mt-3 leading-relaxed">
+      "직접 만나보니 우유 유통기한이 이미 2일 지나있었고, 보관 상태도 비위생적이었습니다. 답변도 일관성이 없어 다른 이웃 분들이 피해보지 않으셨으면 합니다."
+    </p>
+    <p class="text-[10.5px] text-on-surface-variant mt-2">— 김지연 · 2026.05.13 14:22</p>
+  </section>
+
+  <!-- Chat excerpt -->
+  <section class="mt-3 bg-white rounded-2xl ring-soft overflow-hidden">
+    <div class="px-4 py-2.5 border-b border-black/[.05] flex items-center justify-between">
+      <p class="text-[12.5px] font-bold">관련 채팅 내역 (요약)</p>
+      <a class="text-[11px] font-bold text-primary">전체 보기 →</a>
+    </div>
+    <div class="p-4 space-y-2">
+      <div class="flex justify-start"><div class="bubble bubble-other"><b>이○○:</b> 오늘 안에만 가져가시면 돼요</div></div>
+      <div class="flex justify-end"><div class="bubble bg-primary-fixed/70"><b>김지연:</b> 유통기한 언제까지인가요?</div></div>
+      <div class="flex justify-start"><div class="bubble bubble-other"><b>이○○:</b> 며칠 안 지났어요 ㅎㅎ 괜찮아요</div></div>
+      <div class="flex justify-end"><div class="bubble bg-primary-fixed/70"><b>김지연:</b> 정확한 날짜 알 수 있을까요?</div></div>
+    </div>
+  </section>
+
+  <!-- AI -->
+  <section class="mt-3 bg-gradient-to-br from-tertiary-fixed/50 to-primary-fixed/30 rounded-2xl ring-soft p-4 flex gap-2.5">
+    <span class="material-symbols-outlined text-tertiary shrink-0" style="font-size:20px;font-variation-settings:'FILL' 1;">auto_awesome</span>
+    <div>
+      <p class="text-[11.5px] font-bold tracking-wide text-tertiary">AI 검토 제안</p>
+      <p class="text-[12.5px] mt-1 leading-relaxed text-on-surface">
+        과거 신고 패턴 + 채팅 내용 분석 결과, 위반 가능성 <b class="text-error">82%</b>. <b>식품 위생 가이드 §4-2</b> 위반 의심. <b>경고 + 게시글 삭제</b>를 추천합니다.
+      </p>
+    </div>
+  </section>
+
+  <!-- Admin note -->
+  <section class="mt-3 bg-white rounded-2xl ring-soft p-4">
+    <p class="text-[12.5px] font-bold mb-2">관리자 메모 <span class="text-on-surface-variant font-medium text-[11px]">(내부 전용)</span></p>
+    <textarea rows="3" class="w-full bg-surface-container-low rounded-xl px-3 py-2.5 text-[13px] resize-none focus:bg-white focus:ring-2 focus:ring-primary outline-none" placeholder="처리 사유, 참고사항 등을 기록해 주세요"></textarea>
+  </section>
+
+  <!-- Activity log -->
+  <section class="mt-3 bg-white rounded-2xl ring-soft p-4">
+    <p class="text-[12.5px] font-bold mb-2">처리 로그</p>
+    <ol class="text-[11.5px] space-y-2 text-on-surface-variant">
+      <li><b class="text-on-surface">박운영</b> 케이스 배정 — 2026.05.13 14:25</li>
+      <li><b class="text-on-surface">시스템</b> AI 사전 검토 완료 — 2026.05.13 14:23</li>
+      <li><b class="text-on-surface">시스템</b> 신고 접수 — 2026.05.13 14:22</li>
+    </ol>
+  </section>
+</main>
+
+<!-- Sticky admin actions -->
+<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-black/[.08] z-40 shadow-[0_-6px_24px_rgba(0,0,0,.08)]">
+  <div class="max-w-3xl mx-auto px-4 py-3 pb-6">
+    <div class="grid grid-cols-4 gap-2">
+      <button class="rounded-xl ring-1 ring-outline-variant bg-white py-3 text-[12.5px] font-bold">기각</button>
+      <button class="rounded-xl bg-secondary-fixed text-on-secondary-fixed-variant py-3 text-[12.5px] font-bold">경고 발송</button>
+      <button class="rounded-xl bg-error text-white py-3 text-[12.5px] font-bold">게시글 삭제</button>
+      <button class="rounded-xl bg-[#2c322b] text-white py-3 text-[12.5px] font-bold">계정 정지</button>
+    </div>
+    <button class="w-full mt-2 text-[11.5px] text-on-surface-variant flex items-center justify-center gap-1">
+      더 많은 조치 <span class="material-symbols-outlined" style="font-size:14px">expand_more</span>
+    </button>
+  </div>
+</div>
+
+</body>
+</html>

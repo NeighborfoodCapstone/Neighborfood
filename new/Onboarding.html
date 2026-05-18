@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>시작하기 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313','on-primary-fixed':'#002204',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870','on-secondary-fixed-variant':'#693c00',
+    tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { min-height:100dvh; font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; background:#faf9f5; }
+  .slide { display:none; }
+  .slide.on { display:flex; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#becab9; transition: all .2s; }
+  .dot.on { width:24px; background:#006e1c; border-radius:9999px; }
+  /* illustration backdrops */
+  .bg-1 { background: radial-gradient(circle at 50% 40%, #94f990 0%, transparent 60%), linear-gradient(180deg, #f0f6ec, #faf9f5); }
+  .bg-2 { background: radial-gradient(circle at 50% 40%, #ffb870 0%, transparent 60%), linear-gradient(180deg, #fff4e3, #faf9f5); }
+  .bg-3 { background: radial-gradient(circle at 50% 40%, #adcbda 0%, transparent 60%), linear-gradient(180deg, #ebf4fa, #faf9f5); }
+  .bg-4 { background: radial-gradient(circle at 50% 40%, #94f990 0%, transparent 50%), linear-gradient(180deg, #f0f6ec, #faf9f5); }
+  .ill { aspect-ratio:1; max-width:280px; width:75%; margin:0 auto; border-radius:36px; display:flex; align-items:center; justify-content:center; position:relative; }
+</style>
+</head>
+<body class="text-on-surface antialiased flex flex-col">
+
+<!-- Skip -->
+<div class="px-4 pt-4 flex justify-end max-w-md w-full mx-auto">
+  <a href="Login.html" class="text-[12.5px] font-bold text-on-surface-variant px-3 py-1.5 rounded-full hover:bg-black/5">건너뛰기</a>
+</div>
+
+<main class="flex-1 max-w-md w-full mx-auto px-6 pb-6 flex flex-col">
+
+  <!-- Slide 1: intro -->
+  <section class="slide on flex-1 flex flex-col" id="s1">
+    <div class="ill bg-1 mt-6">
+      <span class="material-symbols-outlined text-primary" style="font-size:120px;font-variation-settings:'FILL' 1;">eco</span>
+      <span class="absolute top-6 right-6 w-10 h-10 rounded-full bg-secondary-fixed-dim flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:22px">restaurant</span></span>
+      <span class="absolute bottom-8 left-8 w-9 h-9 rounded-full bg-tertiary-fixed-dim flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:20px">favorite</span></span>
+    </div>
+    <div class="mt-10 text-center">
+      <p class="text-[11px] font-bold text-primary tracking-widest">WELCOME · 1 / 4</p>
+      <h1 class="text-[26px] font-bold leading-snug mt-2">우리 동네 이웃과<br/>식재료를 나눠요</h1>
+      <p class="text-[13.5px] text-on-surface-variant mt-3 leading-relaxed">남는 식재료가 음식물 쓰레기가 되기 전에,<br/>가까운 이웃에게 따뜻하게 전달해 보세요.</p>
+    </div>
+  </section>
+
+  <!-- Slide 2: features -->
+  <section class="slide flex-1 flex flex-col" id="s2">
+    <div class="ill bg-2 mt-6 flex-col gap-3 p-6">
+      <div class="bg-white rounded-2xl shadow-md p-3 ring-1 ring-black/5 w-full text-left flex items-center gap-2">
+        <div class="w-10 h-10 rounded-lg bg-primary-fixed"></div>
+        <div class="flex-1">
+          <p class="text-[11px] font-bold">유기농 시금치 두 봉지</p>
+          <p class="text-[9px] text-on-surface-variant">한들마을 3단지 · 도보 4분</p>
+        </div>
+        <span class="text-[9px] font-bold bg-primary text-white px-1.5 py-0.5 rounded">나눔</span>
+      </div>
+      <div class="bg-white rounded-2xl shadow-md p-3 ring-1 ring-black/5 w-full text-left flex items-center gap-2">
+        <div class="w-10 h-10 rounded-lg bg-secondary-fixed-dim"></div>
+        <div class="flex-1">
+          <p class="text-[11px] font-bold">제주 노지귤 10kg 같이 사요</p>
+          <p class="text-[9px] text-on-surface-variant">3/4명 모집 · D-2</p>
+        </div>
+        <span class="text-[9px] font-bold bg-tertiary-fixed-dim text-on-tertiary-container px-1.5 py-0.5 rounded">공동구메
+        </span>
+      </div>
+      <div class="bg-white rounded-2xl shadow-md p-3 ring-1 ring-black/5 w-full text-left flex items-center gap-2">
+        <div class="w-10 h-10 rounded-lg bg-tertiary-fixed-dim"></div>
+        <div class="flex-1">
+          <p class="text-[11px] font-bold">레몬 ↔ 사워도우 빵</p>
+          <p class="text-[9px] text-on-surface-variant">앞동 · 도보 1분</p>
+        </div>
+        <span class="text-[9px] font-bold bg-secondary-container text-on-secondary-container px-1.5 py-0.5 rounded">교환</span>
+      </div>
+    </div>
+    <div class="mt-10 text-center">
+      <p class="text-[11px] font-bold text-primary tracking-widest">FEATURES · 2 / 4</p>
+      <h1 class="text-[26px] font-bold leading-snug mt-2">나눔·교환·공동구매<br/>한 곳에서 다 해요</h1>
+      <p class="text-[13.5px] text-on-surface-variant mt-3 leading-relaxed">남는 건 나눔, 필요한 건 교환,<br/>큰 박스는 이웃과 함께 공동구매.</p>
+    </div>
+  </section>
+
+  <!-- Slide 3: trust -->
+  <section class="slide flex-1 flex flex-col" id="s3">
+    <div class="ill bg-3 mt-6 flex-col">
+      <div class="w-32 h-32 rounded-full bg-white shadow-lg flex flex-col items-center justify-center ring-1 ring-black/5">
+        <span class="material-symbols-outlined text-primary" style="font-size:36px;font-variation-settings:'FILL' 1;">thermostat</span>
+        <p class="text-[28px] font-bold text-primary leading-none mt-1">38.2°</p>
+        <p class="text-[10px] text-on-surface-variant">신뢰 온도</p>
+      </div>
+      <div class="flex gap-1.5 mt-4">
+        <span class="bg-white rounded-full px-2.5 py-1 text-[10px] font-bold shadow-sm flex items-center gap-1"><span class="material-symbols-outlined text-primary" style="font-size:12px">check</span>본인 인증</span>
+        <span class="bg-white rounded-full px-2.5 py-1 text-[10px] font-bold shadow-sm flex items-center gap-1"><span class="material-symbols-outlined text-primary" style="font-size:12px">check</span>동네 인증</span>
+      </div>
+    </div>
+    <div class="mt-10 text-center">
+      <p class="text-[11px] font-bold text-primary tracking-widest">TRUST · 3 / 4</p>
+      <h1 class="text-[26px] font-bold leading-snug mt-2">검증된 이웃과<br/>안심하고 거래해요</h1>
+      <p class="text-[13.5px] text-on-surface-variant mt-3 leading-relaxed">본인 인증과 동네 인증을 마친 이웃끼리만<br/>거래할 수 있어요. 신뢰 온도로 매너를 확인하세요.</p>
+    </div>
+  </section>
+
+  <!-- Slide 4: permissions -->
+  <section class="slide flex-1 flex flex-col" id="s4">
+    <div class="mt-6 text-center">
+      <p class="text-[11px] font-bold text-primary tracking-widest">PERMISSIONS · 4 / 4</p>
+      <h1 class="text-[24px] font-bold leading-snug mt-2">시작 전 마지막,<br/>몇 가지 권한을 알려드릴게요</h1>
+    </div>
+    <div class="mt-6 space-y-2.5">
+      <div class="bg-white rounded-2xl p-3.5 ring-1 ring-black/5 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-xl bg-primary-fixed flex items-center justify-center"><span class="material-symbols-outlined text-on-primary-fixed-variant" style="font-variation-settings:'FILL' 1;">location_on</span></span>
+        <div class="flex-1">
+          <p class="text-[13.5px] font-bold">위치 정보 <span class="text-[10px] text-error font-bold ml-1">필수</span></p>
+          <p class="text-[11px] text-on-surface-variant mt-0.5">동네 매칭에만 사용 · 저장 안 함</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl p-3.5 ring-1 ring-black/5 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-xl bg-secondary-fixed flex items-center justify-center"><span class="material-symbols-outlined text-on-secondary-fixed-variant" style="font-variation-settings:'FILL' 1;">photo_camera</span></span>
+        <div class="flex-1">
+          <p class="text-[13.5px] font-bold">카메라·사진 <span class="text-[10px] text-on-surface-variant font-bold ml-1">선택</span></p>
+          <p class="text-[11px] text-on-surface-variant mt-0.5">식재료 사진 등록과 영수증 인증에 사용</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl p-3.5 ring-1 ring-black/5 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-xl bg-tertiary-fixed-dim flex items-center justify-center"><span class="material-symbols-outlined text-on-tertiary-container" style="font-variation-settings:'FILL' 1;">notifications</span></span>
+        <div class="flex-1">
+          <p class="text-[13.5px] font-bold">알림 <span class="text-[10px] text-on-surface-variant font-bold ml-1">선택</span></p>
+          <p class="text-[11px] text-on-surface-variant mt-0.5">새 메시지·거래 변경 알림</p>
+        </div>
+      </div>
+    </div>
+    <p class="text-center text-[10.5px] text-on-surface-variant mt-auto pt-6 leading-relaxed">시작하면 <a href="Terms.html" class="underline font-bold">이용약관</a> · <a href="Privacy.html" class="underline font-bold">개인정보처리방침</a>에 동의한 것으로 간주됩니다.</p>
+  </section>
+
+  <!-- Indicator + Buttons -->
+  <div class="pt-6">
+    <div class="flex justify-center gap-1.5 mb-5" id="dots">
+      <span class="dot on" data-i="0"></span>
+      <span class="dot" data-i="1"></span>
+      <span class="dot" data-i="2"></span>
+      <span class="dot" data-i="3"></span>
+    </div>
+    <div class="flex gap-2">
+      <button id="prev" class="px-4 py-3.5 rounded-2xl ring-1 ring-outline-variant bg-white text-[13px] font-semibold disabled:opacity-40" disabled>이전</button>
+      <button id="next" class="flex-1 bg-primary text-white rounded-2xl py-3.5 text-[14px] font-bold active:scale-[.99] transition shadow-[0_8px_20px_rgba(0,110,28,.25)]">다음</button>
+    </div>
+  </div>
+</main>
+
+<script>
+  let idx = 0;
+  const slides = document.querySelectorAll('.slide');
+  const dots = document.querySelectorAll('#dots .dot');
+  const prev = document.getElementById('prev');
+  const next = document.getElementById('next');
+  function update() {
+    slides.forEach((s,i) => s.classList.toggle('on', i === idx));
+    dots.forEach((d,i) => d.classList.toggle('on', i === idx));
+    prev.disabled = idx === 0;
+    next.textContent = idx === slides.length - 1 ? '시작하기 →' : '다음';
+  }
+  prev.addEventListener('click', () => { if(idx>0){idx--; update();} });
+  next.addEventListener('click', () => {
+    if (idx === slides.length - 1) { location.href = 'Login.html'; return; }
+    idx++; update();
+  });
+  document.getElementById('dots').addEventListener('click', e => {
+    const d = e.target.closest('.dot'); if (!d) return;
+    idx = Number(d.dataset.i); update();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>거래 내역 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313',
+    secondary:'#8b5000','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870','on-secondary-fixed-variant':'#693c00',
+    tertiary:'#466270','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:max(884px,100dvh); font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+  .ph { background: linear-gradient(135deg,#e9e7df,#dcdacf); }
+  .seg-on { background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.08); color:#191c1d; }
+  .star { color:#f5b056; }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-12">
+
+<header class="sticky top-0 z-40 bg-white/85 backdrop-blur border-b border-black/[.05]">
+  <div class="max-w-2xl mx-auto px-2 h-14 flex items-center">
+    <button class="p-2 rounded-full hover:bg-black/5"><span class="material-symbols-outlined">arrow_back</span></button>
+    <p class="text-[16px] font-bold">거래 내역</p>
+    <button class="ml-auto p-2 mr-1 rounded-full hover:bg-black/5"><span class="material-symbols-outlined">search</span></button>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pt-4">
+
+  <!-- Summary -->
+  <section class="bg-white rounded-2xl ring-soft p-4">
+    <div class="grid grid-cols-3 gap-2">
+      <div class="text-center">
+        <p class="text-[20px] font-bold text-primary">23</p>
+        <p class="text-[11px] text-on-surface-variant mt-0.5">전체 거래</p>
+      </div>
+      <div class="text-center border-x border-black/[.05]">
+        <p class="text-[20px] font-bold">12</p>
+        <p class="text-[11px] text-on-surface-variant mt-0.5">나눔한 횟수</p>
+      </div>
+      <div class="text-center">
+        <p class="text-[20px] font-bold">11</p>
+        <p class="text-[11px] text-on-surface-variant mt-0.5">받은 횟수</p>
+      </div>
+    </div>
+    <div class="mt-3 pt-3 border-t border-black/[.05] flex items-center gap-2 text-[12px]">
+      <span class="material-symbols-outlined text-primary" style="font-size:16px;font-variation-settings:'FILL' 1;">eco</span>
+      <p class="text-on-surface-variant">덕분에 약 <b class="text-primary">8.2kg</b>의 음식물 쓰레기를 줄였어요.</p>
+    </div>
+  </section>
+
+  <!-- Segmented filter -->
+  <div class="mt-4 bg-[#ececeb] rounded-full p-1 flex text-[12px] font-semibold">
+    <button class="flex-1 py-2 rounded-full seg-on">전체</button>
+    <button class="flex-1 py-2 rounded-full text-on-surface-variant">진행중 <span class="text-[10px] opacity-70">3</span></button>
+    <button class="flex-1 py-2 rounded-full text-on-surface-variant">완료</button>
+    <button class="flex-1 py-2 rounded-full text-on-surface-variant">취소</button>
+  </div>
+
+  <!-- This month -->
+  <p class="text-[11px] font-bold text-on-surface-variant mt-5 mb-2 px-1 tracking-wider">이번 달</p>
+
+  <ul class="flex flex-col gap-3">
+    <!-- in-progress -->
+    <li class="bg-white rounded-2xl ring-soft p-3 flex gap-3">
+      <div class="w-16 h-16 rounded-xl ph shrink-0" style="background:linear-gradient(135deg,#efe4cc,#e4d3a8);"></div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1.5 mb-1">
+          <span class="px-2 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed-variant text-[10px] font-bold">예약중</span>
+          <span class="text-[10.5px] text-on-surface-variant">오늘 18:30 약속</span>
+        </div>
+        <p class="text-[14px] font-semibold leading-snug">사워도우 스타터 분양</p>
+        <p class="text-[11.5px] text-on-surface-variant mt-0.5">받는 사람 · 빵굽는이웃</p>
+        <div class="mt-2 flex gap-2">
+          <button class="text-[11px] font-bold text-primary px-2.5 py-1 rounded-md ring-1 ring-primary/30">채팅</button>
+          <button class="text-[11px] font-semibold text-on-surface-variant px-2.5 py-1 rounded-md ring-1 ring-outline-variant">위치 보기</button>
+        </div>
+      </div>
+    </li>
+
+    <!-- completed with rating -->
+    <li class="bg-white rounded-2xl ring-soft p-3 flex gap-3">
+      <div class="w-16 h-16 rounded-xl ph shrink-0" style="background:linear-gradient(135deg,#d6e7d0,#bfd9b8);"></div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1.5 mb-1">
+          <span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant text-[10px] font-bold">완료</span>
+          <span class="text-[10.5px] text-on-surface-variant">5월 4일 · 나눔</span>
+        </div>
+        <p class="text-[14px] font-semibold leading-snug">유기농 시금치 한 단</p>
+        <p class="text-[11.5px] text-on-surface-variant mt-0.5">준 사람 · Sarah M.</p>
+        <div class="mt-2 flex items-center gap-1">
+          <span class="star">★★★★★</span>
+          <span class="text-[10.5px] text-on-surface-variant ml-1">"덕분에 시금치 파스타 만들었어요!"</span>
+        </div>
+      </div>
+    </li>
+
+    <!-- completed need review -->
+    <li class="bg-white rounded-2xl ring-soft p-3 flex gap-3">
+      <div class="w-16 h-16 rounded-xl ph shrink-0" style="background:linear-gradient(135deg,#fff0d6,#f4d59e);"></div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1.5 mb-1">
+          <span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant text-[10px] font-bold">완료</span>
+          <span class="text-[10.5px] text-on-surface-variant">5월 1일 · 공동구매</span>
+        </div>
+        <p class="text-[14px] font-semibold leading-snug">유기농 채소 박스 5인 분배</p>
+        <p class="text-[11.5px] text-on-surface-variant mt-0.5">12,000원 · 호스트 따뜻한아랫집</p>
+        <button class="mt-2 text-[11px] font-bold text-primary px-2.5 py-1 rounded-md ring-1 ring-primary/30 flex items-center gap-1">
+          <span class="material-symbols-outlined" style="font-size:14px">edit</span>후기 남기기
+        </button>
+      </div>
+    </li>
+  </ul>
+
+  <!-- Earlier -->
+  <p class="text-[11px] font-bold text-on-surface-variant mt-6 mb-2 px-1 tracking-wider">지난달</p>
+
+  <ul class="flex flex-col gap-3">
+    <li class="bg-white rounded-2xl ring-soft p-3 flex gap-3">
+      <div class="w-16 h-16 rounded-xl ph shrink-0" style="background:linear-gradient(135deg,#dee9d8,#c1d7b9);"></div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1.5 mb-1">
+          <span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant text-[10px] font-bold">완료</span>
+          <span class="text-[10.5px] text-on-surface-variant">4월 22일 · 나눔</span>
+        </div>
+        <p class="text-[14px] font-semibold leading-snug">홈베이킹 무염버터 250g</p>
+        <p class="text-[11.5px] text-on-surface-variant mt-0.5">준 사람 · 어머니손맛 → 받는 사람 · 나</p>
+        <div class="mt-2 flex items-center gap-1">
+          <span class="star">★★★★★</span>
+          <span class="text-[10.5px] text-on-surface-variant ml-1">감사 인사를 보냈어요</span>
+        </div>
+      </div>
+    </li>
+
+    <li class="bg-white rounded-2xl ring-soft p-3 flex gap-3 opacity-70">
+      <div class="w-16 h-16 rounded-xl ph shrink-0" style="background:linear-gradient(135deg,#dadada,#bcbcbc);"></div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1.5 mb-1">
+          <span class="px-2 py-0.5 rounded-full bg-[#fde2e1] text-[#93000a] text-[10px] font-bold">취소</span>
+          <span class="text-[10.5px] text-on-surface-variant">4월 18일 · 교환</span>
+        </div>
+        <p class="text-[14px] font-semibold leading-snug line-through decoration-on-surface-variant/40">레몬 5개 ↔ 사워도우 빵</p>
+        <p class="text-[11.5px] text-on-surface-variant mt-0.5">상대방이 약속을 변경했어요</p>
+      </div>
+    </li>
+  </ul>
+
+  <button class="w-full mt-5 py-3 text-[12.5px] font-semibold text-on-surface-variant rounded-xl ring-1 ring-outline-variant bg-white">전체 내역 더보기</button>
+
+  <div class="h-6"></div>
+</main>
+<nav class="fixed bottom-0 left-0 w-full bg-white border-t border-black/[.06] z-50 flex justify-around items-center pt-2 pb-5 px-2">
+  <a class="flex flex-col items-center text-on-surface-variant" href="Home.html"><span class="material-symbols-outlined" style="font-size:24px">home</span><span class="text-[10px] mt-0.5">홈</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Map.html"><span class="material-symbols-outlined" style="font-size:24px">map</span><span class="text-[10px] mt-0.5">지도</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Register.html"><span class="material-symbols-outlined" style="font-size:24px">add_circle</span><span class="text-[10px] mt-0.5">등록</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="My_Activity.html"><span class="material-symbols-outlined" style="font-size:24px">interests</span><span class="text-[10px] mt-0.5">내 활동</span></a>
+  <a class="flex flex-col items-center text-primary" href="My_Page.html"><span class="material-symbols-outlined" style="font-size:24px;font-variation-settings:'FILL' 1;">person</span><span class="text-[10px] font-bold mt-0.5">마이</span></a>
+</nav>
+</body>
+</html>

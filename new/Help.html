@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>고객센터 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313','on-primary-fixed':'#002204',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','on-secondary-fixed-variant':'#693c00',
+    tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+    'surface-container-low':'#f3f4f5','surface-container':'#edeeef',warm:'#faf9f5'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:max(884px,100dvh); font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+  details summary { cursor:pointer; list-style:none; }
+  details summary::-webkit-details-marker { display:none; }
+  details[open] .chev { transform: rotate(90deg); }
+  .chev { transition: transform .2s; }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-12">
+
+<header class="sticky top-0 z-40 bg-warm/95 backdrop-blur border-b border-black/[.04]">
+  <div class="max-w-2xl mx-auto px-3 h-14 flex items-center">
+    <button onclick="history.back()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">arrow_back</span></button>
+    <h1 class="text-[15px] font-bold ml-1">고객센터</h1>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pt-4">
+
+  <!-- Search -->
+  <div class="relative">
+    <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant" style="font-size:20px">search</span>
+    <input class="w-full pl-11 pr-4 py-3.5 rounded-2xl ring-1 ring-outline-variant bg-white text-[14px] outline-none focus:ring-2 focus:ring-primary" placeholder="궁금한 점을 검색해 보세요"/>
+  </div>
+
+  <!-- Quick actions -->
+  <section class="grid grid-cols-2 gap-2 mt-4">
+    <a class="bg-gradient-to-br from-primary to-[#004510] text-white rounded-2xl p-4 flex flex-col gap-1">
+      <span class="material-symbols-outlined" style="font-size:24px;font-variation-settings:'FILL' 1;">chat</span>
+      <p class="text-[13.5px] font-bold mt-1">1:1 문의</p>
+      <p class="text-[10.5px] text-white/80">평균 답변 1시간</p>
+    </a>
+    <a class="bg-white ring-soft rounded-2xl p-4 flex flex-col gap-1">
+      <span class="material-symbols-outlined text-primary" style="font-size:24px;font-variation-settings:'FILL' 1;">call</span>
+      <p class="text-[13.5px] font-bold mt-1">전화 상담</p>
+      <p class="text-[10.5px] text-on-surface-variant">평일 10:00~18:00</p>
+    </a>
+    <a class="bg-white ring-soft rounded-2xl p-4 flex flex-col gap-1">
+      <span class="material-symbols-outlined text-secondary" style="font-size:24px;font-variation-settings:'FILL' 1;">menu_book</span>
+      <p class="text-[13.5px] font-bold mt-1">사용 가이드</p>
+      <p class="text-[10.5px] text-on-surface-variant">처음이신가요?</p>
+    </a>
+    <a href="Report.html" class="bg-white ring-soft rounded-2xl p-4 flex flex-col gap-1">
+      <span class="material-symbols-outlined text-error" style="font-size:24px;font-variation-settings:'FILL' 1;">flag</span>
+      <p class="text-[13.5px] font-bold mt-1">신고하기</p>
+      <p class="text-[10.5px] text-on-surface-variant">위반 사례 접수</p>
+    </a>
+  </section>
+
+  <!-- Status -->
+  <section class="mt-4 bg-primary-fixed/30 ring-1 ring-primary-fixed-dim/40 rounded-2xl p-3.5 flex items-center gap-2.5">
+    <span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
+    <p class="text-[12.5px] flex-1"><b>모든 서비스 정상 작동 중</b> · 마지막 확인 10분 전</p>
+    <button class="text-[11px] text-primary font-bold">상태 페이지</button>
+  </section>
+
+  <!-- Category -->
+  <p class="text-[11px] font-bold text-on-surface-variant tracking-wider px-2 mt-5 mb-2">카테고리</p>
+  <section class="grid grid-cols-4 gap-2 mb-2">
+    <a class="bg-white ring-soft rounded-2xl p-3 flex flex-col items-center gap-1">
+      <span class="material-symbols-outlined text-primary" style="font-size:22px">person</span>
+      <p class="text-[10.5px] font-semibold">계정</p>
+    </a>
+    <a class="bg-white ring-soft rounded-2xl p-3 flex flex-col items-center gap-1">
+      <span class="material-symbols-outlined text-secondary" style="font-size:22px">handshake</span>
+      <p class="text-[10.5px] font-semibold">거래</p>
+    </a>
+    <a class="bg-white ring-soft rounded-2xl p-3 flex flex-col items-center gap-1">
+      <span class="material-symbols-outlined text-tertiary" style="font-size:22px">payments</span>
+      <p class="text-[10.5px] font-semibold">결제</p>
+    </a>
+    <a class="bg-white ring-soft rounded-2xl p-3 flex flex-col items-center gap-1">
+      <span class="material-symbols-outlined text-on-surface-variant" style="font-size:22px">shield_person</span>
+      <p class="text-[10.5px] font-semibold">신뢰·안전</p>
+    </a>
+  </section>
+
+  <!-- FAQ -->
+  <p class="text-[11px] font-bold text-on-surface-variant tracking-wider px-2 mt-5 mb-2">자주 묻는 질문</p>
+  <section class="bg-white rounded-2xl ring-soft divide-y divide-black/[.05]">
+    <details open class="p-4">
+      <summary class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-on-surface-variant chev" style="font-size:18px">chevron_right</span>
+        <span class="text-[13.5px] font-bold">Q. 신뢰 온도는 어떻게 올라가나요?</span>
+      </summary>
+      <div class="mt-2 pl-7 text-[12.5px] text-on-surface-variant leading-relaxed">
+        시간 약속을 잘 지키고, 식재료를 깨끗하게 보관해 나누고, 친절하게 응대하면 거래 후 받는 후기에 따라 0.1~0.5° 씩 올라가요. 매너 점수 5점 + 재거래 희망까지 받으면 최대 0.5°입니다.
+      </div>
+    </details>
+    <details class="p-4">
+      <summary class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-on-surface-variant chev" style="font-size:18px">chevron_right</span>
+        <span class="text-[13.5px] font-bold">Q. 유통기한이 지난 식재료를 받았어요</span>
+      </summary>
+      <div class="mt-2 pl-7 text-[12.5px] text-on-surface-variant leading-relaxed">바로 채팅에서 증빙 사진과 함께 신고해 주세요. 24시간 안에 검토 후 조치합니다.</div>
+    </details>
+    <details class="p-4">
+      <summary class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-on-surface-variant chev" style="font-size:18px">chevron_right</span>
+        <span class="text-[13.5px] font-bold">Q. 공동구매 모집이 실패하면 결제 금액은 어떻게 되나요?</span>
+      </summary>
+      <div class="mt-2 pl-7 text-[12.5px] text-on-surface-variant leading-relaxed">영업일 기준 1~2일 안에 결제 수단으로 자동 환불돼요.</div>
+    </details>
+    <details class="p-4">
+      <summary class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-on-surface-variant chev" style="font-size:18px">chevron_right</span>
+        <span class="text-[13.5px] font-bold">Q. 동네 인증은 얼마나 자주 해야 하나요?</span>
+      </summary>
+      <div class="mt-2 pl-7 text-[12.5px] text-on-surface-variant leading-relaxed">60일마다 새로 인증해야 활동 동네 우선 노출이 유지돼요.</div>
+    </details>
+    <details class="p-4">
+      <summary class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-on-surface-variant chev" style="font-size:18px">chevron_right</span>
+        <span class="text-[13.5px] font-bold">Q. 차단한 이웃을 다시 보고 싶어요</span>
+      </summary>
+      <div class="mt-2 pl-7 text-[12.5px] text-on-surface-variant leading-relaxed">
+        설정 → <a href="Blocked Users.html" class="text-primary font-bold underline">차단한 이웃</a>에서 해제할 수 있어요.
+      </div>
+    </details>
+    <details class="p-4">
+      <summary class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-on-surface-variant chev" style="font-size:18px">chevron_right</span>
+        <span class="text-[13.5px] font-bold">Q. 영수증 인증을 꼭 해야 하나요?</span>
+      </summary>
+      <div class="mt-2 pl-7 text-[12.5px] text-on-surface-variant leading-relaxed">필수는 아니지만 인증하면 신뢰 온도 +0.3°와 함께 매칭 우선순위가 올라가요.</div>
+    </details>
+  </section>
+
+  <!-- Contact -->
+  <section class="mt-5 bg-white rounded-2xl ring-soft p-4">
+    <p class="text-[13.5px] font-bold">원하는 답을 찾지 못하셨나요?</p>
+    <p class="text-[12px] text-on-surface-variant mt-1">직접 문의 주시면 운영팀이 도와드릴게요.</p>
+    <div class="flex gap-2 mt-3">
+      <button class="flex-1 bg-primary text-white text-[12.5px] font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5">
+        <span class="material-symbols-outlined" style="font-size:16px">chat</span>
+        채팅 문의
+      </button>
+      <button class="flex-1 bg-surface-container-low text-on-surface text-[12.5px] font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5">
+        <span class="material-symbols-outlined" style="font-size:16px">mail</span>
+        이메일 보내기
+      </button>
+    </div>
+  </section>
+</main>
+</body>
+</html>

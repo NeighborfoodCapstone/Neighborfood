@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>결제 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313','on-primary-fixed':'#002204',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870',
+    tertiary:'#466270','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+    error:'#ba1a1a','surface-container-low':'#f3f4f5','surface-container':'#edeeef',
+    warm:'#faf9f5'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:max(884px,100dvh); font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+  .ph { background: repeating-linear-gradient(135deg, #f3eee4 0 8px, #ebe3d4 8px 16px); }
+  .pm input { position:absolute; opacity:0; }
+  .pm label { display:flex; gap:12px; padding:12px 14px; border-radius:14px; cursor:pointer; align-items:center; background:#fff; box-shadow: 0 0 0 1px rgba(0,0,0,.05); transition: all .15s; }
+  .pm label .ring { width:18px; height:18px; border-radius:50%; border:2px solid #becab9; flex-shrink:0; position:relative; }
+  .pm input:checked + label { box-shadow:0 0 0 2px #006e1c; background:#f1f8ed;}
+  .pm input:checked + label .ring { border-color:#006e1c; }
+  .pm input:checked + label .ring::after { content:''; position:absolute; inset:3px; border-radius:50%; background:#006e1c; }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-32">
+
+<header class="sticky top-0 z-40 bg-warm/95 backdrop-blur border-b border-black/[.04]">
+  <div class="max-w-2xl mx-auto px-3 h-14 flex items-center">
+    <button onclick="history.back()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">close</span></button>
+    <h1 class="text-[15px] font-bold ml-1">공구 참여 결제</h1>
+    <span class="ml-auto flex items-center gap-1 text-[11.5px] font-bold text-primary">
+      <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1;">lock</span>
+      안전 결제
+    </span>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pt-4">
+
+  <!-- Item -->
+  <section class="bg-white rounded-2xl ring-soft p-3 flex gap-3">
+    <div class="w-20 h-20 rounded-xl ph relative shrink-0">
+      <span class="absolute top-1.5 left-1.5 text-[9px] font-bold bg-secondary-container text-white px-1.5 py-0.5 rounded">공구</span>
+    </div>
+    <div class="flex-1 min-w-0">
+      <p class="text-[14px] font-semibold leading-snug">제주 노지귤 10kg 같이 사요</p>
+      <p class="text-[11.5px] text-on-surface-variant mt-1">호스트 · 따뜻한아랫집 · 한들마을 2단지</p>
+      <p class="text-[11.5px] text-secondary font-semibold mt-1">D-2 마감 · 3/4 모집중</p>
+    </div>
+  </section>
+
+  <!-- Amount -->
+  <section class="mt-4 rounded-3xl bg-gradient-to-br from-primary via-primary to-[#004510] text-white p-5">
+    <p class="text-[11px] font-bold text-primary-fixed-dim tracking-wide">결제 금액</p>
+    <p class="text-[34px] font-bold mt-1 leading-none">12,000<span class="text-[16px] font-medium ml-1">원</span></p>
+    <p class="text-[12px] text-white/80 mt-2">모집 성공 시 결제 진행 · 실패 시 자동 환불</p>
+  </section>
+
+  <!-- Method -->
+  <section class="mt-4">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">결제 수단</p>
+    <div class="pm space-y-2">
+      <div>
+        <input type="radio" name="pm" id="pm1" checked/>
+        <label for="pm1">
+          <span class="ring"></span>
+          <span class="w-9 h-9 rounded-lg bg-[#fee500] flex items-center justify-center"><span class="font-extrabold text-on-surface">K</span></span>
+          <div class="flex-1">
+            <p class="text-[13.5px] font-semibold">카카오페이</p>
+            <p class="text-[10.5px] text-on-surface-variant">간편 인증</p>
+          </div>
+          <span class="text-[10px] font-bold bg-primary-fixed/60 text-on-primary-fixed-variant px-1.5 py-0.5 rounded">최근 사용</span>
+        </label>
+      </div>
+      <div>
+        <input type="radio" name="pm" id="pm2"/>
+        <label for="pm2">
+          <span class="ring"></span>
+          <span class="w-9 h-9 rounded-lg bg-[#3182f6] flex items-center justify-center text-white font-bold text-[12px]">토스</span>
+          <p class="text-[13.5px] font-semibold flex-1">토스페이</p>
+        </label>
+      </div>
+      <div>
+        <input type="radio" name="pm" id="pm3"/>
+        <label for="pm3">
+          <span class="ring"></span>
+          <span class="w-9 h-9 rounded-lg bg-on-surface flex items-center justify-center"><span class="material-symbols-outlined text-white" style="font-size:18px">credit_card</span></span>
+          <div class="flex-1">
+            <p class="text-[13.5px] font-semibold">신용·체크카드</p>
+            <p class="text-[10.5px] text-on-surface-variant">KB국민 ****-12</p>
+          </div>
+        </label>
+      </div>
+      <div>
+        <input type="radio" name="pm" id="pm4"/>
+        <label for="pm4">
+          <span class="ring"></span>
+          <span class="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center"><span class="material-symbols-outlined text-tertiary" style="font-size:18px">account_balance</span></span>
+          <p class="text-[13.5px] font-semibold flex-1">계좌 이체</p>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <!-- Point use -->
+  <section class="mt-4 bg-white rounded-2xl ring-soft p-4">
+    <div class="flex items-center justify-between mb-2">
+      <p class="text-[13.5px] font-bold">나눔 포인트</p>
+      <p class="text-[11.5px] text-on-surface-variant">보유 <b class="text-primary">1,840</b> P</p>
+    </div>
+    <div class="flex gap-2">
+      <input value="1,000" class="flex-1 px-3 py-2.5 rounded-xl ring-1 ring-outline-variant bg-surface-container-low text-[14px] font-semibold text-right outline-none focus:ring-2 focus:ring-primary"/>
+      <button class="text-[11.5px] font-bold text-primary px-3 rounded-xl ring-1 ring-primary/30">전액</button>
+    </div>
+    <p class="text-[10.5px] text-on-surface-variant mt-1.5">100P 이상부터 사용 가능</p>
+  </section>
+
+  <!-- Summary -->
+  <section class="mt-4 bg-white rounded-2xl ring-soft p-4">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">결제 내역</p>
+    <ul class="text-[13px] space-y-2 text-on-surface">
+      <li class="flex justify-between"><span class="text-on-surface-variant">상품 금액</span><b>12,000원</b></li>
+      <li class="flex justify-between"><span class="text-on-surface-variant">배송비</span><b class="text-primary">무료</b></li>
+      <li class="flex justify-between"><span class="text-on-surface-variant">나눔 포인트 사용</span><b class="text-primary">−1,000원</b></li>
+    </ul>
+    <div class="flex justify-between border-t border-black/[.06] pt-3 mt-3">
+      <p class="text-[14px] font-bold">최종 결제 금액</p>
+      <p class="text-[18px] font-bold text-primary">11,000원</p>
+    </div>
+  </section>
+
+  <!-- Tips -->
+  <section class="mt-3 bg-tertiary-fixed-dim/40 ring-1 ring-tertiary-fixed-dim/40 rounded-2xl p-3.5 flex gap-2">
+    <span class="material-symbols-outlined text-tertiary shrink-0" style="font-size:18px;font-variation-settings:'FILL' 1;">verified_user</span>
+    <p class="text-[11.5px] text-on-tertiary-container leading-relaxed">결제 금액은 모집 완료 전까지 NeighborFood가 안전하게 보관해요. <b>모집 실패 시 자동 환불</b>됩니다.</p>
+  </section>
+
+  <!-- Agree -->
+  <section class="mt-3 bg-white rounded-2xl ring-soft p-3.5 flex items-center gap-2.5">
+    <span class="w-5 h-5 rounded-md bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-white" style="font-size:13px">check</span></span>
+    <p class="text-[12px] leading-relaxed flex-1">주문 내용을 확인했으며 <a href="Terms.html" class="text-primary font-bold underline">결제 약관</a>에 동의합니다.</p>
+  </section>
+</main>
+
+<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-black/[.06] z-40">
+  <div class="max-w-2xl mx-auto px-4 py-3 pb-6">
+    <button class="w-full bg-primary text-white rounded-2xl py-3.5 text-[15px] font-bold flex items-center justify-center gap-1.5 shadow-[0_8px_20px_rgba(0,110,28,.25)]">
+      11,000원 카카오페이로 결제
+      <span class="material-symbols-outlined" style="font-size:18px">arrow_forward</span>
+    </button>
+  </div>
+</div>
+</body>
+</html>

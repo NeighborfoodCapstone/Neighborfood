@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>이용약관 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','on-primary-fixed-variant':'#005313',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+    'surface-container-low':'#f3f4f5','surface-container':'#edeeef',warm:'#faf9f5'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:max(884px,100dvh); font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+  details summary { cursor:pointer; list-style:none; }
+  details summary::-webkit-details-marker { display:none; }
+  details[open] .chev { transform: rotate(90deg); }
+  .chev { transition: transform .2s; }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-12">
+
+<header class="sticky top-0 z-40 bg-warm/95 backdrop-blur border-b border-black/[.04]">
+  <div class="max-w-2xl mx-auto px-3 h-14 flex items-center">
+    <button onclick="history.back()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">arrow_back</span></button>
+    <h1 class="text-[15px] font-bold ml-1">이용약관</h1>
+    <span class="ml-auto text-[10.5px] text-on-surface-variant font-semibold">v 2.4 · 2026.05.01 시행</span>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pt-4">
+
+  <!-- Tab -->
+  <div class="flex gap-2 mb-4">
+    <a class="flex-1 text-center py-2.5 rounded-full bg-primary text-white text-[12.5px] font-bold">이용약관</a>
+    <a href="Privacy.html" class="flex-1 text-center py-2.5 rounded-full bg-white text-on-surface text-[12.5px] font-semibold ring-1 ring-outline-variant">개인정보처리방침</a>
+  </div>
+
+  <!-- Hero -->
+  <section class="rounded-3xl bg-gradient-to-br from-primary-fixed/40 to-primary-fixed/10 ring-1 ring-primary-fixed-dim/30 p-5">
+    <p class="text-[11px] font-bold text-primary tracking-wide">SUMMARY</p>
+    <h1 class="text-[18px] font-bold mt-1">3줄로 요약하면</h1>
+    <ul class="mt-3 text-[12.5px] space-y-2 leading-relaxed">
+      <li class="flex gap-2"><span class="material-symbols-outlined text-primary shrink-0" style="font-size:16px;font-variation-settings:'FILL' 1;">check_circle</span>NeighborFood는 이웃 간 식재료 나눔·교환·공동구매를 중개해요.</li>
+      <li class="flex gap-2"><span class="material-symbols-outlined text-primary shrink-0" style="font-size:16px;font-variation-settings:'FILL' 1;">check_circle</span>식품 위생·약속 매너는 회원이 직접 책임져 주세요.</li>
+      <li class="flex gap-2"><span class="material-symbols-outlined text-primary shrink-0" style="font-size:16px;font-variation-settings:'FILL' 1;">check_circle</span>커뮤니티 가이드를 어기면 경고 → 정지 조치돼요.</li>
+    </ul>
+  </section>
+
+  <!-- TOC -->
+  <section class="mt-4 bg-white rounded-2xl ring-soft p-3">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide px-1 py-1.5">목차</p>
+    <ol class="text-[12.5px] text-primary font-semibold space-y-1 px-1 pb-1">
+      <li>1. 목적과 정의</li>
+      <li>2. 약관의 효력과 변경</li>
+      <li>3. 회원 가입과 자격</li>
+      <li>4. 서비스 이용 (나눔·교환·공동구매)</li>
+      <li>5. 식품 위생 책임</li>
+      <li>6. 결제·환불·정산</li>
+      <li>7. 금지 행위와 제재</li>
+      <li>8. 책임의 제한</li>
+      <li>9. 분쟁 해결</li>
+    </ol>
+  </section>
+
+  <!-- Sections -->
+  <section class="mt-4 bg-white rounded-2xl ring-soft divide-y divide-black/[.05]">
+    <details open class="p-4">
+      <summary class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-on-surface-variant chev" style="font-size:18px">chevron_right</span>
+        <span class="text-[14px] font-bold">제1조 (목적과 정의)</span>
+      </summary>
+      <div class="mt-3 text-[12.5px] leading-relaxed text-on-surface-variant space-y-2 pl-7">
+        <p>이 약관은 NeighborFood(이하 "회사")가 운영하는 이웃 간 식재료 나눔·교환·공동구매 플랫폼 서비스 이용에 관한 권리·의무와 책임 사항을 정함을 목적으로 합니다.</p>
+        <p><b>"회원"</b>은 본 약관에 동의하고 회사와 서비스 이용 계약을 체결한 자를 말하며, <b>"나눔"</b>은 무료로 제공되는 거래를, <b>"공동구매"</b>는 다수 회원이 함께 구매·분배하는 거래를 말합니다.</p>
+      </div>
+    </details>
+
+    <details class="p-4">
+      <summary class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-on-surface-variant chev" style="font-size:18px">chevron_right</span>
+        <span class="text-[14px] font-bold">제2조 (약관의 효력과 변경)</span>
+      </summary>
+      <div class="mt-3 text-[12.5px] leading-relaxed text-on-surface-variant pl-7">
+        회사는 약관을 변경할 수 있으며, 변경 시 시행 30일 전 앱 공지로 안내합니다. 회원이 시행일 전에 거부 의사를 표하지 않으면 동의한 것으로 봅니다.
+      </div>
+    </details>
+
+    <details class="p-4">
+      <summary class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-on-surface-variant chev" style="font-size:18px">chevron_right</span>
+        <span class="text-[14px] font-bold">제3조 (회원 가입과 자격)</span>
+      </summary>
+      <div class="mt-3 text-[12.5px] leading-relaxed text-on-surface-variant pl-7">
+        만 14세 이상의 자연인이라면 누구나 가입할 수 있어요. 가입 시 본인 인증과 동네 인증을 거쳐 거래 자격을 얻습니다.
+      </div>
+    </details>
+
+    <details class="p-4">
+      <summary class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-on-surface-variant chev" style="font-size:18px">chevron_right</span>
+        <span class="text-[14px] font-bold">제4조 (서비스 이용)</span>
+      </summary>
+      <div class="mt-3 text-[12.5px] leading-relaxed text-on-surface-variant pl-7">
+        회원은 등록된 동네 내에서 식재료를 나눔·교환·공동구매할 수 있어요. 공동구매 호스트는 모집 시 분배 방법, 입금 계좌, 픽업 일정을 명확히 안내해야 합니다.
+      </div>
+    </details>
+
+    <details class="p-4 bg-secondary-fixed/20">
+      <summary class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-secondary chev" style="font-size:18px">chevron_right</span>
+        <span class="text-[14px] font-bold text-secondary">제5조 (식품 위생 책임) — 중요</span>
+      </summary>
+      <div class="mt-3 text-[12.5px] leading-relaxed text-on-surface-variant pl-7 space-y-2">
+        <p>제공자는 안전한 보관 환경(냉장·냉동·실온)을 유지해야 하며, 유통기한이 지난 식품을 나눔해서는 안 됩니다.</p>
+        <p>회사는 식품의 품질·안전성을 보증하지 않으며, 회원 간 거래로 발생한 손해에 대해 책임지지 않습니다. 위생 위반 신고가 접수되면 즉시 조치합니다.</p>
+      </div>
+    </details>
+
+    <details class="p-4">
+      <summary class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-on-surface-variant chev" style="font-size:18px">chevron_right</span>
+        <span class="text-[14px] font-bold">제6조 (결제·환불·정산)</span>
+      </summary>
+      <div class="mt-3 text-[12.5px] leading-relaxed text-on-surface-variant pl-7">
+        공동구매 결제 금액은 회사가 안전하게 보관(에스크로)하다가 모집 완료 후 호스트에게 정산합니다. 모집 실패 시 영업일 기준 1~2일 내 자동 환불됩니다.
+      </div>
+    </details>
+
+    <details class="p-4">
+      <summary class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-on-surface-variant chev" style="font-size:18px">chevron_right</span>
+        <span class="text-[14px] font-bold">제7조 (금지 행위와 제재)</span>
+      </summary>
+      <div class="mt-3 text-[12.5px] leading-relaxed text-on-surface-variant pl-7">
+        영리 목적의 반복 판매, 허위 매물, 외부 결제 유도, 욕설·혐오 표현 등은 금지됩니다. 위반 시 경고 → 7일 정지 → 영구 정지 단계로 제재할 수 있습니다.
+      </div>
+    </details>
+
+    <details class="p-4">
+      <summary class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-on-surface-variant chev" style="font-size:18px">chevron_right</span>
+        <span class="text-[14px] font-bold">제8조 (책임의 제한)</span>
+      </summary>
+      <div class="mt-3 text-[12.5px] leading-relaxed text-on-surface-variant pl-7">
+        회사는 천재지변, 통신 장애 등 회사의 귀책사유가 아닌 경우 책임을 지지 않습니다. 회원 간 직접 거래로 발생한 분쟁은 회원이 직접 해결합니다.
+      </div>
+    </details>
+
+    <details class="p-4">
+      <summary class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-on-surface-variant chev" style="font-size:18px">chevron_right</span>
+        <span class="text-[14px] font-bold">제9조 (분쟁 해결)</span>
+      </summary>
+      <div class="mt-3 text-[12.5px] leading-relaxed text-on-surface-variant pl-7">
+        본 약관에 대한 분쟁은 한국 법령에 따르며, 회사 본점 소재지 관할 법원에서 다룹니다. 분쟁 시 먼저 고객센터를 통해 협의해 주세요.
+      </div>
+    </details>
+  </section>
+
+  <!-- Versions -->
+  <section class="mt-4 bg-white rounded-2xl ring-soft p-4">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">이전 약관</p>
+    <ul class="text-[12.5px] space-y-1.5">
+      <li class="flex justify-between"><span>v 2.3</span><a class="text-primary font-semibold">2025.11.15</a></li>
+      <li class="flex justify-between"><span>v 2.2</span><a class="text-primary font-semibold">2025.06.01</a></li>
+      <li class="flex justify-between"><span>v 2.1</span><a class="text-primary font-semibold">2024.12.10</a></li>
+    </ul>
+  </section>
+
+  <p class="text-center text-[10.5px] text-on-surface-variant mt-4">© NeighborFood Inc.</p>
+</main>
+</body>
+</html>

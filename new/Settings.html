@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>설정 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313',
+    secondary:'#8b5000','secondary-container':'#ff9800',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+    error:'#ba1a1a','surface-container-low':'#f3f4f5','surface-container-high':'#e7e8e9',
+    warm:'#faf9f5'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:max(884px,100dvh); font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+  .toggle { width:42px; height:24px; background:#becab9; border-radius:9999px; padding:2px; display:flex; align-items:center; cursor:pointer; transition: background .2s; }
+  .toggle .knob { width:20px; height:20px; background:white; border-radius:9999px; box-shadow:0 1px 2px rgba(0,0,0,.15); transition: transform .2s; }
+  .toggle.on { background:#006e1c; justify-content:flex-end; }
+  .row { display:flex; align-items:center; padding:14px 16px; gap:14px; }
+  .row .ico { width:24px; color:#3f4a3c; }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-12">
+
+<header class="sticky top-0 z-40 bg-warm/95 backdrop-blur border-b border-black/[.04]">
+  <div class="max-w-2xl mx-auto px-3 h-14 flex items-center">
+    <button onclick="history.back()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">arrow_back</span></button>
+    <h1 class="text-[15px] font-bold ml-1">설정</h1>
+    <input class="ml-auto w-32 bg-surface-container-low rounded-full px-3 py-1.5 text-[12px] outline-none focus:bg-white focus:ring-1 focus:ring-primary" placeholder="🔍 설정 검색"/>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pt-4">
+
+  <!-- Account quick -->
+  <section class="bg-white rounded-2xl ring-soft p-3 flex items-center gap-3 mb-4">
+    <div class="w-11 h-11 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[14px] font-bold">건</div>
+    <div class="flex-1 min-w-0">
+      <p class="text-[14px] font-bold">건강한이웃</p>
+      <p class="text-[11.5px] text-on-surface-variant">healthy****@gmail.com</p>
+    </div>
+    <a href="Edit Profile.html" class="text-[11.5px] font-bold text-on-surface-variant px-3 py-1.5 rounded-lg ring-1 ring-outline-variant">관리</a>
+  </section>
+
+  <p class="text-[10.5px] font-bold text-on-surface-variant tracking-wider px-2 mb-1.5">알림</p>
+  <section class="bg-white rounded-2xl ring-soft mb-4 divide-y divide-black/[.04]">
+    <div class="row">
+      <span class="material-symbols-outlined ico">notifications</span>
+      <p class="flex-1 text-[14px] font-semibold">알림 받기</p>
+      <span class="toggle on"><span class="knob"></span></span>
+    </div>
+    <div class="row">
+      <span class="material-symbols-outlined ico">chat</span>
+      <div class="flex-1">
+        <p class="text-[14px]">채팅 메시지</p>
+        <p class="text-[10.5px] text-on-surface-variant">소리 + 진동</p>
+      </div>
+      <span class="toggle on"><span class="knob"></span></span>
+    </div>
+    <div class="row">
+      <span class="material-symbols-outlined ico">handshake</span>
+      <p class="flex-1 text-[14px]">거래 요청·예약 변경</p>
+      <span class="toggle on"><span class="knob"></span></span>
+    </div>
+    <div class="row">
+      <span class="material-symbols-outlined ico">campaign</span>
+      <p class="flex-1 text-[14px]">공지·이벤트</p>
+      <span class="toggle"><span class="knob"></span></span>
+    </div>
+    <div class="row">
+      <span class="material-symbols-outlined ico">favorite</span>
+      <p class="flex-1 text-[14px]">관심 글 마감 임박</p>
+      <span class="toggle on"><span class="knob"></span></span>
+    </div>
+    <div class="row">
+      <span class="material-symbols-outlined ico">bedtime</span>
+      <div class="flex-1">
+        <p class="text-[14px]">방해 금지 시간</p>
+        <p class="text-[10.5px] text-on-surface-variant">매일 22:00 ~ 07:00</p>
+      </div>
+      <span class="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+    </div>
+  </section>
+
+  <p class="text-[10.5px] font-bold text-on-surface-variant tracking-wider px-2 mb-1.5">동네·거리</p>
+  <section class="bg-white rounded-2xl ring-soft mb-4 divide-y divide-black/[.04]">
+    <a href="Neighborhood Setting.html" class="row">
+      <span class="material-symbols-outlined ico">location_on</span>
+      <p class="flex-1 text-[14px]">내 동네 관리</p>
+      <span class="text-[12px] text-primary font-semibold">한들마을 3단지</span>
+      <span class="material-symbols-outlined text-on-surface-variant ml-1">chevron_right</span>
+    </a>
+    <div class="row">
+      <span class="material-symbols-outlined ico">my_location</span>
+      <p class="flex-1 text-[14px]">검색 반경</p>
+      <span class="text-[12px] text-on-surface-variant">1.0 km</span>
+      <span class="material-symbols-outlined text-on-surface-variant ml-1">chevron_right</span>
+    </div>
+    <div class="row">
+      <span class="material-symbols-outlined ico">visibility_off</span>
+      <p class="flex-1 text-[14px]">활동 동네 숨기기</p>
+      <span class="toggle"><span class="knob"></span></span>
+    </div>
+  </section>
+
+  <p class="text-[10.5px] font-bold text-on-surface-variant tracking-wider px-2 mb-1.5">화면·언어</p>
+  <section class="bg-white rounded-2xl ring-soft mb-4 divide-y divide-black/[.04]">
+    <div class="row">
+      <span class="material-symbols-outlined ico">dark_mode</span>
+      <p class="flex-1 text-[14px]">테마</p>
+      <div class="flex gap-1 bg-surface-container-low rounded-full p-0.5">
+        <button class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-white shadow">☀️ 라이트</button>
+        <button class="text-[11px] font-semibold px-2.5 py-1 rounded-full text-on-surface-variant">🌙 다크</button>
+        <button class="text-[11px] font-semibold px-2.5 py-1 rounded-full text-on-surface-variant">자동</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="material-symbols-outlined ico">format_size</span>
+      <div class="flex-1">
+        <p class="text-[14px]">글자 크기</p>
+        <input type="range" min="0" max="3" value="1" class="w-full mt-1.5 accent-primary"/>
+      </div>
+    </div>
+    <div class="row">
+      <span class="material-symbols-outlined ico">translate</span>
+      <p class="flex-1 text-[14px]">언어</p>
+      <span class="text-[12px] text-on-surface-variant">한국어</span>
+      <span class="material-symbols-outlined text-on-surface-variant ml-1">chevron_right</span>
+    </div>
+  </section>
+
+  <p class="text-[10.5px] font-bold text-on-surface-variant tracking-wider px-2 mb-1.5">개인정보·보안</p>
+  <section class="bg-white rounded-2xl ring-soft mb-4 divide-y divide-black/[.04]">
+    <a href="Password Reset.html" class="row">
+      <span class="material-symbols-outlined ico">password</span>
+      <p class="flex-1 text-[14px]">비밀번호 변경</p>
+      <span class="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+    </a>
+    <div class="row">
+      <span class="material-symbols-outlined ico">fingerprint</span>
+      <p class="flex-1 text-[14px]">생체 인증 잠금</p>
+      <span class="toggle on"><span class="knob"></span></span>
+    </div>
+    <a href="Blocked Users.html" class="row">
+      <span class="material-symbols-outlined ico">block</span>
+      <p class="flex-1 text-[14px]">차단한 이웃</p>
+      <span class="text-[11.5px] text-on-surface-variant">2명</span>
+      <span class="material-symbols-outlined text-on-surface-variant ml-1">chevron_right</span>
+    </a>
+    <div class="row">
+      <span class="material-symbols-outlined ico">policy</span>
+      <p class="flex-1 text-[14px]">개인정보 다운로드</p>
+      <span class="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+    </div>
+  </section>
+
+  <p class="text-[10.5px] font-bold text-on-surface-variant tracking-wider px-2 mb-1.5">기타</p>
+  <section class="bg-white rounded-2xl ring-soft mb-4 divide-y divide-black/[.04]">
+    <a href="Help.html" class="row">
+      <span class="material-symbols-outlined ico">help</span>
+      <p class="flex-1 text-[14px]">고객센터·FAQ</p>
+      <span class="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+    </a>
+    <a href="Terms.html" class="row">
+      <span class="material-symbols-outlined ico">description</span>
+      <p class="flex-1 text-[14px]">이용약관</p>
+      <span class="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+    </a>
+    <a href="Privacy.html" class="row">
+      <span class="material-symbols-outlined ico">shield_person</span>
+      <p class="flex-1 text-[14px]">개인정보처리방침</p>
+      <span class="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+    </a>
+    <div class="row">
+      <span class="material-symbols-outlined ico">info</span>
+      <p class="flex-1 text-[14px]">앱 버전</p>
+      <span class="text-[12px] text-primary font-bold">2.4.2 · 최신</span>
+    </div>
+  </section>
+
+  <div class="space-y-2">
+    <button class="w-full text-[13px] text-on-surface-variant font-semibold py-3 rounded-2xl bg-white ring-soft">로그아웃</button>
+    <a href="Withdraw.html" class="block text-center w-full text-[12.5px] text-error font-semibold py-3">회원 탈퇴</a>
+  </div>
+
+</main>
+</body>
+</html>

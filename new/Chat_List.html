@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>채팅 목록 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
+    'on-primary':'#fff','on-primary-fixed-variant':'#005313','on-primary-fixed':'#002204',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870',
+    'on-secondary-container':'#653900','on-secondary-fixed-variant':'#693c00',
+    tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+    'surface-container-lowest':'#fff','surface-container-low':'#f3f4f5','surface-container':'#edeeef','surface-container-high':'#e7e8e9',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',
+    outline:'#6f7a6b','outline-variant':'#becab9'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background: #faf9f5; min-height: max(884px,100dvh); }
+  .row { transition: background-color .15s ease; }
+  .row:active { background-color: rgba(0,0,0,.03); }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-24">
+
+<header class="sticky top-0 z-40 bg-warm/90 backdrop-blur border-b border-black/[.04]">
+  <div class="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+    <p class="text-[20px] font-bold tracking-tight">채팅</p>
+    <div class="flex items-center gap-1">
+      <button class="p-2 rounded-full hover:bg-black/5"><span class="material-symbols-outlined">search</span></button>
+      <button class="p-2 rounded-full hover:bg-black/5"><span class="material-symbols-outlined">edit_square</span></button>
+    </div>
+  </div>
+  <!-- Tabs -->
+  <div class="max-w-2xl mx-auto px-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
+    <button class="shrink-0 bg-primary text-white text-[12.5px] font-semibold px-3.5 py-1.5 rounded-full">전체 <span class="opacity-80 ml-0.5">14</span></button>
+    <button class="shrink-0 bg-white text-on-surface text-[12.5px] font-medium px-3.5 py-1.5 rounded-full ring-1 ring-black/5">안 읽음 <span class="text-primary font-bold ml-0.5">3</span></button>
+    <button class="shrink-0 bg-white text-on-surface text-[12.5px] font-medium px-3.5 py-1.5 rounded-full ring-1 ring-black/5">진행중</button>
+    <button class="shrink-0 bg-white text-on-surface text-[12.5px] font-medium px-3.5 py-1.5 rounded-full ring-1 ring-black/5">예약중</button>
+    <button class="shrink-0 bg-white text-on-surface text-[12.5px] font-medium px-3.5 py-1.5 rounded-full ring-1 ring-black/5">완료</button>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-3 pt-3">
+
+  <!-- Pinned: ongoing schedule -->
+  <div class="rounded-2xl bg-white ring-1 ring-black/[.05] p-3 flex items-center gap-3 mb-3">
+    <div class="w-9 h-9 rounded-full bg-secondary-fixed flex items-center justify-center shrink-0">
+      <span class="material-symbols-outlined text-on-secondary-fixed-variant" style="font-size:20px">schedule</span>
+    </div>
+    <div class="flex-1 min-w-0">
+      <p class="text-[13px] font-semibold">오늘 6:00 PM 약속 1건</p>
+      <p class="text-[11.5px] text-on-surface-variant">당근농장주인 · 한들마을 3단지 놀이터</p>
+    </div>
+    <button class="text-[12px] font-semibold text-primary">상세</button>
+  </div>
+
+  <p class="text-[11px] font-bold tracking-wide text-on-surface-variant px-1 mb-1">진행 중</p>
+
+  <!-- Item 1 (unread, 2 messages) -->
+  <a href="Chat_Detail.html" class="row flex gap-3 items-center px-2 py-3 rounded-xl">
+    <div class="relative shrink-0">
+      <div class="w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[15px] font-bold">당</div>
+      <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#4caf50] border-2 border-warm"></span>
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <p class="text-[14.5px] font-bold truncate">당근농장주인</p>
+          <span class="material-symbols-outlined text-on-surface-variant" style="font-size:13px">verified</span>
+          <span class="text-[10.5px] text-on-surface-variant">한들마을 3단지</span>
+        </div>
+        <span class="text-[11px] text-primary font-semibold shrink-0 ml-2">방금 전</span>
+      </div>
+      <div class="flex items-center justify-between mt-0.5">
+        <p class="text-[13px] text-on-surface truncate font-medium pr-2">네, 이따 6시에 단지 앞 놀이터에서 뵐게요!</p>
+        <span class="shrink-0 bg-primary text-white text-[10.5px] font-bold rounded-full min-w-[18px] h-[18px] px-1.5 flex items-center justify-center">2</span>
+      </div>
+      <p class="text-[11px] text-on-surface-variant mt-0.5 truncate flex items-center gap-1">
+        <span class="w-3.5 h-3.5 rounded shrink-0" style="background:repeating-linear-gradient(135deg,#cfe6c2 0 4px,#a8d090 4px 8px);"></span>
+        유기농 시금치 · <span class="text-secondary font-semibold">예약중</span>
+      </p>
+    </div>
+  </a>
+
+  <!-- Item 2 (unread 1, typing) -->
+  <a class="row flex gap-3 items-center px-2 py-3 rounded-xl">
+    <div class="relative shrink-0">
+      <div class="w-12 h-12 rounded-full bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed-variant text-[15px] font-bold">빵</div>
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between">
+        <p class="text-[14.5px] font-bold truncate">빵순이</p>
+        <span class="text-[11px] text-on-surface-variant shrink-0 ml-2">2분 전</span>
+      </div>
+      <div class="flex items-center justify-between mt-0.5">
+        <p class="text-[13px] text-primary truncate italic pr-2">입력 중…</p>
+        <span class="shrink-0 bg-primary text-white text-[10.5px] font-bold rounded-full min-w-[18px] h-[18px] px-1.5 flex items-center justify-center">1</span>
+      </div>
+      <p class="text-[11px] text-on-surface-variant mt-0.5 truncate flex items-center gap-1">
+        <span class="w-3.5 h-3.5 rounded shrink-0" style="background:repeating-linear-gradient(135deg,#f6ddc1 0 4px,#e1b585 4px 8px);"></span>
+        직접 만든 식빵 · 나눔 완료
+      </p>
+    </div>
+  </a>
+
+  <!-- Item 3 (group buy host) -->
+  <a class="row flex gap-3 items-center px-2 py-3 rounded-xl">
+    <div class="relative shrink-0">
+      <div class="w-12 h-12 rounded-full bg-tertiary-fixed flex items-center justify-center text-on-tertiary-container text-[15px] font-bold">제</div>
+      <span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-secondary-container text-white flex items-center justify-center border-2 border-warm">
+        <span class="material-symbols-outlined" style="font-size:12px">group</span>
+      </span>
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <p class="text-[14.5px] font-bold truncate">제주귤 공구방</p>
+          <span class="text-[10px] font-bold bg-tertiary-fixed-dim/60 text-on-tertiary-container px-1.5 py-0.5 rounded">4명</span>
+        </div>
+        <span class="text-[11px] text-on-surface-variant shrink-0 ml-2">12분 전</span>
+      </div>
+      <p class="text-[13px] text-on-surface-variant truncate mt-0.5"><b class="text-on-surface">민지</b>: 저희집 앞으로 받으면 될까요?</p>
+      <p class="text-[11px] text-on-surface-variant mt-0.5 truncate">제주 노지귤 10kg · 4/4명 모집 완료 🎉</p>
+    </div>
+  </a>
+
+  <!-- Item 4 -->
+  <a class="row flex gap-3 items-center px-2 py-3 rounded-xl">
+    <div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant text-[15px] font-bold shrink-0">요</div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between">
+        <p class="text-[14.5px] font-semibold truncate">요리초보</p>
+        <span class="text-[11px] text-on-surface-variant shrink-0 ml-2">어제</span>
+      </div>
+      <p class="text-[13px] text-on-surface-variant truncate mt-0.5">혹시 양파 남는 거 있으신가요? 🥺</p>
+      <p class="text-[11px] text-on-surface-variant mt-0.5 truncate">햇양파 3개 · 나눔</p>
+    </div>
+  </a>
+
+  <p class="text-[11px] font-bold tracking-wide text-on-surface-variant px-1 mt-4 mb-1">완료</p>
+
+  <a class="row flex gap-3 items-center px-2 py-3 rounded-xl opacity-70">
+    <div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center shrink-0">
+      <span class="material-symbols-outlined text-on-surface-variant" style="font-size:20px">check_circle</span>
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between">
+        <p class="text-[14.5px] font-medium truncate">자취생A</p>
+        <span class="text-[11px] text-on-surface-variant shrink-0 ml-2">10월 24일</span>
+      </div>
+      <p class="text-[13px] text-on-surface-variant truncate mt-0.5">거래 감사합니다. 좋은 하루 되세요!</p>
+      <p class="text-[11px] text-on-surface-variant mt-0.5 truncate">대파 한 단 · 거래완료</p>
+    </div>
+  </a>
+
+  <a class="row flex gap-3 items-center px-2 py-3 rounded-xl opacity-70">
+    <div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant text-[15px] font-bold shrink-0">현</div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between">
+        <p class="text-[14.5px] font-medium truncate">현미밥</p>
+        <span class="text-[11px] text-on-surface-variant shrink-0 ml-2">10월 22일</span>
+      </div>
+      <p class="text-[13px] text-on-surface-variant truncate mt-0.5">너무 잘 먹었어요. 매너 ⭐⭐⭐⭐⭐</p>
+      <p class="text-[11px] text-on-surface-variant mt-0.5 truncate">사워도우 빵 · 거래완료</p>
+    </div>
+  </a>
+
+</main>
+
+<!-- Bottom Nav -->
+<nav class="fixed bottom-0 left-0 w-full bg-white border-t border-black/[.06] z-50 flex justify-around items-center pt-2 pb-5 px-2">
+  <a class="flex flex-col items-center text-on-surface-variant" href="Home.html"><span class="material-symbols-outlined" style="font-size:24px">home</span><span class="text-[10px] mt-0.5">홈</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Map.html"><span class="material-symbols-outlined" style="font-size:24px">map</span><span class="text-[10px] mt-0.5">지도</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Register.html"><span class="material-symbols-outlined" style="font-size:24px">add_circle</span><span class="text-[10px] mt-0.5">등록</span></a>
+  <a class="flex flex-col items-center text-primary" href="My_Activity.html"><span class="material-symbols-outlined" style="font-size:24px;font-variation-settings:'FILL' 1;">interests</span><span class="text-[10px] font-bold mt-0.5">내 활동</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="My_Page.html"><span class="material-symbols-outlined" style="font-size:24px">person</span><span class="text-[10px] mt-0.5">마이</span></a>
+</nav>
+
+</body>
+</html>
