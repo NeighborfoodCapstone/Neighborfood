@@ -230,88 +230,93 @@
 </section>
 
 <script>
+const API_BASE = "http://127.0.0.1:8000";
+
 const API_ENDPOINTS = {
-  request: "/api/qr/request",
-  verify: "/api/qr/verify",
-  history: "/api/qr/history"
+  request: `${API_BASE}/api/qr/request`,
+  verify: `${API_BASE}/api/qr/verify`,
+  history: `${API_BASE}/api/qr/history`,
 };
 
-const STORAGE_KEY = "neighborfood_qr_sessions_demo";
 let currentMode = "scan";
 let qrScanner = null;
 let lastIssuedToken = "";
+let lastIssuedVerifyUrl = "";
 
 const heroCopy = {
   scan: ["상대방 QR을 스캔해 거래를 확정하세요", "토큰 URL과 raw token을 모두 처리합니다", "QR을 사각형 안에 맞춰주세요", "인식 대기 중"],
   issue: ["거래용 인증 QR을 발급하세요", "SQLite에는 token hash와 만료시간만 저장하는 구조입니다", "발급된 QR이 여기에 표시됩니다", "발급 대기 중"],
-  history: ["최근 인증 이력을 확인하세요", "ISSUED / VERIFIED / EXPIRED 상태를 한 화면에서 봅니다", "이력 요약 모드입니다", "이력 조회 중"]
+  history: ["최근 인증 이력을 확인하세요", "ISSUED / VERIFIED / EXPIRED 상태를 한 화면에서 봅니다", "이력 요약 모드입니다", "이력 조회 중"],
 };
 
-function loadSessions() {
+async function apiFetch(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+
+  let data = null;
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    data = await response.json();
   } catch {
-    return [];
+    data = { ok: false, message: "서버 응답을 JSON으로 읽지 못했습니다." };
   }
-}
 
-function saveSessions(items) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-}
+  if (!response.ok) {
+    throw new Error(data.detail || data.message || `HTTP ${response.status}`);
+  }
 
-function nowIso() {
-  return new Date().toISOString();
+  return data;
 }
 
 function formatTime(value) {
   if (!value) return "-";
   try {
     return new Intl.DateTimeFormat("ko-KR", {
-      month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit"
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
     }).format(new Date(value));
   } catch {
     return value;
   }
 }
 
-function createId(prefix = "qr") {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+function normalizeVerifyStatus(status) {
+  if (!status) return "not_found";
+  const value = String(status).toLowerCase();
+  if (value === "verified") return "verified";
+  if (value === "already_used") return "already_used";
+  if (value === "expired") return "expired";
+  if (value === "not_found" || value === "invalid_input") return "not_found";
+  if (value === "issued") return "not_found";
+  return value;
 }
 
-function generateRawToken() {
-  const bytes = new Uint8Array(24);
-  if (crypto?.getRandomValues) crypto.getRandomValues(bytes);
-  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
-  return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+function normalizeHistoryStatus(status) {
+  if (!status) return "ISSUED";
+  return String(status).toUpperCase();
 }
 
-async function sha256Hex(input) {
-  if (!crypto?.subtle) return `demo_hash_${input.slice(0, 10)}`;
-  const encoded = new TextEncoder().encode(input);
-  const digest = await crypto.subtle.digest("SHA-256", encoded);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+function statusClass(status) {
+  const value = normalizeHistoryStatus(status);
+  if (value === "VERIFIED") return "bg-green-50 border-green-200 text-primary";
+  if (value === "EXPIRED") return "bg-rose-50 border-rose-200 text-danger";
+  return "bg-amber-50 border-amber-200 text-secondary";
 }
 
-function parseScannedToken(value) {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) return null;
-
-  try {
-    const parsedUrl = new URL(trimmed);
-    const segments = parsedUrl.pathname.split("/").filter(Boolean);
-    return segments[segments.length - 1] || null;
-  } catch {
-    return trimmed;
-  }
-}
-
-function getVerifyUrl(token) {
-  return `${location.origin}${location.pathname.replace(/[^\/]*$/, "")}verify/${encodeURIComponent(token)}`;
+function statusLabel(status) {
+  const value = normalizeHistoryStatus(status);
+  return { ISSUED: "발급됨", VERIFIED: "검증 완료", EXPIRED: "만료됨" }[value] || value;
 }
 
 function setMode(mode) {
   currentMode = mode;
+
   document.querySelectorAll(".mode-btn").forEach((btn) => {
     const active = btn.dataset.mode === mode;
     btn.className = active
@@ -348,68 +353,29 @@ function setMode(mode) {
   if (mode === "history") renderHistory();
 }
 
-function statusClass(status) {
-  if (status === "VERIFIED") return "bg-green-50 border-green-200 text-primary";
-  if (status === "EXPIRED") return "bg-rose-50 border-rose-200 text-danger";
-  return "bg-amber-50 border-amber-200 text-secondary";
-}
-
-function statusLabel(status) {
-  return { ISSUED:"발급됨", VERIFIED:"검증 완료", EXPIRED:"만료됨" }[status] || status;
-}
-
-function expireIssuedSessions(items) {
-  const now = Date.now();
-  let changed = false;
-  const next = items.map((item) => {
-    if (item.status === "ISSUED" && new Date(item.expiresAt).getTime() <= now) {
-      changed = true;
-      return { ...item, status:"EXPIRED", updatedAt: nowIso() };
-    }
-    return item;
-  });
-  if (changed) saveSessions(next);
-  return next;
-}
-
 async function issueSession({ subjectId, purpose, ttlSeconds }) {
-  const token = generateRawToken();
-  const issuedAt = new Date();
-  const expiresAt = new Date(issuedAt.getTime() + Number(ttlSeconds) * 1000);
-  const tokenHash = await sha256Hex(token);
+  const data = await apiFetch(API_ENDPOINTS.request, {
+    method: "POST",
+    body: JSON.stringify({ subjectId, purpose, ttlSeconds }),
+  });
 
-  const session = {
-    id: createId("qrs"),
-    subjectId,
-    purpose,
-    token,
-    tokenHash,
-    status: "ISSUED",
-    issuedAt: issuedAt.toISOString(),
-    expiresAt: expiresAt.toISOString(),
-    usedAt: null,
-    lastScannedAt: null,
-    scannerIp: "local-prototype",
-    scannerUserAgent: navigator.userAgent.slice(0, 160),
-    createdAt: issuedAt.toISOString(),
-    updatedAt: issuedAt.toISOString()
-  };
+  if (!data.ok || !data.session) {
+    throw new Error(data.message || "QR 발급에 실패했습니다.");
+  }
 
-  const items = loadSessions();
-  items.unshift(session);
-  saveSessions(items.slice(0, 30));
-  return session;
+  return data.session;
 }
 
-async function drawIssuedQr(token) {
+async function drawIssuedQr(session) {
   const canvas = document.getElementById("issuedQrCanvas");
-  const verifyUrl = getVerifyUrl(token);
+  const qrValue = session.verifyUrl || `${API_BASE}/api/qr/verify/${encodeURIComponent(session.token)}`;
+
   if (window.QRCode?.toCanvas) {
-    await QRCode.toCanvas(canvas, verifyUrl, {
+    await QRCode.toCanvas(canvas, qrValue, {
       width: 240,
       margin: 1,
-      color: { dark:"#005313", light:"#ffffff" },
-      errorCorrectionLevel: "M"
+      color: { dark: "#005313", light: "#ffffff" },
+      errorCorrectionLevel: "M",
     });
   }
 }
@@ -428,12 +394,14 @@ function showIssueResult(session) {
     <div class="mt-2 grid gap-1">
       <p>만료: ${formatTime(session.expiresAt)}</p>
       <p class="break-all">token: ${session.token}</p>
+      <p class="break-all">verify URL: ${session.verifyUrl || "-"}</p>
     </div>
   `;
 }
 
 async function handleIssueSubmit(event) {
   event.preventDefault();
+
   const subjectId = document.getElementById("subjectId").value.trim();
   const purpose = document.getElementById("purpose").value;
   const ttlSeconds = Number(document.getElementById("ttlSeconds").value);
@@ -443,31 +411,42 @@ async function handleIssueSubmit(event) {
     return;
   }
 
-  document.getElementById("statusText").textContent = "QR 생성 중...";
-  const session = await issueSession({ subjectId, purpose, ttlSeconds });
-  lastIssuedToken = session.token;
-  await drawIssuedQr(session.token);
-  showIssueResult(session);
-  setMode("issue");
-  document.getElementById("fakeQrPattern").classList.add("hidden");
-  document.getElementById("issuedQrCanvas").classList.remove("hidden");
-  document.getElementById("scanLine").classList.add("hidden");
-  document.getElementById("statusText").textContent = "QR 발급 완료";
-  renderHistory();
+  try {
+    document.getElementById("statusText").textContent = "QR 생성 중...";
+    const session = await issueSession({ subjectId, purpose, ttlSeconds });
+
+    lastIssuedToken = session.token;
+    lastIssuedVerifyUrl = session.verifyUrl || "";
+
+    await drawIssuedQr(session);
+    showIssueResult(session);
+    setMode("issue");
+
+    document.getElementById("fakeQrPattern").classList.add("hidden");
+    document.getElementById("issuedQrCanvas").classList.remove("hidden");
+    document.getElementById("scanLine").classList.add("hidden");
+    document.getElementById("statusText").textContent = "QR 발급 완료";
+    await renderHistory();
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "QR 발급 중 오류가 발생했습니다.");
+    document.getElementById("statusText").textContent = "QR 발급 실패";
+  }
 }
 
 function showVerifyResult(result) {
   const box = document.getElementById("verifyResult");
   box.classList.remove("hidden");
 
+  const normalizedStatus = normalizeVerifyStatus(result.status || result.result);
   const map = {
-    verified: ["검증 완료", "토큰이 유효했고 방금 거래 인증 처리되었습니다.", "border-green-200 bg-green-50 text-primary"],
-    already_used: ["이미 사용된 QR", "이 토큰은 이미 검증에 사용되어 재사용이 차단되었습니다.", "border-amber-200 bg-amber-50 text-secondary"],
-    expired: ["만료된 QR", "토큰 만료 시간이 지났습니다. 새 QR을 다시 발급하세요.", "border-rose-200 bg-rose-50 text-danger"],
-    not_found: ["유효하지 않은 QR", "저장된 인증 세션을 찾을 수 없습니다.", "border-rose-200 bg-rose-50 text-danger"]
+    verified: ["검증 완료", result.message || "토큰이 유효했고 방금 거래 인증 처리되었습니다.", "border-green-200 bg-green-50 text-primary"],
+    already_used: ["이미 사용된 QR", result.message || "이 토큰은 이미 검증에 사용되어 재사용이 차단되었습니다.", "border-amber-200 bg-amber-50 text-secondary"],
+    expired: ["만료된 QR", result.message || "토큰 만료 시간이 지났습니다. 새 QR을 다시 발급하세요.", "border-rose-200 bg-rose-50 text-danger"],
+    not_found: ["유효하지 않은 QR", result.message || "저장된 인증 세션을 찾을 수 없습니다.", "border-rose-200 bg-rose-50 text-danger"],
   };
 
-  const copy = map[result.status] || map.not_found;
+  const copy = map[normalizedStatus] || map.not_found;
   box.className = `mt-3 rounded-2xl border px-4 py-3 text-[12px] ${copy[2]}`;
   box.innerHTML = `
     <p class="font-extrabold">${copy[0]}</p>
@@ -481,77 +460,66 @@ function showVerifyResult(result) {
 }
 
 async function verifyToken(rawValue) {
-  const token = parseScannedToken(rawValue);
-  if (!token) {
-    showVerifyResult({ status:"not_found" });
+  const value = String(rawValue || "").trim();
+
+  if (!value) {
+    showVerifyResult({ status: "not_found", message: "QR 토큰이 비어 있습니다." });
     return;
   }
 
-  let items = expireIssuedSessions(loadSessions());
-  const tokenHash = await sha256Hex(token);
-  const index = items.findIndex((item) => item.token === token || item.tokenHash === tokenHash);
-  const now = new Date();
+  try {
+    document.getElementById("statusText").textContent = "검증 중...";
+    const data = await apiFetch(API_ENDPOINTS.verify, {
+      method: "POST",
+      body: JSON.stringify({ rawValue: value }),
+    });
 
-  if (index < 0) {
-    showVerifyResult({ status:"not_found" });
+    const session = data.session || {};
+    const status = data.result || session.status || "not_found";
+
+    showVerifyResult({ ...session, status, result: data.result, message: data.message });
+
+    if (status === "verified") document.getElementById("statusText").textContent = "인증 완료";
+    else if (status === "already_used") document.getElementById("statusText").textContent = "이미 사용됨";
+    else if (status === "expired") document.getElementById("statusText").textContent = "만료된 QR";
+    else document.getElementById("statusText").textContent = "검증 실패";
+
+    await renderHistory();
+  } catch (error) {
+    console.error(error);
+    showVerifyResult({ status: "not_found", message: error.message || "검증 요청 중 오류가 발생했습니다." });
     document.getElementById("statusText").textContent = "검증 실패";
-    return;
   }
-
-  const session = items[index];
-
-  if (session.status === "EXPIRED" || new Date(session.expiresAt).getTime() <= now.getTime()) {
-    items[index] = { ...session, status:"EXPIRED", lastScannedAt: now.toISOString(), updatedAt: now.toISOString() };
-    saveSessions(items);
-    showVerifyResult({ status:"expired", ...items[index] });
-    document.getElementById("statusText").textContent = "만료된 QR";
-    renderHistory();
-    return;
-  }
-
-  if (session.status === "VERIFIED" || session.usedAt) {
-    items[index] = { ...session, lastScannedAt: now.toISOString(), updatedAt: now.toISOString() };
-    saveSessions(items);
-    showVerifyResult({ status:"already_used", ...items[index] });
-    document.getElementById("statusText").textContent = "이미 사용됨";
-    renderHistory();
-    return;
-  }
-
-  items[index] = {
-    ...session,
-    status: "VERIFIED",
-    usedAt: now.toISOString(),
-    lastScannedAt: now.toISOString(),
-    updatedAt: now.toISOString()
-  };
-  saveSessions(items);
-  showVerifyResult({ status:"verified", ...items[index] });
-  document.getElementById("statusText").textContent = "인증 완료";
-  renderHistory();
 }
 
-function renderHistory() {
+async function renderHistory() {
   const list = document.getElementById("historyList");
-  const items = expireIssuedSessions(loadSessions()).slice(0, 8);
 
-  if (items.length === 0) {
-    list.innerHTML = `<div class="rounded-2xl bg-surface-container-low px-4 py-5 text-[12px] text-on-surface-variant">아직 발급/검증 이력이 없습니다.</div>`;
-    return;
-  }
+  try {
+    const data = await apiFetch(`${API_ENDPOINTS.history}?limit=8`);
+    const items = data.items || [];
 
-  list.innerHTML = items.map((item) => `
-    <div class="rounded-2xl border px-4 py-3 ${statusClass(item.status)}">
-      <div class="flex items-center justify-between gap-3">
-        <div class="min-w-0">
-          <p class="truncate text-[13px] font-extrabold">${item.subjectId}</p>
-          <p class="mt-0.5 text-[11px] text-on-surface-variant">${item.purpose} · 발급 ${formatTime(item.issuedAt)}</p>
+    if (items.length === 0) {
+      list.innerHTML = `<div class="rounded-2xl bg-surface-container-low px-4 py-5 text-[12px] text-on-surface-variant">아직 발급/검증 이력이 없습니다.</div>`;
+      return;
+    }
+
+    list.innerHTML = items.map((item) => `
+      <div class="rounded-2xl border px-4 py-3 ${statusClass(item.status)}">
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <p class="truncate text-[13px] font-extrabold">${item.subjectId}</p>
+            <p class="mt-0.5 text-[11px] text-on-surface-variant">${item.purpose} · 발급 ${formatTime(item.issuedAt)}</p>
+          </div>
+          <span class="shrink-0 rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-extrabold">${statusLabel(item.status)}</span>
         </div>
-        <span class="shrink-0 rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-extrabold">${statusLabel(item.status)}</span>
+        <p class="mt-2 text-[10.5px] text-on-surface-variant">만료 ${formatTime(item.expiresAt)} · 검증 ${formatTime(item.usedAt)}</p>
       </div>
-      <p class="mt-2 text-[10.5px] text-on-surface-variant">만료 ${formatTime(item.expiresAt)} · 검증 ${formatTime(item.usedAt)}</p>
-    </div>
-  `).join("");
+    `).join("");
+  } catch (error) {
+    console.error(error);
+    list.innerHTML = `<div class="rounded-2xl bg-rose-50 px-4 py-5 text-[12px] text-danger">이력 조회 실패: ${error.message || "API 서버 연결 실패"}</div>`;
+  }
 }
 
 async function startCameraScanner() {
@@ -582,8 +550,9 @@ async function startCameraScanner() {
         await qrScanner.stop().catch(() => undefined);
         await verifyToken(decodedText);
       },
-      () => undefined
+      () => undefined,
     );
+
     document.getElementById("statusText").textContent = "카메라 활성";
   } catch (error) {
     document.getElementById("statusText").textContent = "카메라 권한 필요";
@@ -617,33 +586,41 @@ document.getElementById("sampleBtn").addEventListener("click", async () => {
   const session = await issueSession({
     subjectId: document.getElementById("subjectId").value.trim() || "pickup_demo",
     purpose: document.getElementById("purpose").value,
-    ttlSeconds: Number(document.getElementById("ttlSeconds").value)
+    ttlSeconds: Number(document.getElementById("ttlSeconds").value),
   });
+
   lastIssuedToken = session.token;
-  await drawIssuedQr(session.token);
+  lastIssuedVerifyUrl = session.verifyUrl || "";
+  await drawIssuedQr(session);
   showIssueResult(session);
+
   document.getElementById("fakeQrPattern").classList.add("hidden");
   document.getElementById("issuedQrCanvas").classList.remove("hidden");
   document.getElementById("scanLine").classList.add("hidden");
   document.getElementById("statusText").textContent = "샘플 QR 발급 완료";
-  renderHistory();
+  await renderHistory();
 });
 
-document.getElementById("clearHistoryBtn").addEventListener("click", () => {
-  if (confirm("프로토타입 이력을 초기화할까요?")) {
-    saveSessions([]);
-    renderHistory();
+document.getElementById("clearHistoryBtn").addEventListener("click", async () => {
+  if (!confirm("SQLite QR 이력을 초기화할까요?")) return;
+
+  try {
+    await apiFetch(API_ENDPOINTS.history, { method: "DELETE" });
+    await renderHistory();
     document.getElementById("verifyResult").classList.add("hidden");
     document.getElementById("issueResult").classList.add("hidden");
     document.getElementById("statusText").textContent = "이력 초기화";
+  } catch (error) {
+    alert(error.message || "이력 초기화 실패");
   }
 });
 
 document.getElementById("helpBtn").addEventListener("click", () => {
-  alert("이 화면은 qr-auth-app의 QR 발급/검증/이력 기능만 NeighborFood QR Scan 양식에 이식한 프로토타입입니다. 현재는 localStorage를 SQLite 대역으로 사용합니다.");
+  alert("이 화면은 FastAPI + SQLite QR 인증 API와 연결됩니다. API 서버는 http://127.0.0.1:8000 에서 실행되어야 합니다.");
 });
 
 renderHistory();
+
 </script>
 </body>
 </html>
