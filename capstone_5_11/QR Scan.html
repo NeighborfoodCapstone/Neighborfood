@@ -1,626 +1,521 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>QR 거래 인증 - NeighborFood</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script src="./vendor/qrcode.min.js"></script>
+<script src="./vendor/html5-qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
 <script>
-  tailwind.config = { theme: { extend: {
-    colors: {
-      primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
-      'on-primary':'#fff','on-primary-fixed-variant':'#005313',
-      secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870','on-secondary-container':'#653900',
-      tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
-      danger:'#ba1a1a','on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
-      'surface-container-low':'#f3f4f5'
-    },
-    fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] }
-  }}}
+ tailwind.config = { theme: { extend: {
+  colors: {
+   primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
+   'on-primary':'#fff','on-primary-fixed-variant':'#005313',
+   secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870','on-secondary-container':'#653900',
+   tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+   danger:'#ba1a1a','on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+   'surface-container-low':'#f3f4f5'
+  },
+  fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] }
+ }}}
 </script>
 <style>
-  body { background:#0a0a0a; min-height:100dvh; }
-  .camera {
-    background:
-      radial-gradient(ellipse 60% 70% at 50% 40%, rgba(255,255,255,.04) 0%, transparent 60%),
-      linear-gradient(135deg, #1a1f1c, #0f1410 60%, #1a1f1c);
-    position:absolute; inset:0;
-  }
-  .camera::before, .camera::after {
-    content:''; position:absolute; background: rgba(255,255,255,.04);
-    border-radius: 8px;
-  }
-  .camera::before { left:18%; top:20%; width:18%; height:14%; transform:rotate(-4deg); }
-  .camera::after { right:14%; top:55%; width:22%; height:30%; transform:rotate(3deg); }
-  @keyframes scan-y { 0%,100% { top:8%; } 50% { top:88%; } }
-  .scan-line { animation: scan-y 2.4s ease-in-out infinite; }
-  @keyframes ping-soft {
-    0% { transform: scale(.9); opacity:.7 }
-    100% { transform: scale(1.4); opacity:0 }
-  }
-  .qr-ping { animation: ping-soft 1.8s ease-out infinite; }
-  .panel { display:none; }
-  .panel.active { display:block; }
-  #qr-reader { width:100% !important; border:0 !important; }
-  #qr-reader video { border-radius:1.25rem; object-fit:cover; }
-  #qr-reader__dashboard_section_csr span,
-  #qr-reader__dashboard_section_csr button,
-  #qr-reader__dashboard_section_swaplink { font-size:11px !important; color:white !important; }
-  #qr-reader__scan_region { min-height:220px; display:grid; place-items:center; }
-  .no-scrollbar::-webkit-scrollbar { display:none; }
-  .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
+ body { background:#0a0a0a; min-height:100dvh; }
+ .camera-bg {
+  background:
+   radial-gradient(ellipse 60% 70% at 50% 40%, rgba(255,255,255,.045) 0%, transparent 60%),
+   linear-gradient(135deg, #1a1f1c, #0f1410 60%, #1a1f1c);
+  position:absolute; inset:0;
+ }
+ .camera-bg::before, .camera-bg::after { content:''; position:absolute; background: rgba(255,255,255,.04); border-radius:8px; }
+ .camera-bg::before { left:18%; top:20%; width:18%; height:14%; transform:rotate(-4deg); }
+ .camera-bg::after { right:14%; top:55%; width:22%; height:30%; transform:rotate(3deg); }
+ @keyframes scan-y { 0%,100% { top:8%; } 50% { top:88%; } }
+ .scan-line { animation: scan-y 2.4s ease-in-out infinite; }
+ @keyframes ping-soft { 0% { transform: scale(.9); opacity:.7 } 100% { transform: scale(1.4); opacity:0 } }
+ .qr-ping::after { content:''; position:absolute; inset:0; border:1px solid rgba(148,249,144,.6); border-radius:inherit; animation: ping-soft 1.8s ease-out infinite; }
+ .panel { display:none; }
+ .panel.active { display:block; }
+ #qr-reader video { border-radius:1.25rem; object-fit:cover; }
+ #qr-reader__dashboard_section_csr span,
+ #qr-reader__dashboard_section_csr button,
+ #qr-reader__dashboard_section_swaplink { font-size:11px !important; color:white !important; }
+ #qr-reader__scan_region { min-height:220px; display:grid; place-items:center; }
+ .no-scrollbar::-webkit-scrollbar { display:none; }
+ .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
+ #bottomSheet { height: var(--sheet-height, 44dvh); transition: height .18s ease; touch-action:none; }
+ #bottomSheet.dragging { transition:none; }
+ #sheetBody { height: calc(100% - 48px); overflow-y:auto; }
+ canvas#issuedQrCanvas { width:260px !important; height:260px !important; image-rendering:auto; }
 </style>
 </head>
 <body class="text-white antialiased overflow-hidden">
-
-<!--
-  QR Auth 기능 추출본
-  - 원본 qr-auth-app 기능: QR 발급 / token 파싱 / 검증 / 최근 이력
-  - 현재 파일은 화면 프로토타입이므로 localStorage를 SQLite 대역으로 사용합니다.
-  - 실제 SQLite API 연결 시 아래 API_ENDPOINTS만 기존 백엔드 경로로 교체하면 됩니다.
--->
-
-<div class="camera"></div>
+<div class="camera-bg"></div>
 
 <header class="relative z-10 px-3 pt-4">
-  <div class="max-w-md mx-auto flex items-center justify-between">
-    <button onclick="history.back()" class="w-10 h-10 rounded-full bg-black/50 backdrop-blur flex items-center justify-center">
-      <span class="material-symbols-outlined">arrow_back</span>
-    </button>
-    <p class="text-[15px] font-bold text-white">QR 거래 인증</p>
-    <button id="helpBtn" class="w-10 h-10 rounded-full bg-black/50 backdrop-blur flex items-center justify-center">
-      <span class="material-symbols-outlined">help</span>
-    </button>
-  </div>
+ <div class="max-w-md mx-auto flex items-center justify-between">
+  <button onclick="history.back()" class="w-10 h-10 rounded-full bg-black/50 backdrop-blur flex items-center justify-center">
+   <span class="material-symbols-outlined">arrow_back</span>
+  </button>
+  <p class="text-[15px] font-bold text-white">QR 거래 인증</p>
+  <button id="helpBtn" class="w-10 h-10 rounded-full bg-black/50 backdrop-blur flex items-center justify-center" title="도움말">
+   <span class="material-symbols-outlined">help</span>
+  </button>
+ </div>
 </header>
 
 <div class="relative z-10 text-center mt-5 px-4 max-w-md mx-auto">
-  <p class="text-[11.5px] font-bold text-primary-fixed-dim tracking-wide">SQLite 인증 세션 프로토타입</p>
-  <h2 id="heroTitle" class="text-[18px] font-bold mt-1 drop-shadow">상대방 QR을 스캔해 거래를 확정하세요</h2>
-  <p id="heroDesc" class="text-[12px] text-white/70 mt-1.5">토큰은 발급 · 검증 · 만료 상태로 관리됩니다</p>
+ <p class="text-[11.5px] font-bold text-primary-fixed-dim tracking-wide">FastAPI + SQLite QR 인증</p>
+ <h2 id="heroTitle" class="text-[18px] font-bold mt-1 drop-shadow">상대방 QR을 스캔해 거래를 확정하세요</h2>
+ <p id="heroDesc" class="text-[12px] text-white/70 mt-1.5">카메라 스캔 · QR 발급 · 이력 조회를 API로 처리합니다</p>
 </div>
 
 <div class="relative z-10 mt-5 flex justify-center">
-  <div class="bg-black/55 backdrop-blur rounded-full p-1 flex gap-1">
-    <button data-mode="scan" class="mode-btn px-4 py-1.5 rounded-full bg-white text-on-surface text-[12px] font-bold">QR 스캔</button>
-    <button data-mode="issue" class="mode-btn px-4 py-1.5 rounded-full text-white/80 text-[12px] font-semibold">QR 발급</button>
-    <button data-mode="history" class="mode-btn px-4 py-1.5 rounded-full text-white/80 text-[12px] font-semibold">이력</button>
-  </div>
+ <div class="bg-black/55 backdrop-blur rounded-full p-1 flex gap-1">
+  <button data-mode="scan" class="mode-btn px-4 py-1.5 rounded-full bg-white text-on-surface text-[12px] font-bold">QR 스캔</button>
+  <button data-mode="issue" class="mode-btn px-4 py-1.5 rounded-full text-white/80 text-[12px] font-semibold">QR 발급</button>
+  <button data-mode="history" class="mode-btn px-4 py-1.5 rounded-full text-white/80 text-[12px] font-semibold">이력</button>
+ </div>
 </div>
 
 <main class="relative z-10 mt-6 flex flex-col items-center">
-  <div class="relative w-72 h-72 max-w-[80vw] max-h-[80vw]">
-    <div class="absolute inset-0 rounded-3xl" style="box-shadow: 0 0 0 4000px rgba(0,0,0,.55);"></div>
-
-    <div id="fakeQrPattern" class="absolute inset-6 grid grid-cols-7 grid-rows-7 gap-0.5 opacity-95">
-      <div class="col-span-2 row-span-2 bg-white rounded-sm relative"><div class="absolute inset-1.5 bg-on-surface"></div><div class="absolute inset-2.5 bg-white"></div></div>
-      <div class="col-span-3"></div>
-      <div class="col-span-2 row-span-2 bg-white rounded-sm relative"><div class="absolute inset-1.5 bg-on-surface"></div><div class="absolute inset-2.5 bg-white"></div></div>
-      <div class="col-span-3 bg-white/80 rounded-sm"></div>
-      <div></div><div class="bg-white/70 rounded-sm"></div><div></div>
-      <div class="bg-white/80 rounded-sm"></div><div></div><div class="bg-white/80 rounded-sm"></div>
-      <div class="bg-white/80 rounded-sm"></div><div></div><div class="bg-white/80 rounded-sm"></div><div></div>
-      <div class="bg-white/80 rounded-sm"></div><div></div><div class="bg-white/80 rounded-sm"></div>
-      <div></div><div class="bg-white/80 rounded-sm"></div><div></div>
-      <div class="bg-white/80 rounded-sm"></div><div></div><div class="bg-white/80 rounded-sm"></div><div></div>
-      <div class="col-span-2 row-span-2 bg-white rounded-sm relative"><div class="absolute inset-1.5 bg-on-surface"></div><div class="absolute inset-2.5 bg-white"></div></div>
-      <div></div><div class="bg-white/80 rounded-sm"></div><div></div><div class="bg-white/80 rounded-sm"></div>
-      <div></div><div class="bg-white/80 rounded-sm"></div><div></div><div class="bg-white/80 rounded-sm"></div>
-    </div>
-
-    <div id="qr-reader" class="hidden absolute inset-2 overflow-hidden rounded-2xl bg-black/70"></div>
-    <canvas id="issuedQrCanvas" class="hidden absolute inset-6 w-[calc(100%-3rem)] h-[calc(100%-3rem)] rounded-2xl bg-white p-3"></canvas>
-
-    <div class="absolute inset-3 rounded-2xl ring-2 ring-primary-fixed/60 qr-ping"></div>
-    <div class="absolute top-0 left-0 w-9 h-9 border-t-[3px] border-l-[3px] border-primary-fixed rounded-tl-xl"></div>
-    <div class="absolute top-0 right-0 w-9 h-9 border-t-[3px] border-r-[3px] border-primary-fixed rounded-tr-xl"></div>
-    <div class="absolute bottom-0 left-0 w-9 h-9 border-b-[3px] border-l-[3px] border-primary-fixed rounded-bl-xl"></div>
-    <div class="absolute bottom-0 right-0 w-9 h-9 border-b-[3px] border-r-[3px] border-primary-fixed rounded-br-xl"></div>
-    <div id="scanLine" class="absolute left-2 right-2 h-0.5 bg-primary-fixed shadow-[0_0_18px_3px_rgba(148,249,144,.8)] scan-line"></div>
+ <div class="relative w-[290px] h-[290px] rounded-[2rem] border-2 border-primary-fixed/70 bg-black/30 shadow-[0_0_30px_rgba(148,249,144,.25)] overflow-hidden flex items-center justify-center">
+  <div id="fakeQrPattern" class="absolute inset-10 grid grid-cols-7 grid-rows-7 gap-1.5 opacity-80">
+   <div class="col-span-2 row-span-2 bg-white rounded-sm relative"><div class="absolute inset-1.5 bg-on-surface"></div><div class="absolute inset-2.5 bg-white"></div></div>
+   <div class="col-span-3 bg-white/80 rounded-sm"></div><div></div><div class="col-span-2 row-span-2 bg-white rounded-sm relative"><div class="absolute inset-1.5 bg-on-surface"></div><div class="absolute inset-2.5 bg-white"></div></div>
+   <div></div><div class="bg-white/70 rounded-sm"></div><div></div><div class="bg-white/80 rounded-sm"></div><div></div><div class="bg-white/80 rounded-sm"></div><div></div>
+   <div class="bg-white/80 rounded-sm"></div><div></div><div class="bg-white/80 rounded-sm"></div><div></div><div class="bg-white/80 rounded-sm"></div><div></div><div class="bg-white/80 rounded-sm"></div>
+   <div></div><div class="bg-white/80 rounded-sm"></div><div></div><div class="bg-white/80 rounded-sm"></div><div></div><div class="bg-white/80 rounded-sm"></div><div></div>
+   <div class="col-span-2 row-span-2 bg-white rounded-sm relative"><div class="absolute inset-1.5 bg-on-surface"></div><div class="absolute inset-2.5 bg-white"></div></div>
+   <div></div><div class="bg-white/80 rounded-sm"></div><div></div><div class="bg-white/80 rounded-sm"></div><div></div>
   </div>
-
-  <p id="frameHint" class="mt-5 text-[12px] text-white/80">QR을 사각형 안에 맞춰주세요</p>
-  <div id="statusBadge" class="mt-3 flex items-center gap-2 bg-primary/90 backdrop-blur px-3 py-1.5 rounded-full">
-    <span class="w-2 h-2 rounded-full bg-white"></span>
-    <span id="statusText" class="text-[11px] font-bold">인식 대기 중</span>
+  <div id="qr-reader" class="hidden absolute inset-2 overflow-hidden rounded-2xl bg-black/70"></div>
+  <div id="issuedQrWrap" class="hidden absolute inset-4 rounded-[1.5rem] bg-white p-3 grid place-items-center shadow-xl">
+   <canvas id="issuedQrCanvas" width="260" height="260" class="block rounded-xl bg-white"></canvas>
   </div>
+  <div class="absolute inset-3 rounded-2xl ring-2 ring-primary-fixed/60 qr-ping pointer-events-none"></div>
+  <div class="absolute top-0 left-0 w-9 h-9 border-t-[3px] border-l-[3px] border-primary-fixed rounded-tl-xl"></div>
+  <div class="absolute top-0 right-0 w-9 h-9 border-t-[3px] border-r-[3px] border-primary-fixed rounded-tr-xl"></div>
+  <div class="absolute bottom-0 left-0 w-9 h-9 border-b-[3px] border-l-[3px] border-primary-fixed rounded-bl-xl"></div>
+  <div class="absolute bottom-0 right-0 w-9 h-9 border-b-[3px] border-r-[3px] border-primary-fixed rounded-br-xl"></div>
+  <div id="scanLine" class="absolute left-2 right-2 h-0.5 bg-primary-fixed shadow-[0_0_18px_3px_rgba(148,249,144,.8)] scan-line"></div>
+ </div>
+ <p id="frameHint" class="mt-5 text-[12px] text-white/80">QR을 사각형 안에 맞춰주세요</p>
+ <div id="statusBadge" class="mt-3 flex items-center gap-2 bg-primary/90 backdrop-blur px-3 py-1.5 rounded-full">
+  <span class="w-2 h-2 rounded-full bg-white"></span>
+  <span id="statusText" class="text-[11px] font-bold">인식 대기 중</span>
+ </div>
 </main>
 
-<div class="fixed left-0 right-0 bottom-44 z-10 flex justify-center gap-3">
-  <button id="cameraBtn" class="w-12 h-12 rounded-full bg-black/50 backdrop-blur flex items-center justify-center">
-    <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">photo_camera</span>
-  </button>
-  <button id="sampleBtn" class="px-4 h-12 rounded-full bg-white text-on-surface flex items-center gap-1.5 text-[12.5px] font-bold">
-    <span class="material-symbols-outlined" style="font-size:18px">qr_code_2</span>
-    샘플 발급
-  </button>
-  <button id="keyboardBtn" class="w-12 h-12 rounded-full bg-black/50 backdrop-blur flex items-center justify-center">
-    <span class="material-symbols-outlined">keyboard</span>
-  </button>
-</div>
-
-<section class="fixed bottom-0 left-0 right-0 bg-white text-on-surface rounded-t-3xl z-20 shadow-[0_-12px_30px_rgba(0,0,0,.4)] max-h-[43dvh] overflow-y-auto no-scrollbar">
-  <div class="max-w-md mx-auto px-4 pt-3 pb-6">
-    <div class="w-10 h-1 bg-on-surface-variant/30 rounded-full mx-auto mb-3"></div>
-
-    <section id="panel-scan" class="panel active">
-      <div class="flex items-center gap-3">
-        <div class="w-11 h-11 rounded-2xl bg-tertiary-fixed/60 flex items-center justify-center shrink-0">
-          <span class="material-symbols-outlined text-tertiary" style="font-variation-settings:'FILL' 1;">verified_user</span>
-        </div>
-        <div class="flex-1 min-w-0">
-          <p class="text-[10.5px] font-bold text-tertiary tracking-wide">검증 준비</p>
-          <p class="text-[13.5px] font-semibold truncate">URL QR 또는 raw token을 검증합니다</p>
-          <p class="text-[10.5px] text-on-surface-variant mt-0.5">SQLite table: qr_sessions</p>
-        </div>
-      </div>
-
-      <form id="manualForm" class="mt-4 space-y-2">
-        <label class="block">
-          <span class="text-[11px] font-bold text-on-surface-variant">수동 토큰 / 검증 URL</span>
-          <input id="manualToken" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 text-[13px] outline-none focus:border-primary" placeholder="verify URL 또는 raw token"/>
-        </label>
-        <button class="w-full rounded-2xl bg-primary px-4 py-3 text-[13px] font-extrabold text-white">검증 처리</button>
-      </form>
-
-      <div id="verifyResult" class="mt-3 hidden rounded-2xl border px-4 py-3 text-[12px]"></div>
-    </section>
-
-    <section id="panel-issue" class="panel">
-      <div class="flex items-center gap-3">
-        <div class="w-11 h-11 rounded-2xl bg-primary-fixed/60 flex items-center justify-center shrink-0">
-          <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">add_card</span>
-        </div>
-        <div class="flex-1 min-w-0">
-          <p class="text-[10.5px] font-bold text-primary tracking-wide">QR 발급</p>
-          <p class="text-[13.5px] font-semibold truncate">거래용 1회성 인증 QR 생성</p>
-          <p class="text-[10.5px] text-on-surface-variant mt-0.5">status: ISSUED → VERIFIED / EXPIRED</p>
-        </div>
-      </div>
-
-      <form id="issueForm" class="mt-4 grid grid-cols-2 gap-2">
-        <label class="col-span-2 block">
-          <span class="text-[11px] font-bold text-on-surface-variant">거래/사용자 ID</span>
-          <input id="subjectId" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 text-[13px] outline-none focus:border-primary" value="pickup_001"/>
-        </label>
-        <label class="block">
-          <span class="text-[11px] font-bold text-on-surface-variant">목적</span>
-          <select id="purpose" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 text-[13px] outline-none focus:border-primary">
-            <option value="pickup_confirm">픽업 확인</option>
-            <option value="groupbuy_receive">공동구매 수령</option>
-            <option value="seller_check">판매자 확인</option>
-          </select>
-        </label>
-        <label class="block">
-          <span class="text-[11px] font-bold text-on-surface-variant">TTL</span>
-          <select id="ttlSeconds" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 text-[13px] outline-none focus:border-primary">
-            <option value="60">1분</option>
-            <option value="180" selected>3분</option>
-            <option value="300">5분</option>
-            <option value="900">15분</option>
-          </select>
-        </label>
-        <button class="col-span-2 w-full rounded-2xl bg-primary px-4 py-3 text-[13px] font-extrabold text-white">QR 발급 요청</button>
-      </form>
-
-      <div id="issueResult" class="mt-3 hidden rounded-2xl bg-surface-container-low px-4 py-3 text-[12px] text-on-surface-variant"></div>
-    </section>
-
-    <section id="panel-history" class="panel">
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          <div class="w-11 h-11 rounded-2xl bg-secondary-fixed/70 flex items-center justify-center shrink-0">
-            <span class="material-symbols-outlined text-secondary" style="font-variation-settings:'FILL' 1;">history</span>
-          </div>
-          <div>
-            <p class="text-[10.5px] font-bold text-secondary tracking-wide">최근 인증 이력</p>
-            <p class="text-[13.5px] font-semibold">발급/검증 상태 확인</p>
-          </div>
-        </div>
-        <button id="clearHistoryBtn" class="rounded-full border border-outline-variant px-3 py-1.5 text-[11px] font-bold">초기화</button>
-      </div>
-      <div id="historyList" class="mt-4 space-y-2"></div>
-    </section>
+<section id="bottomSheet" class="fixed bottom-0 left-0 right-0 bg-white text-on-surface rounded-t-3xl z-20 shadow-[0_-12px_30px_rgba(0,0,0,.4)]">
+ <div id="sheetHandle" class="h-12 max-w-md mx-auto px-4 pt-3 cursor-ns-resize select-none">
+  <div class="w-10 h-1 bg-on-surface-variant/30 rounded-full mx-auto mb-2"></div>
+  <div class="flex justify-center gap-1 text-[10px] text-on-surface-variant">
+   <button type="button" data-sheet="24" class="sheet-btn rounded-full border border-outline-variant px-2 py-0.5">작게</button>
+   <button type="button" data-sheet="44" class="sheet-btn rounded-full border border-outline-variant px-2 py-0.5">중간</button>
+   <button type="button" data-sheet="86" class="sheet-btn rounded-full border border-outline-variant px-2 py-0.5">크게</button>
   </div>
+ </div>
+ <div id="sheetBody" class="no-scrollbar">
+  <div class="max-w-md mx-auto px-4 pb-8">
+   <section id="panel-scan" class="panel active">
+    <div class="flex items-center gap-3">
+     <div class="w-11 h-11 rounded-2xl bg-tertiary-fixed/60 flex items-center justify-center shrink-0">
+      <span class="material-symbols-outlined text-tertiary" style="font-variation-settings:'FILL' 1;">verified_user</span>
+     </div>
+     <div class="flex-1 min-w-0">
+      <p class="text-[10.5px] font-bold text-tertiary tracking-wide">검증 준비</p>
+      <p class="text-[13.5px] font-semibold truncate">카메라 QR 또는 raw token을 검증합니다</p>
+      <p class="text-[10.5px] text-on-surface-variant mt-0.5">FastAPI: POST /api/qr/verify</p>
+     </div>
+    </div>
+    <button id="startCameraBtn" class="mt-4 w-full rounded-2xl bg-primary px-4 py-3 text-[13px] font-extrabold text-white flex items-center justify-center gap-2">
+     <span class="material-symbols-outlined text-[18px]">photo_camera</span> 카메라 스캔 시작
+    </button>
+    <form id="manualForm" class="mt-3 space-y-2">
+     <label class="block">
+      <span class="text-[11px] font-bold text-on-surface-variant">수동 토큰 / 검증 URL</span>
+      <input id="manualToken" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 text-[13px] outline-none focus:border-primary" placeholder="verify URL 또는 raw token" />
+     </label>
+     <button class="w-full rounded-2xl bg-on-surface px-4 py-3 text-[13px] font-extrabold text-white">검증 처리</button>
+    </form>
+    <div id="verifyResult" class="mt-3 hidden rounded-2xl border px-4 py-3 text-[12px]"></div>
+   </section>
+
+   <section id="panel-issue" class="panel">
+    <div class="flex items-center gap-3">
+     <div class="w-11 h-11 rounded-2xl bg-primary-fixed/60 flex items-center justify-center shrink-0">
+      <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">add_card</span>
+     </div>
+     <div class="flex-1 min-w-0">
+      <p class="text-[10.5px] font-bold text-primary tracking-wide">QR 발급</p>
+      <p class="text-[13.5px] font-semibold truncate">거래용 1회성 인증 QR 생성</p>
+      <p class="text-[10.5px] text-on-surface-variant mt-0.5">FastAPI: POST /api/qr/request</p>
+     </div>
+    </div>
+    <form id="issueForm" class="mt-4 grid grid-cols-2 gap-2">
+     <label class="col-span-2 block">
+      <span class="text-[11px] font-bold text-on-surface-variant">거래/사용자 ID</span>
+      <input id="subjectId" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 text-[13px] outline-none focus:border-primary" value="pickup_001" />
+     </label>
+     <label class="block">
+      <span class="text-[11px] font-bold text-on-surface-variant">목적</span>
+      <select id="purpose" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 text-[13px] outline-none focus:border-primary">
+       <option value="pickup_confirm">픽업 확인</option>
+       <option value="groupbuy_receive">공동구매 수령</option>
+       <option value="seller_check">판매자 확인</option>
+      </select>
+     </label>
+     <label class="block">
+      <span class="text-[11px] font-bold text-on-surface-variant">TTL</span>
+      <select id="ttlSeconds" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 text-[13px] outline-none focus:border-primary">
+       <option value="60">1분</option>
+       <option value="180" selected>3분</option>
+       <option value="300">5분</option>
+       <option value="900">15분</option>
+      </select>
+     </label>
+     <button class="col-span-2 w-full rounded-2xl bg-primary px-4 py-3 text-[13px] font-extrabold text-white">QR 발급 요청</button>
+    </form>
+    <div id="issueResult" class="mt-3 hidden rounded-2xl bg-surface-container-low px-4 py-3 text-[12px] text-on-surface-variant"></div>
+   </section>
+
+   <section id="panel-history" class="panel">
+    <div class="flex items-center justify-between gap-3">
+     <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-2xl bg-secondary-fixed/70 flex items-center justify-center shrink-0">
+       <span class="material-symbols-outlined text-secondary" style="font-variation-settings:'FILL' 1;">history</span>
+      </div>
+      <div>
+       <p class="text-[10.5px] font-bold text-secondary tracking-wide">최근 인증 이력</p>
+       <p class="text-[13.5px] font-semibold">발급/검증 상태 확인</p>
+      </div>
+     </div>
+     <button id="clearHistoryBtn" class="rounded-full border border-outline-variant px-3 py-1.5 text-[11px] font-bold">초기화</button>
+    </div>
+    <div id="historyList" class="mt-4 space-y-2"></div>
+   </section>
+  </div>
+ </div>
 </section>
 
 <script>
 const API_BASE = "http://127.0.0.1:8000";
-
 const API_ENDPOINTS = {
-  request: `${API_BASE}/api/qr/request`,
-  verify: `${API_BASE}/api/qr/verify`,
-  history: `${API_BASE}/api/qr/history`,
+ request: `${API_BASE}/api/qr/request`,
+ verify: `${API_BASE}/api/qr/verify`,
+ history: `${API_BASE}/api/qr/history`
 };
 
 let currentMode = "scan";
 let qrScanner = null;
-let lastIssuedToken = "";
-let lastIssuedVerifyUrl = "";
+let scanLocked = false;
+let lastIssuedSession = null;
 
 const heroCopy = {
-  scan: ["상대방 QR을 스캔해 거래를 확정하세요", "토큰 URL과 raw token을 모두 처리합니다", "QR을 사각형 안에 맞춰주세요", "인식 대기 중"],
-  issue: ["거래용 인증 QR을 발급하세요", "SQLite에는 token hash와 만료시간만 저장하는 구조입니다", "발급된 QR이 여기에 표시됩니다", "발급 대기 중"],
-  history: ["최근 인증 이력을 확인하세요", "ISSUED / VERIFIED / EXPIRED 상태를 한 화면에서 봅니다", "이력 요약 모드입니다", "이력 조회 중"],
+ scan: ["상대방 QR을 스캔해 거래를 확정하세요", "카메라 스캔 또는 수동 토큰 입력으로 검증합니다", "QR을 사각형 안에 맞춰주세요", "인식 대기 중"],
+ issue: ["거래용 인증 QR을 발급하세요", "FastAPI가 토큰을 만들고 SQLite에 hash를 저장합니다", "발급된 QR이 여기에 표시됩니다", "발급 대기 중"],
+ history: ["최근 인증 이력을 확인하세요", "ISSUED / VERIFIED / EXPIRED 상태를 조회합니다", "이력 요약 모드입니다", "이력 조회 중"]
 };
 
-async function apiFetch(url, options = {}) {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-
-  let data = null;
-  try {
-    data = await response.json();
-  } catch {
-    data = { ok: false, message: "서버 응답을 JSON으로 읽지 못했습니다." };
-  }
-
-  if (!response.ok) {
-    throw new Error(data.detail || data.message || `HTTP ${response.status}`);
-  }
-
-  return data;
-}
-
+function $(id) { return document.getElementById(id); }
 function formatTime(value) {
-  if (!value) return "-";
-  try {
-    return new Intl.DateTimeFormat("ko-KR", {
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(value));
-  } catch {
-    return value;
-  }
+ if (!value) return "-";
+ try {
+  return new Intl.DateTimeFormat("ko-KR", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }).format(new Date(value));
+ } catch { return value; }
 }
-
-function normalizeVerifyStatus(status) {
-  if (!status) return "not_found";
-  const value = String(status).toLowerCase();
-  if (value === "verified") return "verified";
-  if (value === "already_used") return "already_used";
-  if (value === "expired") return "expired";
-  if (value === "not_found" || value === "invalid_input") return "not_found";
-  if (value === "issued") return "not_found";
-  return value;
-}
-
-function normalizeHistoryStatus(status) {
-  if (!status) return "ISSUED";
-  return String(status).toUpperCase();
-}
-
 function statusClass(status) {
-  const value = normalizeHistoryStatus(status);
-  if (value === "VERIFIED") return "bg-green-50 border-green-200 text-primary";
-  if (value === "EXPIRED") return "bg-rose-50 border-rose-200 text-danger";
-  return "bg-amber-50 border-amber-200 text-secondary";
+ if (status === "VERIFIED") return "bg-green-50 border-green-200 text-primary";
+ if (status === "EXPIRED") return "bg-rose-50 border-rose-200 text-danger";
+ return "bg-amber-50 border-amber-200 text-secondary";
 }
-
 function statusLabel(status) {
-  const value = normalizeHistoryStatus(status);
-  return { ISSUED: "발급됨", VERIFIED: "검증 완료", EXPIRED: "만료됨" }[value] || value;
+ return { ISSUED:"발급됨", VERIFIED:"검증 완료", EXPIRED:"만료됨" }[status] || status || "-";
 }
-
-function setMode(mode) {
-  currentMode = mode;
-
-  document.querySelectorAll(".mode-btn").forEach((btn) => {
-    const active = btn.dataset.mode === mode;
-    btn.className = active
-      ? "mode-btn px-4 py-1.5 rounded-full bg-white text-on-surface text-[12px] font-bold"
-      : "mode-btn px-4 py-1.5 rounded-full text-white/80 text-[12px] font-semibold";
-  });
-
-  document.querySelectorAll(".panel").forEach((panel) => panel.classList.remove("active"));
-  document.getElementById(`panel-${mode}`).classList.add("active");
-
-  const copy = heroCopy[mode];
-  document.getElementById("heroTitle").textContent = copy[0];
-  document.getElementById("heroDesc").textContent = copy[1];
-  document.getElementById("frameHint").textContent = copy[2];
-  document.getElementById("statusText").textContent = copy[3];
-
-  const fake = document.getElementById("fakeQrPattern");
-  const canvas = document.getElementById("issuedQrCanvas");
-  const reader = document.getElementById("qr-reader");
-  const line = document.getElementById("scanLine");
-
-  if (mode === "issue" && lastIssuedToken) {
-    fake.classList.add("hidden");
-    reader.classList.add("hidden");
-    canvas.classList.remove("hidden");
-    line.classList.add("hidden");
-  } else {
-    fake.classList.remove("hidden");
-    reader.classList.add("hidden");
-    if (mode !== "issue") canvas.classList.add("hidden");
-    line.classList.toggle("hidden", mode === "history");
-  }
-
-  if (mode === "history") renderHistory();
+function resultLabel(result) {
+ return { verified:"검증 완료", already_used:"이미 사용됨", expired:"만료됨", not_found:"찾을 수 없음" }[result] || result || "-";
 }
-
+function showStage(kind) {
+ $("fakeQrPattern").classList.toggle("hidden", kind !== "fake");
+ $("issuedQrWrap").classList.toggle("hidden", kind !== "issued");
+ $("qr-reader").classList.toggle("hidden", kind !== "camera");
+ $("scanLine").classList.toggle("hidden", kind !== "fake" && kind !== "camera");
+}
+async function stopScanner() {
+ if (qrScanner) {
+  try { await qrScanner.stop(); } catch (_) {}
+  try { qrScanner.clear(); } catch (_) {}
+  qrScanner = null;
+ }
+ scanLocked = false;
+}
+async function setMode(mode) {
+ currentMode = mode;
+ document.querySelectorAll(".mode-btn").forEach((btn) => {
+  const active = btn.dataset.mode === mode;
+  btn.className = active
+   ? "mode-btn px-4 py-1.5 rounded-full bg-white text-on-surface text-[12px] font-bold"
+   : "mode-btn px-4 py-1.5 rounded-full text-white/80 text-[12px] font-semibold";
+ });
+ document.querySelectorAll(".panel").forEach((panel) => panel.classList.remove("active"));
+ $(`panel-${mode}`).classList.add("active");
+ const copy = heroCopy[mode];
+ $("heroTitle").textContent = copy[0];
+ $("heroDesc").textContent = copy[1];
+ $("frameHint").textContent = copy[2];
+ $("statusText").textContent = copy[3];
+ if (mode !== "scan") await stopScanner();
+ if (mode === "issue" && lastIssuedSession) showStage("issued");
+ else showStage("fake");
+ if (mode === "history") renderHistory();
+}
+async function apiJson(url, options = {}) {
+ const res = await fetch(url, {
+  ...options,
+  headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+ });
+ const data = await res.json().catch(() => ({}));
+ if (!res.ok) throw new Error(data.detail || data.message || `HTTP ${res.status}`);
+ return data;
+}
 async function issueSession({ subjectId, purpose, ttlSeconds }) {
-  const data = await apiFetch(API_ENDPOINTS.request, {
-    method: "POST",
-    body: JSON.stringify({ subjectId, purpose, ttlSeconds }),
-  });
-
-  if (!data.ok || !data.session) {
-    throw new Error(data.message || "QR 발급에 실패했습니다.");
-  }
-
-  return data.session;
+ const data = await apiJson(API_ENDPOINTS.request, {
+  method:"POST",
+  body: JSON.stringify({ subjectId, purpose, ttlSeconds })
+ });
+ if (!data.ok || !data.session) throw new Error(data.message || "QR 발급 실패");
+ return data.session;
 }
-
 async function drawIssuedQr(session) {
-  const canvas = document.getElementById("issuedQrCanvas");
-  const qrValue = session.verifyUrl || `${API_BASE}/api/qr/verify/${encodeURIComponent(session.token)}`;
-
-  if (window.QRCode?.toCanvas) {
-    await QRCode.toCanvas(canvas, qrValue, {
-      width: 240,
-      margin: 1,
-      color: { dark: "#005313", light: "#ffffff" },
-      errorCorrectionLevel: "M",
-    });
-  }
+ const canvas = $("issuedQrCanvas");
+ const payload = session.token || session.verifyUrl;
+ canvas.width = 260;
+ canvas.height = 260;
+ const context = canvas.getContext("2d");
+ context.clearRect(0, 0, canvas.width, canvas.height);
+ if (!window.QRCode || !QRCode.toCanvas) {
+  throw new Error("QR 라이브러리 로드 실패: 인터넷 연결 또는 CDN 차단을 확인하세요.");
+ }
+ await QRCode.toCanvas(canvas, payload, {
+  width: 260,
+  margin: 2,
+  color: { dark: "#005313", light: "#ffffff" },
+  errorCorrectionLevel: "M"
+ });
+ showStage("issued");
 }
-
 function showIssueResult(session) {
-  const box = document.getElementById("issueResult");
-  box.classList.remove("hidden");
-  box.innerHTML = `
-    <div class="flex items-start justify-between gap-3">
-      <div>
-        <p class="font-extrabold text-on-surface">QR 생성 완료</p>
-        <p class="mt-1">ID: <b>${session.subjectId}</b> · ${session.purpose}</p>
-      </div>
-      <span class="rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-extrabold text-primary">${session.status}</span>
-    </div>
-    <div class="mt-2 grid gap-1">
-      <p>만료: ${formatTime(session.expiresAt)}</p>
-      <p class="break-all">token: ${session.token}</p>
-      <p class="break-all">verify URL: ${session.verifyUrl || "-"}</p>
-    </div>
-  `;
+ const box = $("issueResult");
+ box.classList.remove("hidden");
+ box.innerHTML = `
+  <div class="flex items-start justify-between gap-3">
+   <div>
+    <p class="font-extrabold text-on-surface">QR 생성 완료</p>
+    <p class="mt-1">ID: <b>${session.subjectId}</b> · ${session.purpose}</p>
+   </div>
+   <span class="rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-extrabold text-primary">${session.status}</span>
+  </div>
+  <div class="mt-2 grid gap-1">
+   <p>만료: ${formatTime(session.expiresAt)}</p>
+   <p class="break-all">QR payload/token: ${session.token || "-"}</p>
+   <p class="break-all">verify URL: ${session.verifyUrl || "-"}</p>
+  </div>`;
 }
-
-async function handleIssueSubmit(event) {
-  event.preventDefault();
-
-  const subjectId = document.getElementById("subjectId").value.trim();
-  const purpose = document.getElementById("purpose").value;
-  const ttlSeconds = Number(document.getElementById("ttlSeconds").value);
-
-  if (!subjectId || subjectId.length < 2) {
-    alert("거래/사용자 ID를 입력하세요.");
-    return;
-  }
-
-  try {
-    document.getElementById("statusText").textContent = "QR 생성 중...";
-    const session = await issueSession({ subjectId, purpose, ttlSeconds });
-
-    lastIssuedToken = session.token;
-    lastIssuedVerifyUrl = session.verifyUrl || "";
-
-    await drawIssuedQr(session);
-    showIssueResult(session);
-    setMode("issue");
-
-    document.getElementById("fakeQrPattern").classList.add("hidden");
-    document.getElementById("issuedQrCanvas").classList.remove("hidden");
-    document.getElementById("scanLine").classList.add("hidden");
-    document.getElementById("statusText").textContent = "QR 발급 완료";
-    await renderHistory();
-  } catch (error) {
-    console.error(error);
-    alert(error.message || "QR 발급 중 오류가 발생했습니다.");
-    document.getElementById("statusText").textContent = "QR 발급 실패";
-  }
+async function verifyRaw(rawValue) {
+ const value = String(rawValue || "").trim();
+ if (!value) {
+  alert("검증할 토큰 또는 URL을 입력하세요.");
+  return;
+ }
+ $("statusText").textContent = "검증 요청 중...";
+ const data = await apiJson(API_ENDPOINTS.verify, {
+  method:"POST",
+  body: JSON.stringify({ rawValue: value })
+ });
+ showVerifyResult(data);
+ await renderHistory();
 }
-
-function showVerifyResult(result) {
-  const box = document.getElementById("verifyResult");
-  box.classList.remove("hidden");
-
-  const normalizedStatus = normalizeVerifyStatus(result.status || result.result);
-  const map = {
-    verified: ["검증 완료", result.message || "토큰이 유효했고 방금 거래 인증 처리되었습니다.", "border-green-200 bg-green-50 text-primary"],
-    already_used: ["이미 사용된 QR", result.message || "이 토큰은 이미 검증에 사용되어 재사용이 차단되었습니다.", "border-amber-200 bg-amber-50 text-secondary"],
-    expired: ["만료된 QR", result.message || "토큰 만료 시간이 지났습니다. 새 QR을 다시 발급하세요.", "border-rose-200 bg-rose-50 text-danger"],
-    not_found: ["유효하지 않은 QR", result.message || "저장된 인증 세션을 찾을 수 없습니다.", "border-rose-200 bg-rose-50 text-danger"],
-  };
-
-  const copy = map[normalizedStatus] || map.not_found;
-  box.className = `mt-3 rounded-2xl border px-4 py-3 text-[12px] ${copy[2]}`;
-  box.innerHTML = `
-    <p class="font-extrabold">${copy[0]}</p>
-    <p class="mt-1">${copy[1]}</p>
-    <div class="mt-2 grid gap-1 text-on-surface-variant">
-      <p>Subject: <b>${result.subjectId || "-"}</b></p>
-      <p>Purpose: <b>${result.purpose || "-"}</b></p>
-      <p>Used At: <b>${formatTime(result.usedAt)}</b></p>
-    </div>
-  `;
+function showVerifyResult(data) {
+ const box = $("verifyResult");
+ const session = data.session || {};
+ const good = data.ok && data.result === "verified";
+ box.className = `mt-3 rounded-2xl border px-4 py-3 text-[12px] ${good ? "bg-green-50 border-green-200 text-primary" : "bg-rose-50 border-rose-200 text-danger"}`;
+ box.innerHTML = `
+  <p class="font-extrabold">${good ? "거래 인증 완료" : "검증 실패"}</p>
+  <p class="mt-1">${data.message || resultLabel(data.result)}</p>
+  <div class="mt-2 grid gap-1 text-[11px] opacity-85">
+   <p>결과: ${resultLabel(data.result)}</p>
+   <p>상태: ${session.status || "-"}</p>
+   <p>거래/사용자: ${session.subjectId || "-"}</p>
+   <p>검증시각: ${formatTime(session.usedAt || session.lastScannedAt)}</p>
+  </div>`;
+ $("statusText").textContent = good ? "검증 완료" : resultLabel(data.result);
+ setSheetHeight(56);
 }
-
-async function verifyToken(rawValue) {
-  const value = String(rawValue || "").trim();
-
-  if (!value) {
-    showVerifyResult({ status: "not_found", message: "QR 토큰이 비어 있습니다." });
-    return;
-  }
-
-  try {
-    document.getElementById("statusText").textContent = "검증 중...";
-    const data = await apiFetch(API_ENDPOINTS.verify, {
-      method: "POST",
-      body: JSON.stringify({ rawValue: value }),
-    });
-
-    const session = data.session || {};
-    const status = data.result || session.status || "not_found";
-
-    showVerifyResult({ ...session, status, result: data.result, message: data.message });
-
-    if (status === "verified") document.getElementById("statusText").textContent = "인증 완료";
-    else if (status === "already_used") document.getElementById("statusText").textContent = "이미 사용됨";
-    else if (status === "expired") document.getElementById("statusText").textContent = "만료된 QR";
-    else document.getElementById("statusText").textContent = "검증 실패";
-
-    await renderHistory();
-  } catch (error) {
-    console.error(error);
-    showVerifyResult({ status: "not_found", message: error.message || "검증 요청 중 오류가 발생했습니다." });
-    document.getElementById("statusText").textContent = "검증 실패";
-  }
-}
-
 async function renderHistory() {
-  const list = document.getElementById("historyList");
-
-  try {
-    const data = await apiFetch(`${API_ENDPOINTS.history}?limit=8`);
-    const items = data.items || [];
-
-    if (items.length === 0) {
-      list.innerHTML = `<div class="rounded-2xl bg-surface-container-low px-4 py-5 text-[12px] text-on-surface-variant">아직 발급/검증 이력이 없습니다.</div>`;
-      return;
-    }
-
-    list.innerHTML = items.map((item) => `
-      <div class="rounded-2xl border px-4 py-3 ${statusClass(item.status)}">
-        <div class="flex items-center justify-between gap-3">
-          <div class="min-w-0">
-            <p class="truncate text-[13px] font-extrabold">${item.subjectId}</p>
-            <p class="mt-0.5 text-[11px] text-on-surface-variant">${item.purpose} · 발급 ${formatTime(item.issuedAt)}</p>
-          </div>
-          <span class="shrink-0 rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-extrabold">${statusLabel(item.status)}</span>
-        </div>
-        <p class="mt-2 text-[10.5px] text-on-surface-variant">만료 ${formatTime(item.expiresAt)} · 검증 ${formatTime(item.usedAt)}</p>
-      </div>
-    `).join("");
-  } catch (error) {
-    console.error(error);
-    list.innerHTML = `<div class="rounded-2xl bg-rose-50 px-4 py-5 text-[12px] text-danger">이력 조회 실패: ${error.message || "API 서버 연결 실패"}</div>`;
+ const list = $("historyList");
+ try {
+  const data = await apiJson(`${API_ENDPOINTS.history}?limit=20`);
+  const items = data.items || [];
+  if (!items.length) {
+   list.innerHTML = `<div class="rounded-2xl bg-surface-container-low px-4 py-5 text-center text-[12px] text-on-surface-variant">아직 이력이 없습니다.</div>`;
+   return;
   }
+  list.innerHTML = items.map((item) => `
+   <div class="rounded-2xl border px-4 py-3 text-[12px] ${statusClass(item.status)}">
+    <div class="flex items-start justify-between gap-3">
+     <div>
+      <p class="font-extrabold">${item.subjectId}</p>
+      <p class="mt-0.5 text-[11px] text-on-surface-variant">${item.purpose} · 발급 ${formatTime(item.issuedAt)}</p>
+     </div>
+     <span class="shrink-0 rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-extrabold">${statusLabel(item.status)}</span>
+    </div>
+    <p class="mt-2 text-[10.5px] text-on-surface-variant">만료 ${formatTime(item.expiresAt)} · 검증 ${formatTime(item.usedAt)}</p>
+   </div>`).join("");
+ } catch (error) {
+  list.innerHTML = `<div class="rounded-2xl bg-rose-50 px-4 py-5 text-center text-[12px] text-danger">이력 조회 실패: ${error.message}</div>`;
+ }
 }
-
 async function startCameraScanner() {
-  setMode("scan");
-  document.getElementById("fakeQrPattern").classList.add("hidden");
-  document.getElementById("issuedQrCanvas").classList.add("hidden");
-  document.getElementById("qr-reader").classList.remove("hidden");
-  document.getElementById("scanLine").classList.add("hidden");
-  document.getElementById("statusText").textContent = "카메라 시작 중...";
-
-  if (!window.Html5Qrcode) {
-    document.getElementById("statusText").textContent = "스캐너 라이브러리 로드 실패";
-    return;
-  }
-
+ await setMode("scan");
+ showStage("camera");
+ $("statusText").textContent = "카메라 시작 중...";
+ if (location.protocol === "file:") {
+  $("statusText").textContent = "localhost 실행 필요";
+  alert("현재 file://로 열려 있습니다. 카메라와 API 테스트는 http://localhost:5500/QR%20Scan.html 로 열어주세요.");
+  showStage("fake");
+  return;
+ }
+ if (!window.Html5Qrcode) {
+  $("statusText").textContent = "스캐너 라이브러리 로드 실패";
+  showStage("fake");
+  return;
+ }
+ try {
+  await stopScanner();
+  qrScanner = new Html5Qrcode("qr-reader");
+  let cameraConfig = { facingMode: "environment" };
   try {
-    if (qrScanner) {
-      await qrScanner.stop().catch(() => undefined);
-      qrScanner.clear();
+   const cameras = await Html5Qrcode.getCameras();
+   if (cameras && cameras.length) {
+    const preferred = cameras.find((cam) => /back|rear|environment|후면/i.test(cam.label)) || cameras[cameras.length - 1];
+    cameraConfig = preferred.id;
+   }
+  } catch (_) {}
+  scanLocked = false;
+  await qrScanner.start(
+   cameraConfig,
+   { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1 },
+   async (decodedText) => {
+    if (scanLocked) return;
+    scanLocked = true;
+    $("statusText").textContent = "QR 인식됨";
+    await stopScanner();
+    try { await verifyRaw(decodedText); }
+    catch (error) {
+     $("statusText").textContent = "검증 실패";
+     showVerifyResult({ ok:false, result:"not_found", message:error.message });
     }
-
-    qrScanner = new Html5Qrcode("qr-reader");
-    await qrScanner.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 210, height: 210 }, aspectRatio: 1 },
-      async (decodedText) => {
-        document.getElementById("statusText").textContent = "QR 인식됨";
-        await qrScanner.stop().catch(() => undefined);
-        await verifyToken(decodedText);
-      },
-      () => undefined,
-    );
-
-    document.getElementById("statusText").textContent = "카메라 활성";
-  } catch (error) {
-    document.getElementById("statusText").textContent = "카메라 권한 필요";
-    document.getElementById("qr-reader").classList.add("hidden");
-    document.getElementById("fakeQrPattern").classList.remove("hidden");
-    document.getElementById("scanLine").classList.remove("hidden");
-    console.warn(error);
-  }
+   },
+   () => undefined
+  );
+  $("statusText").textContent = "카메라 활성";
+ } catch (error) {
+  console.warn(error);
+  $("statusText").textContent = "카메라 권한 필요";
+  showStage("fake");
+  alert(`카메라 시작 실패: ${error.message || error}`);
+ }
+}
+function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
+function setSheetHeight(vh) {
+ const value = clamp(Number(vh), 20, 88);
+ $("bottomSheet").style.setProperty("--sheet-height", `${value}dvh`);
+}
+function initSheetDrag() {
+ const sheet = $("bottomSheet");
+ const handle = $("sheetHandle");
+ let startY = 0;
+ let startHeight = 44;
+ let dragging = false;
+ handle.addEventListener("pointerdown", (event) => {
+  if (event.target.closest("button")) return;
+  dragging = true;
+  startY = event.clientY;
+  const h = sheet.getBoundingClientRect().height;
+  startHeight = (h / window.innerHeight) * 100;
+  sheet.classList.add("dragging");
+  handle.setPointerCapture(event.pointerId);
+ });
+ handle.addEventListener("pointermove", (event) => {
+  if (!dragging) return;
+  const delta = ((startY - event.clientY) / window.innerHeight) * 100;
+  setSheetHeight(startHeight + delta);
+ });
+ handle.addEventListener("pointerup", (event) => {
+  if (!dragging) return;
+  dragging = false;
+  sheet.classList.remove("dragging");
+  const current = (sheet.getBoundingClientRect().height / window.innerHeight) * 100;
+  const snaps = [24, 44, 86];
+  const snap = snaps.reduce((a, b) => Math.abs(b-current) < Math.abs(a-current) ? b : a);
+  setSheetHeight(snap);
+  try { handle.releasePointerCapture(event.pointerId); } catch (_) {}
+ });
+ document.querySelectorAll(".sheet-btn").forEach((btn) => btn.addEventListener("click", () => setSheetHeight(btn.dataset.sheet)));
 }
 
-document.querySelectorAll(".mode-btn").forEach((btn) => {
-  btn.addEventListener("click", () => setMode(btn.dataset.mode));
-});
-
-document.getElementById("issueForm").addEventListener("submit", handleIssueSubmit);
-
-document.getElementById("manualForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  await verifyToken(document.getElementById("manualToken").value);
-});
-
-document.getElementById("cameraBtn").addEventListener("click", startCameraScanner);
-
-document.getElementById("keyboardBtn").addEventListener("click", () => {
-  setMode("scan");
-  document.getElementById("manualToken").focus();
-});
-
-document.getElementById("sampleBtn").addEventListener("click", async () => {
-  setMode("issue");
-  const session = await issueSession({
-    subjectId: document.getElementById("subjectId").value.trim() || "pickup_demo",
-    purpose: document.getElementById("purpose").value,
-    ttlSeconds: Number(document.getElementById("ttlSeconds").value),
-  });
-
-  lastIssuedToken = session.token;
-  lastIssuedVerifyUrl = session.verifyUrl || "";
+document.querySelectorAll(".mode-btn").forEach((btn) => btn.addEventListener("click", () => setMode(btn.dataset.mode)));
+$("issueForm").addEventListener("submit", async (event) => {
+ event.preventDefault();
+ const subjectId = $("subjectId").value.trim();
+ const purpose = $("purpose").value;
+ const ttlSeconds = Number($("ttlSeconds").value);
+ if (!subjectId || subjectId.length < 2) {
+  alert("거래/사용자 ID를 입력하세요.");
+  return;
+ }
+ try {
+  $("statusText").textContent = "QR 발급 요청 중...";
+  const session = await issueSession({ subjectId, purpose, ttlSeconds });
+  lastIssuedSession = session;
   await drawIssuedQr(session);
   showIssueResult(session);
-
-  document.getElementById("fakeQrPattern").classList.add("hidden");
-  document.getElementById("issuedQrCanvas").classList.remove("hidden");
-  document.getElementById("scanLine").classList.add("hidden");
-  document.getElementById("statusText").textContent = "샘플 QR 발급 완료";
+  $("statusText").textContent = "QR 발급 완료";
+  setSheetHeight(38);
   await renderHistory();
+ } catch (error) {
+  $("statusText").textContent = "QR 발급 실패";
+  alert(error.message || error);
+ }
 });
-
-document.getElementById("clearHistoryBtn").addEventListener("click", async () => {
-  if (!confirm("SQLite QR 이력을 초기화할까요?")) return;
-
-  try {
-    await apiFetch(API_ENDPOINTS.history, { method: "DELETE" });
-    await renderHistory();
-    document.getElementById("verifyResult").classList.add("hidden");
-    document.getElementById("issueResult").classList.add("hidden");
-    document.getElementById("statusText").textContent = "이력 초기화";
-  } catch (error) {
-    alert(error.message || "이력 초기화 실패");
-  }
+$("manualForm").addEventListener("submit", async (event) => {
+ event.preventDefault();
+ try { await verifyRaw($("manualToken").value); }
+ catch (error) { showVerifyResult({ ok:false, result:"not_found", message:error.message }); }
 });
-
-document.getElementById("helpBtn").addEventListener("click", () => {
-  alert("이 화면은 FastAPI + SQLite QR 인증 API와 연결됩니다. API 서버는 http://127.0.0.1:8000 에서 실행되어야 합니다.");
+$("startCameraBtn").addEventListener("click", startCameraScanner);
+$("clearHistoryBtn").addEventListener("click", async () => {
+ if (!confirm("QR 이력을 초기화할까요?")) return;
+ try {
+  await apiJson(API_ENDPOINTS.history, { method:"DELETE" });
+  await renderHistory();
+  $("verifyResult").classList.add("hidden");
+ } catch (error) {
+  alert(error.message || error);
+ }
 });
-
+$("helpBtn").addEventListener("click", () => {
+ alert("백엔드: py -m uvicorn main:app --reload\n프론트: py -m http.server 5500\n접속: http://localhost:5500/QR%20Scan.html?v=9999\nfile://로 열면 카메라/QR/API 테스트가 불안정합니다.");
+});
+window.addEventListener("beforeunload", () => { if (qrScanner) qrScanner.stop().catch(() => undefined); });
+initSheetDrag();
 renderHistory();
-
 </script>
 </body>
 </html>
