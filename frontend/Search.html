@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>검색 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870','on-secondary-fixed-variant':'#693c00','on-secondary-container':'#653900',
+    tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+    'surface-container-low':'#f3f4f5','surface-container':'#edeeef',warm:'#faf9f5'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:max(884px,100dvh); font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ph { background: repeating-linear-gradient(135deg, #eef2ea 0 8px, #e4ebe0 8px 16px); }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-12">
+
+<!-- Sticky search bar -->
+<header class="sticky top-0 z-40 bg-warm/95 backdrop-blur border-b border-black/[.04]">
+  <div class="max-w-2xl mx-auto px-3 h-14 flex items-center gap-2">
+    <button onclick="history.back()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center shrink-0"><span class="material-symbols-outlined">arrow_back</span></button>
+    <div class="flex-1 bg-white rounded-2xl ring-1 ring-outline-variant focus-within:ring-2 focus-within:ring-primary flex items-center pl-3 pr-1 py-1.5">
+      <span class="material-symbols-outlined text-on-surface-variant" style="font-size:20px">search</span>
+      <input id="searchInput" autofocus class="flex-1 bg-transparent px-2 text-[14px] outline-none" placeholder="식재료, 이웃, 레시피 검색"/>
+      <button class="w-7 h-7 rounded-full bg-surface-container-low flex items-center justify-center mr-0.5"><span class="material-symbols-outlined" style="font-size:14px">mic</span></button>
+    </div>
+    <button id="searchBtn" class="text-[13px] font-bold text-primary px-1 shrink-0">검색</button>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pt-4">
+
+  <!-- Quick filters -->
+  <div class="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+    <button class="shrink-0 text-[12px] font-semibold bg-white px-3 py-1.5 rounded-full ring-1 ring-black/5 flex items-center gap-1">
+      <span class="material-symbols-outlined text-primary" style="font-size:14px;font-variation-settings:'FILL' 1;">location_on</span>
+      한들마을 3단지
+    </button>
+    <button class="shrink-0 text-[12px] font-semibold bg-white px-3 py-1.5 rounded-full ring-1 ring-black/5">🥬 채소</button>
+    <button class="shrink-0 text-[12px] font-semibold bg-white px-3 py-1.5 rounded-full ring-1 ring-black/5">🍎 과일</button>
+    <button class="shrink-0 text-[12px] font-semibold bg-white px-3 py-1.5 rounded-full ring-1 ring-black/5">🥩 육류</button>
+    <button class="shrink-0 text-[12px] font-semibold bg-white px-3 py-1.5 rounded-full ring-1 ring-black/5">🍞 베이커리</button>
+  </div>
+
+  <!-- Recent -->
+  <section class="mt-5">
+    <div class="flex items-center justify-between mb-2 px-1">
+      <p class="text-[12.5px] font-bold">최근 검색어</p>
+      <button id="clearRecentBtn" class="text-[11.5px] text-on-surface-variant">모두 지우기</button>
+    </div>
+    <div id="recentList" class="flex flex-wrap gap-1.5">
+      <!-- JS가 채워넣음. 비어있을 때는 안내 문구가 표시됩니다. -->
+    </div>
+  </section>
+
+  <!-- Trending -->
+  <section class="mt-6">
+    <div class="flex items-center justify-between mb-2 px-1">
+      <p class="text-[12.5px] font-bold flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-secondary" style="font-size:16px;font-variation-settings:'FILL' 1;">local_fire_department</span>
+        한들마을 실시간 인기
+      </p>
+      <p class="text-[10.5px] text-on-surface-variant">14:08 기준</p>
+    </div>
+    <ol class="bg-white rounded-2xl ring-soft p-2 grid grid-cols-2 gap-0.5">
+      <li class="flex items-center gap-2.5 px-2 py-2"><span class="text-[14px] font-bold text-error w-4">1</span><span class="text-[13px] font-semibold flex-1 truncate">시금치</span><span class="material-symbols-outlined text-error" style="font-size:12px">trending_up</span></li>
+      <li class="flex items-center gap-2.5 px-2 py-2"><span class="text-[14px] font-bold text-error w-4">2</span><span class="text-[13px] font-semibold flex-1 truncate">애호박</span><span class="text-[10px] text-on-surface-variant">NEW</span></li>
+      <li class="flex items-center gap-2.5 px-2 py-2"><span class="text-[14px] font-bold text-secondary w-4">3</span><span class="text-[13px] font-semibold flex-1 truncate">사워도우</span><span class="material-symbols-outlined text-on-surface-variant" style="font-size:12px">remove</span></li>
+      <li class="flex items-center gap-2.5 px-2 py-2"><span class="text-[14px] font-bold text-secondary w-4">4</span><span class="text-[13px] font-semibold flex-1 truncate">제주 노지귤</span><span class="material-symbols-outlined text-error" style="font-size:12px">trending_up</span></li>
+      <li class="flex items-center gap-2.5 px-2 py-2"><span class="text-[14px] font-bold text-on-surface-variant w-4">5</span><span class="text-[13px] flex-1 truncate">레몬</span><span class="material-symbols-outlined text-tertiary" style="font-size:12px">trending_down</span></li>
+      <li class="flex items-center gap-2.5 px-2 py-2"><span class="text-[14px] font-bold text-on-surface-variant w-4">6</span><span class="text-[13px] flex-1 truncate">두부</span><span class="material-symbols-outlined text-on-surface-variant" style="font-size:12px">remove</span></li>
+      <li class="flex items-center gap-2.5 px-2 py-2"><span class="text-[14px] font-bold text-on-surface-variant w-4">7</span><span class="text-[13px] flex-1 truncate">홈베이킹</span><span class="material-symbols-outlined text-error" style="font-size:12px">trending_up</span></li>
+      <li class="flex items-center gap-2.5 px-2 py-2"><span class="text-[14px] font-bold text-on-surface-variant w-4">8</span><span class="text-[13px] flex-1 truncate">제철 과일</span><span class="text-[10px] text-on-surface-variant">NEW</span></li>
+    </ol>
+  </section>
+
+  <!-- Suggested for you -->
+  <section class="mt-6">
+    <p class="text-[12.5px] font-bold mb-2 px-1">관심사 기반 추천</p>
+    <div class="grid grid-cols-2 gap-2">
+      <a href="Search_Results.html" class="bg-white ring-soft rounded-2xl p-3.5 flex items-center gap-3">
+        <span class="w-11 h-11 rounded-xl bg-primary-fixed flex items-center justify-center text-[20px]">🥬</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-[12.5px] font-bold">잎채소</p>
+          <p class="text-[10.5px] text-on-surface-variant">근처 24건</p>
+        </div>
+      </a>
+      <a href="Search_Results.html" class="bg-white ring-soft rounded-2xl p-3.5 flex items-center gap-3">
+        <span class="w-11 h-11 rounded-xl bg-secondary-fixed flex items-center justify-center text-[20px]">🍞</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-[12.5px] font-bold">홈베이킹</p>
+          <p class="text-[10.5px] text-on-surface-variant">근처 12건</p>
+        </div>
+      </a>
+      <a href="Search_Results.html" class="bg-white ring-soft rounded-2xl p-3.5 flex items-center gap-3">
+        <span class="w-11 h-11 rounded-xl bg-tertiary-fixed flex items-center justify-center text-[20px]">🥛</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-[12.5px] font-bold">유제품</p>
+          <p class="text-[10.5px] text-on-surface-variant">근처 8건</p>
+        </div>
+      </a>
+      <a href="Search_Results.html" class="bg-white ring-soft rounded-2xl p-3.5 flex items-center gap-3">
+        <span class="w-11 h-11 rounded-xl bg-primary-fixed-dim/40 flex items-center justify-center text-[20px]">🍊</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-[12.5px] font-bold">제철 과일</p>
+          <p class="text-[10.5px] text-on-surface-variant">근처 17건</p>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- Tip -->
+  <section class="mt-6 bg-tertiary-fixed/40 ring-1 ring-tertiary-fixed-dim/40 rounded-2xl p-3.5 flex gap-2">
+    <span class="material-symbols-outlined text-tertiary shrink-0" style="font-size:18px;font-variation-settings:'FILL' 1;">tips_and_updates</span>
+    <p class="text-[11.5px] text-on-tertiary-container leading-relaxed">"<b>시금치 + 오늘</b>"처럼 키워드를 조합하면 더 좁혀서 찾을 수 있어요.</p>
+  </section>
+</main>
+
+<script>
+  const RECENT_KEY = 'nf_recent_searches';
+  const searchInput = document.getElementById('searchInput');
+  const searchBtn   = document.getElementById('searchBtn');
+  const recentList  = document.getElementById('recentList');
+  const clearRecentBtn = document.getElementById('clearRecentBtn');
+
+  // ── 1. 검색 실행 기능 (통합) ──
+  function runSearch(rawKeyword) {
+    const kw = (rawKeyword ?? '').trim();
+    if (!kw) {
+      alert('검색어를 입력해 주세요.');
+      return;
+    }
+    // 최근 검색어 저장 (중복 제거, 최대 10개)
+    let list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+    list = [kw, ...list.filter(x => x !== kw)].slice(0, 10);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+    
+    // 결과 페이지로 이동 (오타 방지를 위해 정확히 언더바 _ 사용)
+    location.href = `Search_Results.html?keyword=${encodeURIComponent(kw)}`;
+  }
+
+  // 엔터 키 및 검색 버튼 이벤트 연결
+  searchBtn.addEventListener('click', () => runSearch(searchInput.value));
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') runSearch(searchInput.value);
+  });
+
+  // ── 2. 상단 퀵 필터 버튼 이벤트 연결 (이모지 제거 후 검색 선별) ──
+  document.querySelectorAll('main div.flex button').forEach(btn => {
+    const txt = btn.textContent.trim();
+    // 내 동네 위치 버튼은 제외하고 식재료 카테고리만 처리
+    if (txt && !txt.includes('한들마을')) {
+      btn.addEventListener('click', () => {
+        // 정규식을 이용해 "🥬 채소"에서 이모지를 떼고 "채소"만 추출합니다.
+        const cleanTxt = txt.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDC00-\uDFFF]/g, '').trim();
+        searchInput.value = cleanTxt;
+        runSearch(cleanTxt);
+      });
+    }
+  });
+
+  // ── 3. 최근 검색어 렌더링 ──
+  function renderRecent() {
+    const list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+    recentList.innerHTML = '';
+
+    if (list.length === 0) {
+      recentList.innerHTML =
+        '<p class="text-[11.5px] text-on-surface-variant/70 px-1 py-1">최근 검색한 키워드가 없어요.</p>';
+      return;
+    }
+
+    list.forEach(kw => {
+      const btn = document.createElement('button');
+      btn.className = 'bg-white ring-1 ring-black/5 rounded-full pl-3 pr-1 py-1.5 flex items-center gap-1 text-[12.5px]';
+      btn.innerHTML =
+        `${escapeHtml(kw)}<span class="material-symbols-outlined text-on-surface-variant ml-1" style="font-size:14px">close</span>`;
+
+      // 최근 검색어 버튼 클릭 시 처리
+      btn.addEventListener('click', (e) => {
+        if (e.target.tagName === 'SPAN') {
+          // X 아이콘 클릭 시 해당 키워드 삭제
+          const remained = list.filter(x => x !== kw);
+          localStorage.setItem(RECENT_KEY, JSON.stringify(remained));
+          renderRecent();
+        } else {
+          // 글자 클릭 시 해당 키워드로 검색
+          runSearch(kw);
+        }
+      });
+      recentList.appendChild(btn);
+    });
+  }
+
+  clearRecentBtn.addEventListener('click', () => {
+    localStorage.removeItem(RECENT_KEY);
+    renderRecent();
+  });
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => (
+      {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+    ));
+  }
+
+  renderRecent();
+</script>
+
+</body>
+</html>

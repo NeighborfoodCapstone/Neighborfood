@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>관심 목록 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','on-secondary-fixed-variant':'#693c00','on-secondary-container':'#653900',
+    tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:max(884px,100dvh); font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+  .ph { background:
+      repeating-linear-gradient(45deg, rgba(0,0,0,.03) 0 8px, transparent 8px 16px),
+      linear-gradient(135deg,#e9e7df,#dcdacf);
+  }
+  .tab-on { color:#006e1c; border-color:#006e1c; }
+  /* 하트 클릭 시 살짝 튕기는 마이크로 애니메이션 */
+  @keyframes heart-pop { 0%{transform:scale(1)} 40%{transform:scale(1.3)} 100%{transform:scale(1)} }
+  .heart-pop { animation: heart-pop .35s ease-out; }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-12">
+
+<header class="sticky top-0 z-40 bg-white/85 backdrop-blur border-b border-black/[.05]">
+  <div class="max-w-2xl mx-auto px-2 h-14 flex items-center">
+    <button onclick="history.back()" class="p-2 rounded-full hover:bg-black/5"><span class="material-symbols-outlined">arrow_back</span></button>
+    <p class="text-[16px] font-bold">관심 목록</p>
+    <button class="ml-auto p-2 mr-1 rounded-full hover:bg-black/5"><span class="material-symbols-outlined">tune</span></button>
+  </div>
+  <!-- Tabs -->
+  <div id="tabBar" class="max-w-2xl mx-auto px-4 flex gap-5 text-[13px]">
+    <button data-tab="all"      class="py-2.5 border-b-2 tab-on font-bold">전체 <span data-count="all"      class="text-[11px] font-semibold opacity-70">0</span></button>
+    <button data-tab="share"    class="py-2.5 border-b-2 border-transparent text-on-surface-variant">나눔 <span data-count="share"    class="text-[11px] opacity-70">0</span></button>
+    <button data-tab="groupbuy" class="py-2.5 border-b-2 border-transparent text-on-surface-variant">공동구매 <span data-count="groupbuy" class="text-[11px] opacity-70">0</span></button>
+    <button data-tab="exchange" class="py-2.5 border-b-2 border-transparent text-on-surface-variant">교환 <span data-count="exchange" class="text-[11px] opacity-70">0</span></button>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pt-3">
+
+  <!-- Notice -->
+  <div class="mb-3 px-3.5 py-2.5 bg-[#fff7ec] border border-[#ffe4bd] rounded-xl flex items-center gap-2">
+    <span class="material-symbols-outlined text-secondary" style="font-size:18px;font-variation-settings:'FILL' 1;">notifications_active</span>
+    <p class="text-[12px] text-on-surface flex-1">관심 항목 중 일부가 가격이 내렸거나 마감 임박이에요.</p>
+    <button class="text-[11px] font-bold text-secondary">보기</button>
+  </div>
+
+  <!-- 관심 목록 컨테이너 (JS가 채움) -->
+  <ul id="wishList" class="flex flex-col gap-3">
+    <li id="loadingItem" class="text-center text-[12px] text-on-surface-variant py-6">관심 목록을 불러오는 중…</li>
+  </ul>
+
+  <!-- 빈 상태 -->
+  <div id="emptyState" class="hidden text-center py-12 text-on-surface-variant">
+    <span class="material-symbols-outlined" style="font-size:48px; opacity:.4;">favorite_border</span>
+    <p class="text-[13px] mt-2">아직 관심 항목이 없어요.</p>
+    <p class="text-[11.5px] mt-1 opacity-70">마음에 드는 글의 하트를 눌러 보관해 보세요.</p>
+    <a href="Home.html" class="inline-block mt-4 text-[12px] font-bold text-primary px-4 py-2 rounded-full bg-primary-fixed/40">동네 글 둘러보기</a>
+  </div>
+
+  <p class="text-center text-[11.5px] text-on-surface-variant/70 mt-6 mb-2">관심을 누른 글은 14일간 보관돼요.</p>
+</main>
+
+<nav class="fixed bottom-0 left-0 w-full bg-white border-t border-black/[.06] z-50 flex justify-around items-center pt-2 pb-5 px-2">
+  <a class="flex flex-col items-center text-on-surface-variant" href="Home.html"><span class="material-symbols-outlined" style="font-size:24px">home</span><span class="text-[10px] mt-0.5">홈</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Map.html"><span class="material-symbols-outlined" style="font-size:24px">map</span><span class="text-[10px] mt-0.5">지도</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Register.html"><span class="material-symbols-outlined" style="font-size:24px">add_circle</span><span class="text-[10px] mt-0.5">등록</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="My_Activity.html"><span class="material-symbols-outlined" style="font-size:24px">interests</span><span class="text-[10px] mt-0.5">내 활동</span></a>
+  <a class="flex flex-col items-center text-primary" href="My_Page.html"><span class="material-symbols-outlined" style="font-size:24px;font-variation-settings:'FILL' 1;">person</span><span class="text-[10px] font-bold mt-0.5">마이</span></a>
+</nav>
+
+<script>
+/* ────────────────────────────────────────────────────────
+ * 관심 목록(Wishlist) 동적 렌더링
+ * - localStorage('nf_wishlist') = [postId, ...]
+ * - 비어 있으면 백엔드에서 최신 3건을 데모로 표시
+ * - 카드 제목은 상세 페이지로 이동하는 하이퍼링크
+ * - 하트 버튼 클릭 → 관심 토글 (즉시 화면 갱신 + localStorage 반영)
+ * ──────────────────────────────────────────────────────── */
+const API_BASE     = 'http://127.0.0.1:8000';
+const WISHLIST_KEY = 'nf_wishlist';
+const DEMO_COUNT   = 3;
+
+const listEl   = document.getElementById('wishList');
+const emptyEl  = document.getElementById('emptyState');
+const tabBar   = document.getElementById('tabBar');
+
+let allPosts   = [];        // 현재 관심 목록에 있는 게시글들
+let currentTab = 'all';
+
+/* localStorage 헬퍼 */
+function loadWishlist() {
+  try { return JSON.parse(localStorage.getItem(WISHLIST_KEY) || '[]'); }
+  catch { return []; }
+}
+function saveWishlist(arr) {
+  localStorage.setItem(WISHLIST_KEY, JSON.stringify(arr));
+}
+function toggleWishlist(postId) {
+  const list = loadWishlist();
+  const idx  = list.indexOf(postId);
+  if (idx >= 0) list.splice(idx, 1);
+  else list.unshift(postId);
+  saveWishlist(list);
+  return idx < 0; // true = 새로 추가됨, false = 해제됨
+}
+
+/* 탭 전환 */
+tabBar.querySelectorAll('button[data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    tabBar.querySelectorAll('button[data-tab]').forEach(b => {
+      b.classList.remove('tab-on','font-bold');
+      b.classList.add('border-transparent','text-on-surface-variant');
+    });
+    btn.classList.add('tab-on','font-bold');
+    btn.classList.remove('border-transparent','text-on-surface-variant');
+    currentTab = btn.dataset.tab;
+    render();
+  });
+});
+
+/* ① 관심 목록 로드 */
+async function loadFavorites() {
+  let ids = loadWishlist();
+
+  // 시연 편의: 관심 목록이 비어 있으면 최신 3건을 데모로 채움
+  if (ids.length === 0) {
+    try {
+      const res  = await fetch(`${API_BASE}/posts?limit=${DEMO_COUNT}`);
+      if (!res.ok) throw new Error('API ' + res.status);
+      const data = await res.json();
+      allPosts   = (data.items || []).slice(0, DEMO_COUNT);
+      // 데모 글들을 자동으로 관심 목록에 넣어둠 (한번만)
+      saveWishlist(allPosts.map(p => p.id));
+    } catch (err) {
+      console.warn('데모 글 로드 실패:', err);
+      allPosts = [];
+    }
+    render();
+    return;
+  }
+
+  // 저장된 ID로 게시글 하나씩 조회 (작은 N이라 직렬 fetch로 충분)
+  try {
+    const results = await Promise.all(
+      ids.map(id => fetch(`${API_BASE}/posts/${id}`)
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null)
+      )
+    );
+    allPosts = results.filter(Boolean);
+
+    // 백엔드에 없는 ID(삭제된 글 등)는 localStorage에서도 정리
+    const validIds = new Set(allPosts.map(p => p.id));
+    const cleaned  = ids.filter(id => validIds.has(id));
+    if (cleaned.length !== ids.length) saveWishlist(cleaned);
+  } catch (err) {
+    console.warn('관심 목록 조회 실패:', err);
+    allPosts = [];
+  }
+
+  render();
+}
+
+/* ② 렌더링 */
+function render() {
+  // 카운트 갱신
+  const counts = { all: allPosts.length, share:0, exchange:0, groupbuy:0 };
+  allPosts.forEach(p => { if (counts[p.type] !== undefined) counts[p.type]++; });
+  tabBar.querySelectorAll('span[data-count]').forEach(s => {
+    s.textContent = counts[s.dataset.count];
+  });
+
+  const filtered = currentTab === 'all'
+    ? allPosts
+    : allPosts.filter(p => p.type === currentTab);
+
+  listEl.innerHTML = '';
+  if (allPosts.length === 0) {
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+  emptyEl.classList.add('hidden');
+
+  if (filtered.length === 0) {
+    listEl.innerHTML =
+      '<li class="text-center text-[12px] text-on-surface-variant py-8">' +
+      '이 카테고리에는 관심 항목이 없어요.</li>';
+    return;
+  }
+
+  filtered.forEach(p => listEl.appendChild(buildItem(p)));
+}
+
+/* 카드 빌더 */
+function buildItem(post) {
+  const li = document.createElement('li');
+  li.className = 'bg-white rounded-2xl ring-soft p-3 flex gap-3';
+  li.dataset.id = post.id;
+
+  const detailPage = post.type === 'groupbuy' ? 'Group_Buy_Detail.html' : 'Product_Detail.html';
+  const detailUrl  = `${detailPage}?id=${encodeURIComponent(post.id)}`;
+
+  // 타입 뱃지
+  let badgeHtml = '';
+  if (post.type === 'share') {
+    badgeHtml = '<span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-primary text-white text-[9px] font-bold">나눔</span>';
+  } else if (post.type === 'exchange') {
+    badgeHtml = '<span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-secondary-container text-on-secondary-fixed-variant text-[9px] font-bold">교환</span>';
+  } else if (post.type === 'groupbuy') {
+    badgeHtml = '<span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-tertiary-fixed-dim text-on-tertiary-container text-[9px] font-bold">공동구매</span>';
+  }
+
+  // 썸네일
+  const thumb = (post.images && post.images.length > 0)
+    ? `<div class="w-20 h-20 rounded-xl relative shrink-0 bg-cover bg-center" style="background-image:url('${API_BASE}/uploads/${post.images[0]}')">${badgeHtml}</div>`
+    : `<div class="w-20 h-20 rounded-xl ph relative shrink-0">${badgeHtml}</div>`;
+
+  // 푸터 (타입별 정보)
+  let footerHtml = '';
+  if (post.type === 'groupbuy') {
+    footerHtml = `
+      <div class="flex items-center gap-2 mt-1.5">
+        <span class="text-[12px] font-bold text-on-surface">${(post.gb_price ?? 0).toLocaleString()}원</span>
+        <span class="text-[10.5px] text-on-surface-variant">${post.gb_current ?? 0}/${post.gb_target ?? 0}명 모집중</span>
+      </div>`;
+  } else if (post.type === 'exchange') {
+    footerHtml = `
+      <div class="flex items-center gap-2 mt-1.5">
+        <span class="text-[11.5px] text-on-surface-variant">교환 희망: ${escapeHtml(post.exchange_want || '-')}</span>
+      </div>`;
+  } else {
+    footerHtml = `
+      <div class="flex items-center gap-2 mt-1.5">
+        <span class="text-[12px] font-bold text-primary">무료 나눔</span>
+      </div>`;
+  }
+
+  li.innerHTML = `
+    ${thumb}
+    <div class="flex-1 min-w-0">
+      <div class="flex items-start justify-between gap-2">
+        <p class="text-[14px] font-semibold leading-snug line-clamp-2">
+          <a href="${detailUrl}" class="hover:underline active:opacity-70">${escapeHtml(post.title)}</a>
+        </p>
+        <button class="favBtn text-secondary shrink-0 -mr-1" data-id="${post.id}" aria-label="관심 해제">
+          <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">favorite</span>
+        </button>
+      </div>
+      <p class="text-[11.5px] text-on-surface-variant mt-1 line-clamp-1">${escapeHtml(post.address || '동네 미설정')}</p>
+      ${footerHtml}
+    </div>
+  `;
+
+  // 하트 버튼 토글 처리
+  const btn = li.querySelector('.favBtn');
+  btn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleHeartToggle(btn, post);
+  });
+
+  return li;
+}
+
+/* 하트 버튼 클릭 처리: 활성/비활성 시각 토글 + localStorage 갱신 */
+function handleHeartToggle(btn, post) {
+  const icon = btn.querySelector('.material-symbols-outlined');
+  const isOn = icon.style.fontVariationSettings.includes('FILL') && icon.textContent === 'favorite';
+
+  // 즉시 시각 피드백
+  if (isOn) {
+    // 활성 → 비활성
+    icon.textContent = 'favorite';                 // 같은 글리프 유지하되 FILL만 끔
+    icon.style.fontVariationSettings = "'FILL' 0";
+    btn.classList.remove('text-secondary');
+    btn.classList.add('text-on-surface-variant');
+    btn.setAttribute('aria-label','관심 등록');
+  } else {
+    // 비활성 → 활성
+    icon.textContent = 'favorite';
+    icon.style.fontVariationSettings = "'FILL' 1";
+    btn.classList.add('text-secondary');
+    btn.classList.remove('text-on-surface-variant');
+    btn.setAttribute('aria-label','관심 해제');
+  }
+  icon.classList.remove('heart-pop');
+  void icon.offsetWidth;          // reflow → 애니메이션 재시작
+  icon.classList.add('heart-pop');
+
+  // localStorage 갱신
+  toggleWishlist(post.id);
+
+  // 관심 목록 페이지에서는 "해제 = 목록에서 제거" 가 자연스러움 → fade out 후 제거
+  if (isOn) {
+    setTimeout(() => {
+      const li = btn.closest('li');
+      if (!li) return;
+      li.style.transition = 'opacity .25s, transform .25s';
+      li.style.opacity = '0';
+      li.style.transform = 'translateX(20px)';
+      setTimeout(() => {
+        // allPosts에서도 제거하고 다시 렌더
+        allPosts = allPosts.filter(p => p.id !== post.id);
+        render();
+      }, 250);
+    }, 200);
+  }
+}
+
+function escapeHtml(s) {
+  return (s ?? '').toString().replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+loadFavorites();
+</script>
+
+</body>
+</html>

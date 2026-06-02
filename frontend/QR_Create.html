@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>내 QR 생성 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: {
+      primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
+      'on-primary':'#fff','on-primary-fixed-variant':'#005313','on-primary-fixed':'#002204',
+      secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870','on-secondary-container':'#653900','on-secondary-fixed-variant':'#693c00',
+      tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+      'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+      'surface-container-low':'#f3f4f5'
+    },
+    fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] }
+  }}}
+</script>
+<style>
+  body {
+    min-height:100dvh;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(148,249,144,.10) 0%, transparent 60%),
+      linear-gradient(180deg, #0e1310 0%, #0a0a0a 60%, #0a0a0a 100%);
+  }
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 rgba(148,249,144,.45); }
+    100% { box-shadow: 0 0 0 18px rgba(148,249,144,0); }
+  }
+  .active-dot { animation: pulse-ring 1.8s infinite; }
+  @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .ring-rotate { animation: spin-slow 14s linear infinite; }
+
+  /* QR cell */
+  .qr-cell { background:#0a0a0a; }
+  .qr-empty { background:transparent; }
+  /* Center logo plate */
+  .qr-logo-plate {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    pointer-events:none;
+  }
+  .qr-logo-plate .plate {
+    width:56px; height:56px; background:#fff; border-radius:16px; display:grid; place-items:center;
+    box-shadow: 0 4px 14px rgba(0,0,0,.18), 0 0 0 4px #fff;
+  }
+</style>
+</head>
+<body class="text-white antialiased">
+
+<!-- Top -->
+<header class="relative z-10 px-3 pt-4">
+  <div class="max-w-md mx-auto flex items-center justify-between">
+    <button onclick="history.back()" class="w-10 h-10 rounded-full bg-white/10 backdrop-blur flex items-center justify-center">
+      <span class="material-symbols-outlined">arrow_back</span>
+    </button>
+    <p class="text-[15px] font-bold text-white">내 QR · 거래 인증</p>
+    <button class="w-10 h-10 rounded-full bg-white/10 backdrop-blur flex items-center justify-center">
+      <span class="material-symbols-outlined">help</span>
+    </button>
+  </div>
+</header>
+
+<!-- Description -->
+<div class="relative z-10 text-center mt-5 px-4 max-w-md mx-auto">
+  <p class="text-[11.5px] font-bold text-primary-fixed-dim tracking-wide">픽업 거래 마무리</p>
+  <h2 class="text-[18px] font-bold mt-1 drop-shadow">상대방이 이 QR을 스캔하면<br/>거래가 안전하게 완료돼요</h2>
+  <p class="text-[12px] text-white/65 mt-1.5">코드는 보안을 위해 3분마다 새로 발급돼요</p>
+</div>
+
+<!-- Mode segment (mirrors Scan page) -->
+<div class="relative z-10 mt-5 flex justify-center">
+  <div class="bg-white/10 backdrop-blur rounded-full p-1 flex gap-1">
+    <button class="px-4 py-1.5 rounded-full bg-white text-on-surface text-[12px] font-bold">QR 코드</button>
+    <button class="px-4 py-1.5 rounded-full text-white/75 text-[12px] font-semibold">픽업 번호</button>
+    <button class="px-4 py-1.5 rounded-full text-white/75 text-[12px] font-semibold">바코드</button>
+  </div>
+</div>
+
+<!-- QR card -->
+<div class="relative z-10 mt-7 px-5 max-w-md mx-auto">
+  <div class="relative">
+    <!-- Glow ring -->
+    <div class="absolute -inset-3 rounded-[28px] ring-rotate" style="background: conic-gradient(from 0deg, transparent 0deg, rgba(148,249,144,.22) 60deg, transparent 120deg, transparent 240deg, rgba(148,249,144,.18) 300deg, transparent 360deg);"></div>
+
+    <div class="relative rounded-3xl bg-white p-5 shadow-[0_30px_60px_-20px_rgba(0,0,0,.6)]">
+      <!-- Trade meta header -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[13px] font-bold">민</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-[10.5px] font-bold text-on-surface-variant tracking-wide">→ 받는 사람</p>
+          <p class="text-[13.5px] font-bold text-on-surface truncate">민지 이웃</p>
+        </div>
+        <span id="statusBadge" class="text-[10.5px] font-bold bg-primary-fixed/60 text-on-primary-fixed-variant px-2 py-0.5 rounded-full flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-primary active-dot badge-dot"></span>
+          활성
+        </span>
+      </div>
+
+      <!-- QR grid -->
+      <div class="mt-4 relative aspect-square w-full rounded-2xl bg-white p-3 ring-1 ring-black/[.04]">
+        <div id="qrCanvas" class="absolute inset-3 flex items-center justify-center"></div>
+        <div id="qrLoading" class="absolute inset-3 grid place-items-center text-on-surface-variant text-[12px]">QR 발급 중...</div>
+        <div class="qr-logo-plate">
+          <div class="plate">
+            <span class="material-symbols-outlined text-primary" style="font-size:28px;font-variation-settings:'FILL' 1;">eco</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Item summary -->
+      <div class="mt-4 bg-surface-container-low rounded-xl p-3 flex gap-3 items-center">
+        <div class="w-10 h-10 rounded-lg shrink-0" style="background:repeating-linear-gradient(135deg,#cfe6c2 0 6px,#a8d090 6px 12px);"></div>
+        <div class="flex-1 min-w-0">
+          <p class="text-[12.5px] font-semibold text-on-surface truncate">유기농 시금치 두 봉지</p>
+          <p class="text-[10.5px] text-on-surface-variant mt-0.5">한들마을 3단지 정문 · 오늘 18:00</p>
+        </div>
+        <span class="text-[10.5px] font-bold text-primary bg-primary-fixed/40 px-2 py-1 rounded-full">나눔</span>
+      </div>
+
+      <!-- Timer + ID -->
+      <div class="mt-3 flex items-center justify-between text-[11px]">
+        <div class="flex items-center gap-1 text-on-surface-variant">
+          <span class="material-symbols-outlined" style="font-size:14px">schedule</span>
+          남은 시간 <b id="countdown" class="text-on-surface ml-1 font-mono">--:--</b>
+        </div>
+        <p class="text-on-surface-variant font-mono">#NF-<span id="codeId">------</span></p>
+      </div>
+
+      <!-- 검증 URL / 수동 토큰 -->
+      <div class="mt-3">
+        <p class="text-[10.5px] font-bold text-on-surface-variant tracking-wide mb-1 flex items-center gap-1">
+          <span class="material-symbols-outlined" style="font-size:14px">link</span>
+          검증 URL
+        </p>
+        <div class="flex items-stretch gap-2">
+          <input id="verifyUrl" readonly value=""
+            class="flex-1 min-w-0 rounded-xl border border-outline-variant bg-surface-container-low px-3 py-2 text-[11px] font-mono text-on-surface outline-none truncate"
+            placeholder="발급 후 검증 URL이 표시됩니다"/>
+          <button id="copyUrlBtn" type="button"
+            class="shrink-0 rounded-xl bg-primary text-white px-3 flex items-center gap-1 text-[11px] font-bold">
+            <span class="material-symbols-outlined" style="font-size:16px">content_copy</span>
+            복사
+          </button>
+        </div>
+
+        <p class="text-[10.5px] font-bold text-on-surface-variant tracking-wide mt-2 mb-1 flex items-center gap-1">
+          <span class="material-symbols-outlined" style="font-size:14px">key</span>
+          수동 토큰 (raw token)
+        </p>
+        <div class="flex items-stretch gap-2">
+          <input id="tokenValue" readonly value=""
+            class="flex-1 min-w-0 rounded-xl border border-outline-variant bg-surface-container-low px-3 py-2 text-[11px] font-mono text-on-surface outline-none truncate"
+            placeholder="발급 후 raw token이 표시됩니다"/>
+          <button id="copyTokenBtn" type="button"
+            class="shrink-0 rounded-xl border border-primary text-primary px-3 flex items-center gap-1 text-[11px] font-bold">
+            <span class="material-symbols-outlined" style="font-size:16px">content_copy</span>
+            복사
+          </button>
+        </div>
+
+        <p class="text-[10px] text-on-surface-variant mt-1">상대방이 QR을 스캔하거나, 스캔 페이지의 "수동 토큰 / 검증 URL" 칸에 URL·토큰 중 아무거나 붙여넣어도 거래가 검증돼요.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Steps tip -->
+  <p class="text-center text-[11px] text-white/55 mt-4 leading-relaxed">
+    1. 상대방에게 화면을 보여주세요<br/>
+    2. 상대방이 <b class="text-white/80">QR 스캔</b>으로 인식하면 거래가 완료돼요
+  </p>
+</div>
+
+<!-- Controls -->
+<div class="fixed left-0 right-0 bottom-32 z-10 flex justify-center gap-3 px-4">
+  <button class="w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center" id="refreshBtn" title="새 코드 발급">
+    <span class="material-symbols-outlined">refresh</span>
+  </button>
+  <button class="px-4 h-12 rounded-full bg-white text-on-surface flex items-center gap-1.5 text-[12.5px] font-bold">
+    <span class="material-symbols-outlined" style="font-size:18px">ios_share</span>
+    공유하기
+  </button>
+  <button class="w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center" title="이미지로 저장">
+    <span class="material-symbols-outlined">download</span>
+  </button>
+</div>
+
+<!-- Bottom sheet -->
+<section class="fixed bottom-0 left-0 right-0 bg-white text-on-surface rounded-t-3xl z-20 shadow-[0_-12px_30px_rgba(0,0,0,.4)]">
+  <div class="max-w-md mx-auto px-4 pt-3 pb-6">
+    <div class="w-10 h-1 bg-on-surface-variant/30 rounded-full mx-auto mb-3"></div>
+    <a href="Chat Detail.html" class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-2xl bg-primary-fixed/60 flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">chat</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-[10.5px] font-bold text-primary tracking-wide">진행 중 거래</p>
+        <p class="text-[13.5px] font-semibold truncate">민지 이웃과의 채팅</p>
+        <p class="text-[10.5px] text-on-surface-variant mt-0.5">"네 6시에 정문에서 뵐게요!" · 방금 전</p>
+      </div>
+      <span class="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+    </a>
+  </div>
+</section>
+
+<script>
+  // ============================================================
+  //  NeighborFood · 내 QR 생성 (main.py API 연동)
+  //  - POST /api/qr/request 로 1회성 인증 세션을 발급받고
+  //  - 응답의 verifyUrl 을 "실제" QR 코드로 렌더링합니다.
+  //  - 이렇게 인코딩된 verifyUrl 은 QR_Scan.html 카메라/수동 검증과
+  //    동일한 토큰 규칙을 쓰므로 두 페이지가 충돌 없이 연동됩니다.
+  // ============================================================
+
+  // 같은 출처(http://127.0.0.1:8000)에서 열면 ""(상대경로),
+  // file:// 로 직접 열면 절대경로로 백엔드를 호출합니다.
+  const API_BASE = location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
+
+  // ▼ 이 줄이 콘솔(F12)에 보이면 "수정된" 페이지가 맞습니다.
+  console.log("%c[NeighborFood] QR_Create build 2026-05-25 · token+url copy", "color:#006e1c;font-weight:bold");
+
+  // 이 거래에 대한 발급 파라미터 (실제 서비스에서는 거래정보로 채움)
+  const TRADE = {
+    subjectId: "pickup_minji_spinach",  // 거래/사용자 식별자
+    purpose: "pickup_confirm",          // 픽업 확인
+    ttlSeconds: 180                     // 3분 (백엔드에서 60~900s로 클램프)
+  };
+
+  let countdownId = null;
+  let expiresAtMs = 0;
+
+  const $ = (id) => document.getElementById(id);
+
+  function setBadge(active) {
+    const badge = $("statusBadge");
+    if (!badge) return;
+    const dot = badge.querySelector(".active-dot, .badge-dot");
+    if (active) {
+      badge.className = "text-[10.5px] font-bold bg-primary-fixed/60 text-on-primary-fixed-variant px-2 py-0.5 rounded-full flex items-center gap-1";
+      badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-primary active-dot badge-dot"></span>활성';
+    } else {
+      badge.className = "text-[10.5px] font-bold bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full flex items-center gap-1";
+      badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-rose-500 badge-dot"></span>만료';
+    }
+  }
+
+  // 실제 QR 코드 렌더링 (verifyUrl 인코딩) — qrcodejs(전역 QRCode) 사용
+  async function drawQr(verifyUrl) {
+    const holder = $("qrCanvas");
+    if (!window.QRCode) {
+      $("qrLoading").classList.remove("hidden");
+      $("qrLoading").textContent = "QR 라이브러리 로드 실패";
+      return;
+    }
+    holder.innerHTML = "";  // 이전 QR 제거
+    // 가운데 로고가 일부 가려도 인식되도록 오류정정 H(30%) 사용
+    new QRCode(holder, {
+      text: verifyUrl,
+      width: 256,
+      height: 256,
+      colorDark: "#0a0a0a",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.H
+    });
+    $("qrLoading").classList.add("hidden");
+    holder.classList.remove("hidden");
+  }
+
+  function startCountdown() {
+    if (countdownId) clearInterval(countdownId);
+    updateCountdown();
+    countdownId = setInterval(updateCountdown, 1000);
+  }
+
+  function updateCountdown() {
+    const remaining = Math.max(0, Math.round((expiresAtMs - Date.now()) / 1000));
+    const m = String(Math.floor(remaining / 60)).padStart(2, "0");
+    const s = String(remaining % 60).padStart(2, "0");
+    $("countdown").textContent = `${m}:${s}`;
+    if (remaining <= 0) {
+      clearInterval(countdownId);
+      setBadge(false);
+      $("countdown").textContent = "00:00";
+      // 만료되면 자동으로 새 QR 발급 (보안상 3분마다 교체)
+      issue();
+    }
+  }
+
+  // 백엔드에서 QR 세션 발급
+  async function issue() {
+    setBadge(true);
+    $("qrLoading").classList.remove("hidden");
+    $("qrLoading").textContent = "QR 발급 중...";
+    $("qrCanvas").classList.add("hidden");
+
+    try {
+      const res = await fetch(API_BASE + "/api/qr/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(TRADE)
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.message || "발급 실패");
+
+      const s = data.session;
+      await drawQr(s.verifyUrl);
+
+      // 검증 URL / 수동 토큰 칸 채우기
+      $("verifyUrl").value = s.verifyUrl;
+      $("tokenValue").value = s.token;
+
+      // 코드 ID: 세션 id 끝 6자리를 대문자로
+      $("codeId").textContent = (s.id || "").replace(/[^a-zA-Z0-9]/g, "").slice(-6).toUpperCase() || "------";
+
+      // 타이머: 서버의 expiresAt 기준
+      expiresAtMs = new Date(s.expiresAt).getTime();
+      startCountdown();
+    } catch (err) {
+      console.error(err);
+      $("qrLoading").classList.remove("hidden");
+      $("qrLoading").textContent = "발급 실패 · 서버 확인 필요";
+      $("verifyUrl").value = "";
+      $("verifyUrl").placeholder = "발급 실패: main.py(8000) 실행 여부를 확인하세요";
+      $("tokenValue").value = "";
+      $("tokenValue").placeholder = "발급 실패";
+      setBadge(false);
+    }
+  }
+
+  // 입력칸 값을 클립보드로 복사하고 버튼에 "복사됨" 피드백 표시 (URL/토큰 공용)
+  async function copyFromInput(inputId, btnId) {
+    const input = $(inputId);
+    const value = input.value;
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      input.removeAttribute("readonly");
+      input.select();
+      try { document.execCommand && document.execCommand("copy"); } catch {}
+      input.setAttribute("readonly", "");
+    }
+    const btn = $(btnId);
+    const original = btn.innerHTML;
+    btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">check</span>복사됨';
+    setTimeout(() => { btn.innerHTML = original; }, 1200);
+  }
+
+  // 검증 URL 복사 / 수동 토큰 복사
+  $("copyUrlBtn").addEventListener("click", () => copyFromInput("verifyUrl", "copyUrlBtn"));
+  $("copyTokenBtn").addEventListener("click", () => copyFromInput("tokenValue", "copyTokenBtn"));
+
+  // 공유하기: verifyUrl 공유
+  document.querySelectorAll("button").forEach((b) => {
+    if (b.textContent.trim().startsWith("공유하기")) {
+      b.addEventListener("click", async () => {
+        const url = $("verifyUrl").value;
+        if (!url) return;
+        if (navigator.share) {
+          try { await navigator.share({ title: "NeighborFood 거래 인증", url }); } catch {}
+        } else {
+          try { await navigator.clipboard.writeText(url); alert("검증 URL을 복사했어요."); } catch {}
+        }
+      });
+    }
+  });
+
+  // 새 코드 발급 버튼
+  $("refreshBtn").addEventListener("click", issue);
+
+  // 최초 발급
+  issue();
+</script>
+
+</body>
+</html>
