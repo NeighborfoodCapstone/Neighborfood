@@ -1,7 +1,7 @@
 import json
 import re
 import sqlite3
-from app.config     import RECEIPT_DB_PATH
+from app.config     import DB_PATH
 from app.db.base    import make_conn
 from app.core.utils import to_iso, now_utc
 
@@ -33,8 +33,8 @@ RC_NOISE_KW = ('사업자', '대표', 'TEL', 'tel', '전화', '주소', '카드'
 # ── DB 연결 & 초기화 ───────────────────────────────────────────────────────
 
 def get_conn() -> sqlite3.Connection:
-    """receipt_auth.db 연결을 반환합니다."""
-    return make_conn(RECEIPT_DB_PATH)
+    """통합 DB(neighborfood.db) 연결을 반환합니다."""
+    return make_conn(DB_PATH, foreign_keys=True)
 
 
 def init_receipt_db() -> None:

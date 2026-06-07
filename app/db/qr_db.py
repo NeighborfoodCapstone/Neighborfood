@@ -1,12 +1,12 @@
 import sqlite3
-from app.config     import QR_DB_PATH
+from app.config     import DB_PATH
 from app.db.base    import make_conn
 from app.core.utils import to_iso, now_utc
 
 
 def get_conn() -> sqlite3.Connection:
-    """qr_auth.db 연결을 반환합니다."""
-    return make_conn(QR_DB_PATH)
+    """통합 DB(neighborfood.db) 연결을 반환합니다."""
+    return make_conn(DB_PATH, foreign_keys=True)
 
 
 def init_qr_db() -> None:

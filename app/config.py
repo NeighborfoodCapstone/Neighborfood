@@ -7,6 +7,9 @@ DATA_DIR   = os.path.join(BASE_DIR, "data")
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 PAGE_DIR   = os.path.join(BASE_DIR, "frontend")
 
+DB_PATH          = os.path.join(DATA_DIR, "neighborfood.db")
+SESSION_TTL_DAYS = 30
+
 # 폴더가 없으면 자동 생성
 os.makedirs(DATA_DIR,   exist_ok=True)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
