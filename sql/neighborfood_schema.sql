@@ -173,3 +173,43 @@ CREATE INDEX IF NOT EXISTS idx_receipts_status_scanned  ON receipts (status, sca
 --    reports        (신고)
 --    fridge_items   (내 냉장고 관리, users.id 참조)
 -- ============================================================================
+
+
+-- ----------------------------------------------------------------------------
+-- 7-1. receipts compatibility columns — 영수증 후속 흐름 확장
+-- 기존 receipts.status CHECK(SCANNED/VERIFIED/FAILED)는 유지하고,
+-- 쇼핑 검증/냉장고 추가 상태는 별도 컬럼으로 관리한다.
+-- SQLite ALTER 참고용. 실제 앱은 app/db/fridge_db.py에서 안전하게 ADD COLUMN 처리한다.
+-- ----------------------------------------------------------------------------
+-- ALTER TABLE receipts ADD COLUMN raw_ocr_json TEXT;
+-- ALTER TABLE receipts ADD COLUMN shopping_matches_json TEXT NOT NULL DEFAULT '[]';
+-- ALTER TABLE receipts ADD COLUMN shopping_match_status TEXT NOT NULL DEFAULT 'NOT_REQUESTED';
+-- ALTER TABLE receipts ADD COLUMN shopping_matched_at TEXT;
+-- ALTER TABLE receipts ADD COLUMN fridge_added_at TEXT;
+
+-- ----------------------------------------------------------------------------
+-- 8. fridge_items — 내 냉장고 관리
+-- VERIFIED 된 receipts.selected_items를 사용자의 냉장고 항목으로 전환한다.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS fridge_items (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER,
+  receipt_id TEXT,
+  source TEXT NOT NULL DEFAULT 'receipt',
+  item_name TEXT NOT NULL,
+  qty INTEGER NOT NULL DEFAULT 1,
+  unit TEXT,
+  price INTEGER DEFAULT 0,
+  category TEXT,
+  store_name TEXT,
+  purchased_at TEXT,
+  status TEXT NOT NULL DEFAULT 'ACTIVE'
+    CHECK (status IN ('ACTIVE', 'CONSUMED', 'EXPIRED', 'DISCARDED')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(receipt_id, item_name, purchased_at)
+);
+CREATE INDEX IF NOT EXISTS idx_fridge_items_user_status
+ON fridge_items (user_id, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_fridge_items_receipt
+ON fridge_items (receipt_id);

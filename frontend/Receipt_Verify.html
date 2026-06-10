@@ -125,7 +125,7 @@
           <p class="text-[13.5px] font-semibold truncate">유기농 시금치 ×2</p>
           <p class="text-[10.5px] text-on-surface-variant">2026-05-06 · 4,800원</p>
         </div>
-        <span class="text-[10.5px] font-bold text-primary bg-primary-fixed/40 px-2 py-1 rounded-full">매칭</span>
+        <span class="text-[10.5px] font-bold text-primary bg-primary-fixed/40 px-2 py-1 rounded-full">선택됨</span>
       </label>
       <label class="bg-white rounded-2xl p-3.5 ring-1 ring-black/[.04] flex items-center gap-3">
         <span class="w-5 h-5 rounded-md ring-2 ring-outline-variant shrink-0"></span>
@@ -134,7 +134,7 @@
           <p class="text-[13.5px] font-semibold truncate">친환경 우유 1L</p>
           <p class="text-[10.5px] text-on-surface-variant">2026-05-06 · 3,200원</p>
         </div>
-        <span class="text-[10.5px] text-on-surface-variant">사용 안 함</span>
+        <span class="text-[10.5px] text-on-surface-variant">미선택</span>
       </label>
       <label class="bg-white rounded-2xl p-3.5 ring-1 ring-black/[.04] flex items-center gap-3">
         <span class="w-5 h-5 rounded-md ring-2 ring-outline-variant shrink-0"></span>
@@ -143,7 +143,7 @@
           <p class="text-[13.5px] font-semibold truncate">국내산 애호박</p>
           <p class="text-[10.5px] text-on-surface-variant">2026-05-06 · 1,500원</p>
         </div>
-        <span class="text-[10.5px] text-on-surface-variant">사용 안 함</span>
+        <span class="text-[10.5px] text-on-surface-variant">미선택</span>
       </label>
     </div>
   </section>
@@ -229,7 +229,8 @@ const API_BASE = location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
 const API = {
   scan:    API_BASE + "/api/receipt/scan",
   verify:  API_BASE + "/api/receipt/verify",
-  history: API_BASE + "/api/receipt/history"
+  history: API_BASE + "/api/receipt/history",
+  fridgeFromReceipt: API_BASE + "/api/fridge/from-receipt"
 };
 
 // 이 영수증이 증빙할 거래/게시글 식별자 (실제 서비스에서는 거래정보로 채움)
@@ -294,14 +295,25 @@ function refreshSummary() {
 // 기존 mock 과 동일한 모양의 항목 카드를 렌더 (구조 유지) + 항목별 수정 버튼
 function renderItems() {
   const list = $("detectedList");
+
+  if (!state.items.length) {
+    list.innerHTML = `
+      <div class="bg-white rounded-2xl p-5 ring-1 ring-black/[.04] text-center">
+        <p class="text-[13px] font-bold text-on-surface">아직 인식된 항목이 없습니다</p>
+        <p class="mt-1 text-[11px] text-on-surface-variant">영수증을 촬영하면 OCR 결과가 여기에 표시됩니다.</p>
+      </div>`;
+    refreshSummary();
+    return;
+  }
+
   list.innerHTML = state.items.map((it, idx) => {
     const sub = `${state.purchasedAt ? state.purchasedAt.slice(0, 10) : "-"} · ${Number(it.price).toLocaleString()}원`;
     const check = it.selected
       ? `<span class="w-5 h-5 rounded-md bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-white" style="font-size:14px">check</span></span>`
       : `<span class="w-5 h-5 rounded-md ring-2 ring-outline-variant shrink-0"></span>`;
     const tag = it.selected
-      ? `<span class="text-[10.5px] font-bold text-primary bg-primary-fixed/40 px-2 py-1 rounded-full">매칭</span>`
-      : `<span class="text-[10.5px] text-on-surface-variant">사용 안 함</span>`;
+      ? `<span class="text-[10.5px] font-bold text-primary bg-primary-fixed/40 px-2 py-1 rounded-full">선택됨</span>`
+      : `<span class="text-[10.5px] text-on-surface-variant">미선택</span>`;
     const qty = it.qty && it.qty > 1 ? ` ×${it.qty}` : "";
     // 인증 완료 후에는 수정 버튼을 숨김
     const editBtn = state.verified ? "" : `
@@ -387,9 +399,21 @@ function deleteEditItem() {
   renderItems();
 }
 
+function resetReceiptState(message = "영수증을 촬영해 주세요") {
+  state.scanId = null;
+  state.store = null;
+  state.purchasedAt = null;
+  state.items = [];
+  state.verified = false;
+  try { closeEditModal(); } catch (_) {}
+  renderItems();
+  refreshSummary();
+  setStatus(message);
+}
+
 // ── 스캔: POST /api/receipt/scan ─────────────────────────────
 async function scanReceipt(file) {
-  setStatus("분석 중...");
+  resetReceiptState("분석 중...");
   state.verified = false;
 
   // 미리보기 표시
@@ -493,7 +517,7 @@ $("receiptFile").addEventListener("change", (e) => {
 
 // 스캔 영역 탭 또는 "다시 찍기" → 파일/카메라 열기
 $("scanArea").addEventListener("click", () => $("receiptFile").click());
-$("rescanBtn").addEventListener("click", () => $("receiptFile").click());
+$("rescanBtn").addEventListener("click", () => { resetReceiptState("새 영수증을 선택해 주세요"); $("receiptFile").click(); });
 $("verifyBtn").addEventListener("click", verifySelected);
 $("addItemBtn").addEventListener("click", addManualItem);
 
@@ -506,14 +530,10 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("editModal").classList.contains("hidden")) closeEditModal();
 });
 
-// 최초 진입: 데모 항목 시드 (촬영 전에도 화면이 비어 보이지 않도록)
-state.items = [
-  { name: "유기농 시금치", qty: 2, price: 4800, selected: true },
-  { name: "친환경 우유 1L", qty: 1, price: 3200, selected: false },
-  { name: "국내산 애호박", qty: 1, price: 1500, selected: false }
-];
-state.purchasedAt = "2026-05-06";
-state.store = "로컬푸드마트 한들점";
+// 최초 진입: 실제 영수증 촬영 전에는 항목을 비워 둡니다.
+state.items = [];
+state.purchasedAt = null;
+state.store = null;
 renderItems();
 setStatus("영수증을 촬영해 주세요");
 </script>

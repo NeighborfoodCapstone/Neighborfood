@@ -14,6 +14,7 @@ from fastapi.responses       import FileResponse, HTMLResponse
 from app.config              import UPLOAD_DIR, PAGE_DIR, NO_CACHE
 from app.db.base             import init_all_databases
 from app.routers             import auth, posts, qr, receipt
+from app.routers import fridge
 
 # ── 앱 생성 ────────────────────────────────────────────────────────────────
 app = FastAPI(
@@ -44,6 +45,7 @@ app.include_router(auth.router,     tags=["인증"])
 app.include_router(posts.router,    tags=["게시글"])
 app.include_router(qr.router,      prefix="/api/qr",      tags=["QR 거래 인증"])
 app.include_router(receipt.router, prefix="/api/receipt", tags=["영수증 인증"])
+app.include_router(fridge.router, prefix="/api/fridge", tags=["내 냉장고"])
 
 # ── 인증 HTML 페이지 직접 서빙 (카메라 사용 화면 — localhost 보안 컨텍스트 필요) ─
 @app.get("/", response_class=HTMLResponse)
