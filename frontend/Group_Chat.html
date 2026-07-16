@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>그룹 채팅 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/guard.js"></script>
+<script>nfRequireMember();</script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','on-primary':'#ffffff','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
+    'on-primary-fixed':'#002204','on-primary-fixed-variant':'#005313',
+    secondary:'#8b5000','on-surface':'#191c1d','on-surface-variant':'#3f4a3c',
+    background:'#f8f9fa','surface-container':'#edeeef','surface-container-low':'#f3f4f5',
+    'surface-container-high':'#e7e8e9','outline-variant':'#becab9','on-background':'#191c1d'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  html,body{ font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; -webkit-font-smoothing:antialiased; }
+  body{ min-height:max(884px,100dvh); }
+  @keyframes msg-in { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+  .msg{ animation:msg-in 240ms ease-out both; }
+  .chat-bg{ background-color:#f6f7f4;
+    background-image:radial-gradient(circle at 18% 12%, rgba(120,220,119,.08), transparent 40%),
+                     radial-gradient(circle at 82% 88%, rgba(255,184,112,.07), transparent 45%); }
+  main::-webkit-scrollbar{ width:0; }
+</style>
+</head>
+<body class="bg-background text-on-background h-screen flex flex-col antialiased">
+
+<!-- Header -->
+<header class="bg-white/85 backdrop-blur-md fixed top-0 w-full z-50 border-b border-zinc-100 flex items-center px-2 h-14">
+  <button onclick="history.back()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center" aria-label="뒤로">
+    <span class="material-symbols-outlined">arrow_back</span>
+  </button>
+  <div class="flex items-center gap-2.5 min-w-0 pl-1">
+    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-primary-fixed to-primary-fixed-dim flex items-center justify-center shrink-0">
+      <span class="material-symbols-outlined text-on-primary-fixed" style="font-size:20px">groups</span>
+    </div>
+    <div class="flex flex-col items-start min-w-0">
+      <span id="groupTitle" class="font-semibold text-[15px] text-on-surface truncate">공동구매 채팅</span>
+      <span id="memberCount" class="text-[11px] text-on-surface-variant leading-none mt-0.5">참여자 불러오는 중…</span>
+    </div>
+  </div>
+</header>
+
+<!-- Messages -->
+<main class="flex-1 overflow-y-auto pt-14 pb-[84px] chat-bg">
+  <div id="messageList" class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-2"></div>
+</main>
+
+<!-- Input -->
+<div class="fixed bottom-0 w-full bg-white/95 backdrop-blur-md border-t border-outline-variant/30 px-3 py-2 pb-5 z-40">
+  <div class="max-w-2xl mx-auto flex items-end gap-2">
+    <div class="flex-1 bg-surface-container-low rounded-3xl flex items-end px-3 py-1.5 ring-1 ring-transparent focus-within:ring-primary/40 transition-all">
+      <textarea id="msgInput" rows="1" class="flex-1 bg-transparent border-none focus:ring-0 text-[14.5px] text-on-surface placeholder:text-on-surface-variant/70 p-1.5 resize-none max-h-24" placeholder="메시지를 입력하세요"></textarea>
+    </div>
+    <button id="sendBtn" class="p-2 bg-primary text-on-primary rounded-full shrink-0 flex items-center justify-center w-10 h-10 shadow-sm hover:scale-105 active:scale-95 transition-all" aria-label="전송">
+      <span class="material-symbols-outlined" style="font-size:20px">send</span>
+    </button>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const API_BASE = window.location.origin;
+    const convId = new URLSearchParams(location.search).get('id');
+    const listEl = document.getElementById('messageList');
+    const inputEl = document.getElementById('msgInput');
+    const sendBtn = document.getElementById('sendBtn');
+    let lastId = 0, myId = null, prevSender = null, pollTimer = null;
+
+    if (!convId) {
+      listEl.innerHTML = '<p class="text-center text-[13px] text-on-surface-variant py-10">잘못된 접근이에요. 채팅 목록에서 다시 들어와 주세요.</p>';
+      return;
+    }
+
+    function esc(t){ const e=document.createElement('div'); e.textContent=t==null?'':t; return e.innerHTML; }
+    function hhmm(iso){
+      if (!iso) return '';
+      const d = new Date(iso.endsWith('Z')||iso.includes('+') ? iso : iso + 'Z');
+      let h=d.getHours(), m=String(d.getMinutes()).padStart(2,'0');
+      const ap = h<12 ? '오전' : '오후'; h = h%12 || 12;
+      return ap+' '+h+':'+m;
+    }
+    function scrollBottom(){ const m=document.querySelector('main'); if(m) m.scrollTop=m.scrollHeight; }
+
+    function bubble(m){
+      const mine = (m.sender_id === myId);
+      const time = '<span class="text-[10px] text-on-surface-variant/70 leading-none mb-1">'+hhmm(m.created_at)+'</span>';
+      if (mine){
+        prevSender = m.sender_id;
+        const body = '<div class="max-w-[72%] px-3.5 py-2 text-[14px] leading-relaxed bg-primary text-on-primary rounded-2xl rounded-br-md">'+esc(m.content)+'</div>';
+        return '<div class="msg flex items-end gap-1.5 flex-row-reverse">'+body+time+'</div>';
+      }
+      // 다른 사람: 발신자가 바뀔 때만 아바타+이름 표시(연속 메시지는 생략)
+      const showName = (prevSender !== m.sender_id);
+      prevSender = m.sender_id;
+      const name = esc(m.sender_nickname || '이웃');
+      const ini = (m.sender_nickname || '?').trim().charAt(0) || '?';
+      const avatar = showName
+        ? '<div class="w-7 h-7 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[12px] font-bold shrink-0">'+esc(ini)+'</div>'
+        : '<div class="w-7 shrink-0"></div>';
+      const nameLine = showName ? '<p class="text-[11px] text-on-surface-variant mb-0.5 ml-0.5">'+name+'</p>' : '';
+      const body = '<div class="max-w-[72%] px-3.5 py-2 text-[14px] leading-relaxed bg-white text-on-surface rounded-2xl rounded-bl-md ring-1 ring-black/[.04]">'+esc(m.content)+'</div>';
+      return '<div class="msg flex flex-col items-start">'+nameLine
+        + '<div class="flex items-end gap-1.5">'+avatar+body+time+'</div></div>';
+    }
+
+    async function loadMe(){
+      try{ const r=await fetch(API_BASE+'/api/users/me');
+        if(window.nfHandleAuthError && nfHandleAuthError(r)) return;
+        if(r.ok){ myId=(await r.json()).id; } }catch(e){}
+    }
+    async function loadHeader(){
+      try{
+        const r=await fetch(API_BASE+'/api/chats/group/'+convId+'/members');
+        if(window.nfHandleAuthError && nfHandleAuthError(r)) return;
+        if(!r.ok) return;
+        const d=await r.json();
+        document.getElementById('groupTitle').textContent = '공동구매 · ' + (d.title || '');
+        document.getElementById('memberCount').textContent = '참여자 ' + d.count + '명';
+      }catch(e){}
+    }
+    async function poll(){
+      try{
+        const r=await fetch(API_BASE+'/api/chats/group/'+convId+'/messages'+(lastId?'?after_id='+lastId:''));
+        if(window.nfHandleAuthError && nfHandleAuthError(r)) return;
+        if(!r.ok){
+          if(r.status===403||r.status===404){
+            listEl.innerHTML='<p class="text-center text-[13px] text-on-surface-variant py-10">대화를 불러올 수 없어요.</p>';
+            clearInterval(pollTimer);
+          }
+          return;
+        }
+        const d=await r.json();
+        if(d.items && d.items.length){
+          listEl.insertAdjacentHTML('beforeend', d.items.map(bubble).join(''));
+          lastId=d.items[d.items.length-1].id;
+          scrollBottom();
+        }
+      }catch(e){}
+    }
+    async function send(){
+      const text=inputEl.value.trim(); if(!text) return;
+      inputEl.value=''; inputEl.style.height='auto'; sendBtn.disabled=true;
+      try{
+        const r=await fetch(API_BASE+'/api/chats/group/'+convId+'/messages',{
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content:text})});
+        if(window.nfHandleAuthError && nfHandleAuthError(r)) return;
+        if(!r.ok){ const e=await r.json().catch(()=>({})); alert(e.detail||'전송에 실패했어요.'); return; }
+        await poll();
+      }catch(e){ alert('서버에 연결할 수 없어요.'); }
+      finally{ sendBtn.disabled=false; inputEl.focus(); }
+    }
+
+    inputEl.addEventListener('input', ()=>{ inputEl.style.height='auto'; inputEl.style.height=Math.min(inputEl.scrollHeight,96)+'px'; });
+    inputEl.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }});
+    sendBtn.addEventListener('click', send);
+
+    (async function init(){
+      await loadMe(); await loadHeader(); await poll();
+      pollTimer=setInterval(poll, 4000);
+    })();
+  })();
+</script>
+</body>
+</html>

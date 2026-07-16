@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>내 냉장고 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/guard.js"></script>
+<script>nfRequireMember();</script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','on-primary-fixed-variant':'#005313',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','on-secondary-fixed-variant':'#693c00',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+    error:'#ba1a1a','error-container':'#ffdad6','on-error-container':'#93000a',
+    'surface-container-high':'#e7e8e9'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:max(884px,100dvh); font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+  input:focus, textarea:focus, select:focus { outline:none; border-color:#006e1c; box-shadow:0 0 0 3px rgba(0,110,28,.12); }
+  .modal-bg { background:rgba(0,0,0,.4); }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-28">
+
+<header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-black/[.05]">
+  <div class="max-w-2xl mx-auto px-2 h-14 flex items-center">
+    <button onclick="history.back()" class="p-2 rounded-full hover:bg-black/5"><span class="material-symbols-outlined">arrow_back</span></button>
+    <p class="text-[18px] font-bold">내 냉장고</p>
+    <button onclick="openModal()" class="ml-auto mr-2 px-3.5 py-1.5 rounded-full bg-primary text-white text-[13px] font-bold flex items-center gap-1">
+      <span class="material-symbols-outlined" style="font-size:18px">add</span> 추가
+    </button>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pt-4">
+  <!-- Summary -->
+  <section class="bg-white rounded-2xl ring-soft p-3 grid grid-cols-3 gap-2 text-center mb-4">
+    <div><p id="sumTotal" class="text-[18px] font-bold">0</p><p class="text-[11px] text-on-surface-variant mt-0.5">전체</p></div>
+    <div class="border-x border-black/[.05]"><p id="sumSoon" class="text-[18px] font-bold text-secondary">0</p><p class="text-[11px] text-on-surface-variant mt-0.5">임박(D-3)</p></div>
+    <div><p id="sumExpired" class="text-[18px] font-bold text-error">0</p><p class="text-[11px] text-on-surface-variant mt-0.5">만료</p></div>
+  </section>
+
+  <ul id="fridgeList" class="flex flex-col gap-2.5">
+    <li class="bg-white rounded-2xl ring-soft p-6 text-center text-[12px] text-on-surface-variant">불러오는 중…</li>
+  </ul>
+  <div class="h-6"></div>
+</main>
+
+<!-- Add/Edit Modal -->
+<div id="modal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center modal-bg" onclick="if(event.target===this) closeModal()">
+  <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[88dvh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-3">
+      <p id="modalTitle" class="text-[16px] font-bold">식재료 추가</p>
+      <button onclick="closeModal()" class="p-1.5 rounded-full hover:bg-black/5"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <input type="hidden" id="fId"/>
+    <label class="text-[12px] font-semibold text-on-surface-variant">이름 *</label>
+    <input id="fName" maxlength="60" class="w-full mt-1.5 mb-3 px-3.5 py-3 rounded-lg border border-outline-variant text-[14.5px]" placeholder="예: 시금치"/>
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div>
+        <label class="text-[12px] font-semibold text-on-surface-variant">분류</label>
+        <select id="fCategory" class="w-full mt-1.5 px-3 py-3 rounded-lg border border-outline-variant text-[14px] bg-white">
+          <option value="">선택 안 함</option>
+          <option>채소</option><option>과일</option><option>육류</option><option>베이커리</option>
+          <option>유제품</option><option>반찬</option><option>간편식</option><option>기본 식재료</option><option>기타</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[12px] font-semibold text-on-surface-variant">수량</label>
+        <input id="fQuantity" maxlength="30" class="w-full mt-1.5 px-3.5 py-3 rounded-lg border border-outline-variant text-[14px]" placeholder="예: 1단, 500g"/>
+      </div>
+    </div>
+    <label class="text-[12px] font-semibold text-on-surface-variant">유통기한</label>
+    <input id="fExpiry" type="date" class="w-full mt-1.5 mb-3 px-3.5 py-3 rounded-lg border border-outline-variant text-[14px]"/>
+    <label class="text-[12px] font-semibold text-on-surface-variant">메모</label>
+    <textarea id="fMemo" maxlength="200" rows="2" class="w-full mt-1.5 mb-4 px-3.5 py-3 rounded-lg border border-outline-variant text-[14px] resize-none" placeholder="예: 국거리용"></textarea>
+    <div class="flex gap-2">
+      <button id="deleteBtn" onclick="removeItem()" class="hidden px-4 py-3 rounded-xl text-error text-[14px] font-semibold ring-1 ring-error/30">삭제</button>
+      <button id="saveBtn" onclick="saveItem()" class="flex-1 py-3 rounded-xl bg-primary text-white text-[14px] font-bold">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="fixed bottom-0 left-0 w-full bg-white border-t border-black/[.06] z-40 flex justify-around items-center pt-2 pb-5 px-2">
+  <a class="flex flex-col items-center text-on-surface-variant" href="Home.html"><span class="material-symbols-outlined" style="font-size:24px">home</span><span class="text-[10px] mt-0.5">홈</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Map.html"><span class="material-symbols-outlined" style="font-size:24px">map</span><span class="text-[10px] mt-0.5">지도</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Create_Post.html"><span class="material-symbols-outlined" style="font-size:24px">add_circle</span><span class="text-[10px] mt-0.5">등록</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="My_Activity.html"><span class="material-symbols-outlined" style="font-size:24px">interests</span><span class="text-[10px] mt-0.5">내 활동</span></a>
+  <a class="flex flex-col items-center text-primary" href="My_Page.html"><span class="material-symbols-outlined" style="font-size:24px;font-variation-settings:'FILL' 1;">person</span><span class="text-[10px] font-bold mt-0.5">마이</span></a>
+</nav>
+
+<script>
+  const API_BASE = window.location.origin;
+  function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+   function _getToken() {
+    if (typeof nfGetToken === 'function') return nfGetToken();
+    return localStorage.getItem('nf_token') || sessionStorage.getItem('nf_token') || '';
+  }
+  function _authHeaders(extra) {
+    const t = _getToken();
+    return t ? { 'Authorization': 'Bearer ' + t, ...extra } : { ...extra };
+  }
+
+
+  function dDayBadge(d){
+    if (d===null || d===undefined) return '<span class="text-[11px] text-on-surface-variant">기한 없음</span>';
+    if (d < 0)  return '<span class="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-error-container text-on-error-container">만료 '+Math.abs(d)+'일</span>';
+    if (d === 0) return '<span class="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-secondary-container text-white">D-day</span>';
+    if (d <= 3) return '<span class="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-secondary-fixed text-on-secondary-fixed-variant">D-'+d+'</span>';
+    return '<span class="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-primary-fixed text-on-primary-fixed-variant">D-'+d+'</span>';
+  }
+
+  async function loadItems(){
+    const ul = document.getElementById('fridgeList');
+    try{
+      const r = await fetch(API_BASE + '/api/fridge/items', { headers: _authHeaders() });
+      if (window.nfHandleAuthError && nfHandleAuthError(r)) return;
+      if (!r.ok){ ul.innerHTML = '<li class="bg-white rounded-2xl ring-soft p-6 text-center text-[12px] text-on-surface-variant">불러오지 못했어요.</li>'; return; }
+      const data = await r.json();
+      renderSummary(data.items);
+      if (!data.items.length){ ul.innerHTML = '<li class="bg-white rounded-2xl ring-soft p-8 text-center text-[13px] text-on-surface-variant">아직 등록한 식재료가 없어요.<br/>오른쪽 위 “추가”로 시작해 보세요.</li>'; return; }
+      ul.innerHTML = data.items.map(function(it){
+        const meta = [it.category, it.quantity].filter(Boolean).join(' · ');
+        return '<li class="bg-white rounded-2xl ring-soft p-3.5 flex items-center gap-3">'
+          + '<div class="flex-1 min-w-0">'
+          +   '<div class="flex items-center gap-2">'+dDayBadge(it.d_day)+'<p class="text-[14.5px] font-semibold truncate">'+esc(it.name)+'</p></div>'
+          +   (meta ? '<p class="text-[12px] text-on-surface-variant mt-1">'+esc(meta)+'</p>' : '')
+          +   (it.memo ? '<p class="text-[11.5px] text-on-surface-variant/80 mt-0.5 truncate">'+esc(it.memo)+'</p>' : '')
+          + '</div>'
+          + '<button class="p-2 rounded-full hover:bg-black/5 shrink-0" onclick=\'editItem('+JSON.stringify(it).replace(/'/g,"&#39;")+')\'><span class="material-symbols-outlined text-on-surface-variant" style="font-size:20px">edit</span></button>'
+          + '</li>';
+      }).join('');
+    }catch(e){ ul.innerHTML = '<li class="bg-white rounded-2xl ring-soft p-6 text-center text-[12px] text-on-surface-variant">서버에 연결할 수 없어요.</li>'; }
+  }
+
+  function renderSummary(items){
+    let total=items.length, soon=0, expired=0;
+    items.forEach(function(it){ if(it.d_day===null||it.d_day===undefined) return; if(it.d_day<0) expired++; else if(it.d_day<=3) soon++; });
+    document.getElementById('sumTotal').textContent=total;
+    document.getElementById('sumSoon').textContent=soon;
+    document.getElementById('sumExpired').textContent=expired;
+  }
+
+  // ----- Modal -----
+  const $ = function(id){ return document.getElementById(id); };
+  function openModal(){
+    $('modalTitle').textContent='식재료 추가'; $('fId').value='';
+    $('fName').value=''; $('fCategory').value=''; $('fQuantity').value=''; $('fExpiry').value=''; $('fMemo').value='';
+    $('deleteBtn').classList.add('hidden');
+    showModal();
+  }
+  function editItem(it){
+    $('modalTitle').textContent='식재료 수정'; $('fId').value=it.id;
+    $('fName').value=it.name||''; $('fCategory').value=it.category||''; $('fQuantity').value=it.quantity||'';
+    $('fExpiry').value=it.expiry_date||''; $('fMemo').value=it.memo||'';
+    $('deleteBtn').classList.remove('hidden');
+    showModal();
+  }
+  function showModal(){ const m=$('modal'); m.classList.remove('hidden'); m.classList.add('flex'); }
+  function closeModal(){ const m=$('modal'); m.classList.add('hidden'); m.classList.remove('flex'); }
+
+  async function saveItem(){
+    const name=$('fName').value.trim();
+    if (!name){ alert('이름을 입력해 주세요.'); return; }
+    const body={ name:name, category:$('fCategory').value||null, quantity:$('fQuantity').value.trim()||null,
+                 expiry_date:$('fExpiry').value||null, memo:$('fMemo').value.trim()||null };
+    const id=$('fId').value;
+    const btn=$('saveBtn'); btn.disabled=true;
+    try{
+      const r= id
+        ? await fetch(API_BASE+'/api/fridge/items/'+id, {method:'PATCH', headers:_authHeaders({'Content-Type':'application/json'}), body:JSON.stringify(body)})
+        : await fetch(API_BASE+'/api/fridge/items',     {method:'POST',  headers:_authHeaders({'Content-Type':'application/json'}), body:JSON.stringify(body)});
+      if (window.nfHandleAuthError && nfHandleAuthError(r)) return;
+      if (!r.ok){ const d=await r.json().catch(()=>({})); alert(d.detail||'저장에 실패했어요.'); return; }
+      closeModal(); loadItems();
+    }catch(e){ alert('서버에 연결할 수 없어요.'); }
+    finally{ btn.disabled=false; }
+  }
+
+  async function removeItem(){
+    const id=$('fId').value; if(!id) return;
+    if (!confirm('이 식재료를 삭제할까요?')) return;
+    try{
+      const r=await fetch(API_BASE+'/api/fridge/items/'+id, {method:'DELETE', headers: _authHeaders()});
+      if (window.nfHandleAuthError && nfHandleAuthError(r)) return;
+      closeModal(); loadItems();
+    }catch(e){ alert('서버에 연결할 수 없어요.'); }
+  }
+
+  loadItems();
+</script>
+</body>
+</html>

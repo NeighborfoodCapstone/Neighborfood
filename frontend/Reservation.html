@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>거래 신청 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/guard.js"></script>
+<script>nfRequireMember();</script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870','on-secondary-fixed-variant':'#693c00',
+    tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+    'surface-container-low':'#f3f4f5','surface-container':'#edeeef',
+    warm:'#faf9f5'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:max(884px,100dvh); font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ph { background: repeating-linear-gradient(135deg, #eef2ea 0 8px, #e4ebe0 8px 16px); }
+  .seg { background:#eef2ea; padding:3px; border-radius:9999px; display:inline-flex; }
+  .seg button { padding:7px 14px; border-radius:9999px; font-size:12.5px; font-weight:600; color:#3f4a3c; }
+  .seg button.on { background:#fff; color:#006e1c; box-shadow:0 1px 2px rgba(0,0,0,.06); }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-32">
+
+<header class="sticky top-0 z-40 bg-warm/90 backdrop-blur border-b border-black/[.04]">
+  <div class="max-w-2xl mx-auto px-3 h-14 flex items-center">
+    <button onclick="history.back()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">arrow_back</span></button>
+    <h1 class="text-[15px] font-bold ml-1">거래 신청</h1>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pt-4">
+
+  <!-- Item -->
+  <section class="bg-white rounded-2xl ring-soft p-3 flex gap-3">
+    <div id="cardThumb" class="w-20 h-20 rounded-xl ph relative shrink-0 bg-center bg-cover">
+      <span id="cardType" class="absolute top-1.5 left-1.5 text-[9px] font-bold bg-primary text-white px-1.5 py-0.5 rounded">나눔</span>
+    </div>
+    <div class="flex-1 min-w-0">
+      <p id="cardName" class="text-[14px] font-semibold leading-snug">불러오는 중…</p>
+      <p id="cardMeta" class="text-[11.5px] text-on-surface-variant mt-1">-</p>
+      <p id="cardPrice" class="text-[13px] font-bold text-primary mt-1.5">-</p>
+    </div>
+  </section>
+
+  <!-- Quantity -->
+  <section class="mt-4">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">받고 싶은 수량</p>
+    <div class="bg-white rounded-2xl ring-soft p-4 flex items-center gap-2">
+      <input id="qty" type="text" inputmode="numeric" value="1" class="flex-1 bg-surface-container-low rounded-xl px-4 py-3 text-[14px] font-semibold outline-none focus:ring-2 focus:ring-primary" placeholder="예: 1"/>
+      <span class="text-[14px] font-semibold text-on-surface-variant pr-1"></span>
+    </div>
+    <p class="text-[11px] text-on-surface-variant mt-1.5 px-1">남은 수량 · 1봉지 (마지막!)</p>
+  </section>
+
+  <!-- Time picker -->
+  <section class="mt-4">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">희망 시간</p>
+    <div class="bg-white rounded-2xl ring-soft p-4">
+      <div class="flex items-baseline justify-between mb-3">
+        <p id="todayLabel" class="text-[12px] font-semibold text-on-surface-variant">오늘</p>
+        <p id="timeLabel" class="text-[16px] font-bold text-primary">18:00</p>
+      </div>
+      <input id="timeSlider" type="range" min="0" max="47" step="1" value="36" class="w-full accent-primary"/>
+      <div class="flex justify-between text-[10.5px] text-on-surface-variant mt-1.5">
+        <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Location -->
+  <section class="mt-3 bg-white rounded-2xl ring-soft overflow-hidden">
+    <div class="p-4 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">location_on</span>
+        <div>
+          <p class="text-[13.5px] font-bold">한들마을 3단지 정문 앞</p>
+          <p class="text-[11px] text-on-surface-variant">도보 4분 · 280m</p>
+        </div>
+      </div>
+      <a href="Location_Detail.html" class="text-[12px] font-bold text-primary">지도 →</a>
+    </div>
+  </section>
+
+  <!-- Message -->
+  <section class="mt-4">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">상대방에게 한마디 <span class="text-on-surface-variant/60 font-medium">(선택)</span></p>
+    <textarea id="memoInput" rows="3" class="w-full bg-white rounded-2xl ring-1 ring-outline-variant px-4 py-3 text-[13.5px] focus:ring-2 focus:ring-primary outline-none resize-none" placeholder="감사 인사나 도착 안내 등을 적어주세요 :)"></textarea>
+  </section>
+
+  <!-- Etiquette -->
+  <section class="mt-4 bg-primary-fixed/30 ring-1 ring-primary-fixed-dim/40 rounded-2xl p-4 flex gap-2.5">
+    <span class="material-symbols-outlined text-primary shrink-0" style="font-variation-settings:'FILL' 1;">handshake</span>
+    <div>
+      <p class="text-[12.5px] font-bold text-on-primary-fixed-variant">매너 있는 거래를 부탁드려요</p>
+      <p class="text-[11.5px] text-on-primary-fixed-variant/90 mt-1 leading-relaxed">시간을 잘 지키면 신뢰 온도가 올라가요. 부득이하게 늦으면 미리 채팅으로 알려주세요.</p>
+    </div>
+  </section>
+
+  <!-- Summary card -->
+  <section class="mt-4 bg-white rounded-2xl ring-soft p-4">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">신청 요약</p>
+    <ul class="text-[12.5px] space-y-1.5">
+      <li class="flex justify-between"><span class="text-on-surface-variant">상품</span><b><span id="sumName">상품</span> <span id="sumQty">1</span>개</b></li>
+      <li class="flex justify-between"><span class="text-on-surface-variant">일시</span><b><span id="sumDate">오늘</span> <span id="sumTime">18:00</span></b></li>
+      <li class="flex justify-between"><span class="text-on-surface-variant">장소</span><b>한들마을 3단지 정문</b></li>
+    </ul>
+  </section>
+</main>
+
+<script>
+  // 오늘 날짜 (내장 Date 객체)
+  (function(){
+    const days = ['일','월','화','수','목','금','토'];
+    const now = new Date();
+    const m = now.getMonth() + 1;
+    const d = now.getDate();
+    const w = days[now.getDay()];
+    document.getElementById('todayLabel').textContent = `오늘 · ${m}월 ${d}일 (${w})`;
+    document.getElementById('sumDate').textContent = `오늘 ${m}월 ${d}일`;
+  })();
+
+  // 슬라이더 → 시간 라벨 (30분 단위)
+  const slider = document.getElementById('timeSlider');
+  const timeLabel = document.getElementById('timeLabel');
+  const sumTime = document.getElementById('sumTime');
+  function updateTime() {
+    const v = parseInt(slider.value, 10);
+    const h = String(Math.floor(v / 2)).padStart(2, '0');
+    const mm = (v % 2) ? '30' : '00';
+    const txt = `${h}:${mm}`;
+    timeLabel.textContent = txt;
+    sumTime.textContent = txt;
+  }
+  slider.addEventListener('input', updateTime);
+  updateTime();
+
+  // 수량 입력 → 요약 반영
+  const qty = document.getElementById('qty');
+  const sumQty = document.getElementById('sumQty');
+  qty.addEventListener('input', () => {
+    const n = (qty.value || '').replace(/[^0-9]/g, '');
+    sumQty.textContent = n || '0';
+  });
+</script>
+
+<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-black/[.06] z-40">
+  <div class="max-w-2xl mx-auto px-4 py-3 pb-6">
+    <button id="sendReqBtn" class="w-full bg-primary text-white rounded-2xl py-3.5 text-center text-[14px] font-bold flex items-center justify-center gap-1.5">
+      <span class="material-symbols-outlined" style="font-size:18px">send</span>
+      신청 보내고 채팅 시작
+    </button>
+    <p class="text-center text-[10.5px] text-on-surface-variant mt-2">상대방이 수락하면 채팅이 활성화돼요</p>
+  </div>
+</div>
+
+<script>
+  // 거래 신청 → (공동구매) 참여 등록 후 그룹 채팅 / (그 외) 작성자와 1:1 채팅
+  (function () {
+    const API_BASE = window.location.origin;
+    const id = new URLSearchParams(location.search).get('id');
+    let postType = null;   // 'groupbuy' | 'exchange' | 'share' — 버튼 분기에 사용
+
+    // 상단 상품카드 + 요약 상품명을 실제 글로 채움
+    if (id) {
+      fetch(API_BASE + '/posts/' + id)
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (p) {
+          if (!p) return;
+          postType = p.type;
+          const set = function (i, v) { const el = document.getElementById(i); if (el) el.textContent = v; };
+          const typeKo = p.type === 'groupbuy' ? '공구' : (p.type === 'exchange' ? '교환' : '나눔');
+          set('cardType', typeKo);
+          set('cardName', p.title || '상품');
+          set('sumName', p.title || '상품');
+          set('cardMeta', (p.author_nickname ? p.author_nickname + ' 이웃' : '이웃') + (p.category ? ' · ' + p.category : ''));
+          let price;
+          if (p.type === 'groupbuy') price = (p.gb_price ? Number(p.gb_price).toLocaleString() : '0') + '원';
+          else if (p.type === 'exchange') price = '교환 희망';
+          else price = '무료 나눔';
+          set('cardPrice', price);
+          if (p.images && p.images.length) {
+            const t = document.getElementById('cardThumb');
+            if (t) { t.style.backgroundImage = "url('" + API_BASE + '/uploads/' + p.images[0] + "')"; t.classList.remove('ph'); }
+          }
+        }).catch(function () {});
+    }
+
+    const btn = document.getElementById('sendReqBtn');
+    btn && btn.addEventListener('click', async function () {
+      if (!id) { alert('잘못된 접근이에요. 글에서 다시 시도해 주세요.'); return; }
+      if (!window.nfIsLoggedIn || !nfIsLoggedIn()) {
+        location.href = 'Login.html?next=' + encodeURIComponent('Reservation.html?id=' + id);
+        return;
+      }
+      btn.disabled = true;
+      try {
+        // ── 공동구매: 참여 등록 → 그룹 채팅방 입장 ──────────────────────
+        if (postType === 'groupbuy') {
+          // 1) 참여자로 등록 (이미 참여한 경우 409 → 그대로 그룹 채팅 진행)
+          const jr = await fetch(API_BASE + '/posts/' + id + '/join', { method: 'POST' });
+          if (window.nfHandleAuthError && nfHandleAuthError(jr)) return;
+          if (!jr.ok && jr.status !== 409) {
+            const e = await jr.json().catch(function () { return {}; });
+            alert(e.detail || '참여에 실패했어요.'); return;
+          }
+          // 2) 그룹 채팅방 생성/입장 (서버에서 참여 자격 검증)
+          const gr = await fetch(API_BASE + '/api/chats/group/' + id, { method: 'POST' });
+          if (window.nfHandleAuthError && nfHandleAuthError(gr)) return;
+          const gd = await gr.json().catch(function () { return {}; });
+          if (!gr.ok) { alert(gd.detail || '채팅을 열 수 없어요.'); return; }
+          location.href = 'Group_Chat.html?id=' + gd.conversationId;
+          return;
+        }
+
+        // ── 나눔/교환: 작성자와 1:1 채팅방 생성 + 신청 내역 첫 메시지 전송 ──
+        const r = await fetch(API_BASE + '/api/chats', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ post_id: Number(id) })
+        });
+        if (window.nfHandleAuthError && nfHandleAuthError(r)) return;
+        const data = await r.json();
+        if (!r.ok) { alert(data.detail || '채팅을 시작할 수 없어요.'); return; }
+        const convId = data.conversationId;
+
+        const n     = (document.getElementById('qty').value || '').replace(/[^0-9]/g, '') || '1';
+        const date  = (document.getElementById('sumDate').textContent || '').trim();
+        const time  = (document.getElementById('sumTime').textContent || '').trim();
+        const title = (document.getElementById('sumName').textContent || '').trim();
+        const memoEl = document.getElementById('memoInput');
+        const memo  = memoEl ? memoEl.value.trim() : '';
+        let msg = '[거래 신청] ' + title + '\n수량: ' + n + '개\n희망 일시: ' + date + ' ' + time;
+        if (memo) msg += '\n한마디: ' + memo;
+        await fetch(API_BASE + '/api/chats/' + convId + '/messages', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: msg })
+        }).catch(function () {});
+
+        location.href = 'Chat_Detail.html?id=' + convId;
+      } catch (e) {
+        alert('서버에 연결할 수 없어요.');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  })();
+</script>
+</body>
+</html>

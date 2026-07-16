@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<title>NeighborFood</title>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script src="shared/auth.js"></script>
+<script src="shared/guard.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
+    'on-primary-fixed-variant':'#005313','on-primary-fixed':'#002204',
+    secondary:'#8b5000','secondary-fixed':'#ffdcbe',
+    'surface-container-low':'#f3f4f5','surface-container':'#edeeef',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',
+    outline:'#6f7a6b','outline-variant':'#becab9',
+    error:'#ba1a1a','error-container':'#ffdad6','on-error-container':'#93000a',
+    warm:'#faf9f5'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:
+    radial-gradient(900px 480px at 50% -10%, rgba(148,249,144,.45), transparent 65%),
+    radial-gradient(700px 360px at 100% 100%, rgba(255,184,112,.25), transparent 60%),
+    #faf9f5; min-height:100dvh; }
+  @keyframes pop { 0%{opacity:0; transform:scale(.86)} 100%{opacity:1; transform:scale(1)} }
+  @keyframes rise { 0%{opacity:0; transform:translateY(10px)} 100%{opacity:1; transform:translateY(0)} }
+  .logo { animation: pop .6s cubic-bezier(.2,.9,.3,1.2) both; }
+  .tag  { animation: rise .5s ease .35s both; }
+  @media (prefers-reduced-motion: reduce){ .logo,.tag{ animation:none } }
+</style>
+</head>
+<body class="text-on-surface antialiased flex flex-col items-center justify-center px-8">
+  <div class="logo flex flex-col items-center">
+    <div class="w-24 h-24 rounded-[28px] bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
+      <span class="material-symbols-outlined text-white" style="font-size:52px;font-variation-settings:'FILL' 1;">eco</span>
+    </div>
+    <h1 class="mt-5 text-[28px] font-extrabold tracking-tight">NeighborFood</h1>
+  </div>
+  <p class="tag mt-2 text-[14px] text-on-surface-variant">우리 동네 식재료 나눔 · 공동구매</p>
+
+<script>
+  // 첫 방문: Onboarding / 재방문: Home (회원·비회원 모두 Home 진입 가능)
+  setTimeout(function () {
+    var seen = false;
+    try { seen = localStorage.getItem('nf_onboarded') === '1'; } catch (e) {}
+    location.replace(seen ? 'Home.html' : 'Onboarding.html');
+  }, 1400);
+</script>
+</body>
+</html>

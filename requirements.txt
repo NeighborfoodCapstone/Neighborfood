@@ -1,0 +1,15 @@
+# NeighborFood — Python 패키지 의존성 목록
+# 설치 명령: pip install -r requirements.txt
+
+# ── 웹 프레임워크 ──────────────────────────────────────────────────────────
+fastapi==0.115.14
+uvicorn[standard]==0.34.3
+python-multipart==0.0.9     # UploadFile 처리
+
+# ── HTTP 클라이언트 (CLOVA OCR 호출) ──────────────────────────────────────
+requests==2.31.0
+
+# ── 영수증 OCR — 선택 설치 (없어도 서버 실행 가능, 기능 제한) ──────────────
+# Pillow>=10.0                # 이미지 처리
+# pytesseract>=0.3.10         # Tesseract OCR Python 바인딩
+# (Tesseract 바이너리는 별도 설치 필요: https://github.com/tesseract-ocr/tesseract)

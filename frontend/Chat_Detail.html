@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>채팅 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script src="shared/auth.js"></script>
+<script src="shared/guard.js"></script>
+<script>nfRequireMember();</script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "on-primary-container": "#003c0b",
+          "surface-tint": "#006e1c",
+          "secondary-container": "#ff9800",
+          "primary-container": "#4caf50",
+          "on-secondary-container": "#653900",
+          "inverse-on-surface": "#f0f1f2",
+          "on-surface": "#191c1d",
+          "inverse-surface": "#2e3132",
+          "surface-container-high": "#e7e8e9",
+          "outline": "#6f7a6b",
+          "background": "#f8f9fa",
+          "surface-bright": "#f8f9fa",
+          "primary": "#006e1c",
+          "surface-variant": "#e1e3e4",
+          "surface-dim": "#d9dadb",
+          "surface-container-low": "#f3f4f5",
+          "outline-variant": "#becab9",
+          "error": "#ba1a1a",
+          "tertiary": "#466270",
+          "on-background": "#191c1d",
+          "on-primary": "#ffffff",
+          "on-surface-variant": "#3f4a3c",
+          "surface": "#f8f9fa",
+          "surface-container-lowest": "#ffffff",
+          "surface-container-highest": "#e1e3e4",
+          "surface-container": "#edeeef",
+          "secondary": "#8b5000",
+          "primary-fixed-dim": "#78dc77",
+          "primary-fixed": "#94f990"
+        },
+        borderRadius: {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        fontFamily: {
+          sans: ['"Plus Jakarta Sans"', '"Noto Sans KR"', "system-ui", "sans-serif"]
+        }
+      }
+    }
+  }
+</script>
+<style>
+  html, body {
+    font-family: "Plus Jakarta Sans", "Noto Sans KR", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  body { min-height: max(884px, 100dvh); }
+
+  /* Subtle entrance for messages */
+  @keyframes msg-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .msg { animation: msg-in 280ms ease-out both; }
+
+  /* Typing indicator */
+  @keyframes blink {
+    0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+    40%           { opacity: 1;    transform: translateY(-2px); }
+  }
+  .typing-dot { animation: blink 1.2s infinite ease-in-out; }
+  .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+  /* Online dot pulse */
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.55); }
+    100% { box-shadow: 0 0 0 6px rgba(76, 175, 80, 0); }
+  }
+  .online-dot { animation: pulse-ring 1.8s infinite; }
+
+  /* Soft chat bg with paper-like texture */
+  .chat-bg {
+    background-color: #f6f7f4;
+    background-image:
+      radial-gradient(circle at 18% 12%, rgba(120, 220, 119, 0.08), transparent 40%),
+      radial-gradient(circle at 82% 88%, rgba(255, 184, 112, 0.07), transparent 45%);
+  }
+
+  .bubble-shadow { box-shadow: 0 1px 1px rgba(20, 30, 20, 0.04), 0 2px 6px rgba(20, 30, 20, 0.03); }
+
+  /* Hide scrollbar visually but keep scroll */
+  main::-webkit-scrollbar { width: 0; }
+</style>
+</head>
+<body class="bg-background text-on-background h-screen flex flex-col antialiased">
+
+<!-- Top App Bar -->
+<header class="bg-white/85 backdrop-blur-md fixed top-0 w-full z-50 border-b border-zinc-100 flex items-center justify-between px-2 h-14">
+  <div class="flex items-center gap-1 min-w-0">
+    <button onclick="history.back()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center" aria-label="뒤로">
+      <span class="material-symbols-outlined">arrow_back</span>
+    </button>
+    <button class="flex items-center gap-2.5 min-w-0 pl-1 pr-2 py-1 rounded-lg hover:bg-surface-container transition-colors">
+      <div class="relative shrink-0">
+        <div id="partnerInitial" class="w-9 h-9 rounded-full bg-gradient-to-br from-primary-fixed to-primary-fixed-dim flex items-center justify-center text-on-primary-fixed font-semibold text-sm">
+          ?
+        </div>
+        <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#4caf50] border-2 border-white online-dot"></span>
+      </div>
+      <div class="flex flex-col items-start min-w-0">
+        <div class="flex items-center gap-1.5">
+          <span id="partnerName" class="font-semibold text-[15px] text-on-surface truncate">이웃</span>
+          <span class="material-symbols-outlined text-on-surface-variant" style="font-size:14px">verified</span>
+        </div>
+        <span class="text-[11px] text-on-surface-variant leading-none mt-0.5 flex items-center gap-1">
+          <span id="postTitleLabel" class="truncate">대화를 불러오는 중…</span>
+        </span>
+      </div>
+    </button>
+  </div>
+  <div class="flex items-center shrink-0">
+    <button class="p-2 rounded-full hover:bg-surface-container transition-colors active:scale-95" aria-label="알림">
+      <span class="material-symbols-outlined">notifications</span>
+    </button>
+    <button class="p-2 rounded-full hover:bg-surface-container transition-colors active:scale-95" aria-label="더보기">
+      <span class="material-symbols-outlined">more_vert</span>
+    </button>
+  </div>
+</header>
+
+<!-- Main -->
+<main class="flex-1 overflow-y-auto pt-14 pb-[148px] chat-bg">
+
+  <!-- Item Info Card -->
+  <div class="bg-white border-b border-outline-variant/30 sticky top-0 z-40">
+    <div id="itemCard" class="px-4 py-3 max-w-2xl mx-auto flex items-center gap-3 cursor-pointer">
+      <div class="w-12 h-12 rounded-lg bg-surface-container-high overflow-hidden shrink-0 ring-1 ring-black/5">
+        <img id="cardImg" alt="" class="w-full h-full object-cover" style="display:none"/>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1.5">
+          <span class="text-[10px] font-bold tracking-wide px-1.5 py-0.5 rounded bg-primary-fixed/60 text-on-primary-fixed-variant" id="cardType">나눔</span>
+          <span id="cardSub" class="text-[11px] text-on-surface-variant">-</span>
+        </div>
+        <h2 id="cardTitle" class="text-[14px] text-on-surface font-semibold truncate mt-0.5">대화를 불러오는 중…</h2>
+        <p id="cardPrice" class="text-[13px] text-on-surface font-bold mt-0.5">-</p>
+      </div>
+      <button class="text-[12px] font-semibold bg-primary-fixed/70 text-on-primary-fixed-variant px-3.5 py-2 rounded-lg hover:bg-primary-fixed transition-colors whitespace-nowrap"><span id="cardStatus">-</span></button>
+    </div>
+  </div>
+
+  <!-- Chat History -->
+  <div id="messageList" class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-1.5"></div>
+</main>
+
+<!-- Quick Replies -->
+<div class="fixed bottom-[136px] w-full z-40 pointer-events-none">
+  <div class="max-w-2xl mx-auto px-3 flex gap-2 overflow-x-auto pointer-events-auto" style="scrollbar-width:none;">
+    <button class="shrink-0 text-[12px] bg-white text-on-surface px-3 py-1.5 rounded-full ring-1 ring-black/5 hover:bg-surface-container transition-colors flex items-center gap-1">
+      <span class="material-symbols-outlined" style="font-size:14px">schedule</span>
+      약속 시간 변경
+    </button>
+    <button class="shrink-0 text-[12px] bg-white text-on-surface px-3 py-1.5 rounded-full ring-1 ring-black/5 hover:bg-surface-container transition-colors">
+      거의 다 왔어요
+    </button>
+    <button class="shrink-0 text-[12px] bg-white text-on-surface px-3 py-1.5 rounded-full ring-1 ring-black/5 hover:bg-surface-container transition-colors">
+      도착했어요!
+    </button>
+    <button class="shrink-0 text-[12px] bg-white text-on-surface px-3 py-1.5 rounded-full ring-1 ring-black/5 hover:bg-surface-container transition-colors">
+      감사합니다 🙏
+    </button>
+  </div>
+</div>
+
+<!-- Message Input -->
+<div class="fixed bottom-[72px] w-full bg-white/95 backdrop-blur-md border-t border-outline-variant/30 px-3 py-2 z-40">
+  <div class="max-w-2xl mx-auto flex items-end gap-2">
+    <button class="p-2 text-on-surface-variant hover:text-primary transition-colors shrink-0 rounded-full hover:bg-surface-container" aria-label="첨부">
+      <span class="material-symbols-outlined">add</span>
+    </button>
+    <div class="flex-1 bg-surface-container-low rounded-3xl flex items-end px-3 py-1.5 ring-1 ring-transparent focus-within:ring-primary/40 transition-all">
+      <textarea id="msgInput" rows="1" class="flex-1 bg-transparent border-none focus:ring-0 text-[14.5px] text-on-surface placeholder:text-on-surface-variant/70 p-1.5 resize-none max-h-24" placeholder="메시지를 입력하세요"></textarea>
+      <button class="p-1.5 text-on-surface-variant hover:text-primary transition-colors shrink-0" aria-label="이모지">
+        <span class="material-symbols-outlined">mood</span>
+      </button>
+    </div>
+    <button id="sendBtn" class="p-2 bg-primary text-on-primary rounded-full transition-all shrink-0 flex items-center justify-center w-10 h-10 shadow-sm hover:scale-105 active:scale-95" aria-label="전송">
+      <span class="material-symbols-outlined" style="font-size:20px">send</span>
+    </button>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="fixed bottom-0 left-0 w-full bg-white border-t border-black/[.06] z-50 flex justify-around items-center pt-2 pb-5 px-2">
+  <a class="flex flex-col items-center text-on-surface-variant" href="Home.html"><span class="material-symbols-outlined" style="font-size:24px">home</span><span class="text-[10px] mt-0.5">홈</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Map.html"><span class="material-symbols-outlined" style="font-size:24px">map</span><span class="text-[10px] mt-0.5">지도</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Create_Post.html"><span class="material-symbols-outlined" style="font-size:24px">add_circle</span><span class="text-[10px] mt-0.5">등록</span></a>
+  <a class="flex flex-col items-center text-primary" href="My_Activity.html"><span class="material-symbols-outlined" style="font-size:24px;font-variation-settings:'FILL' 1;">interests</span><span class="text-[10px] font-bold mt-0.5">내 활동</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="My_Page.html"><span class="material-symbols-outlined" style="font-size:24px">person</span><span class="text-[10px] mt-0.5">마이</span></a>
+</nav>
+
+<script>
+  // Auto-scroll chat to bottom on load so the latest messages are visible
+  window.addEventListener('load', () => {
+    const main = document.querySelector('main');
+    if (main) main.scrollTop = main.scrollHeight;
+  });
+
+  // Auto-grow textarea
+  const ta = document.querySelector('textarea');
+  if (ta) {
+    ta.addEventListener('input', () => {
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(ta.scrollHeight, 96) + 'px';
+    });
+  }
+</script>
+
+<script>
+  (function () {
+    const API_BASE = window.location.origin;
+    const convId = new URLSearchParams(location.search).get('id');
+    const listEl = document.getElementById('messageList');
+    const inputEl = document.getElementById('msgInput');
+    const sendBtn = document.getElementById('sendBtn');
+    let lastId = 0;
+    let myId = null;
+    let pollTimer = null;
+
+    if (!convId) {
+      listEl.innerHTML = '<p class="text-center text-[13px] text-on-surface-variant py-10">잘못된 접근이에요. 채팅 목록에서 다시 들어와 주세요.</p>';
+      return;
+    }
+
+    function esc(t){ const e=document.createElement('div'); e.textContent=t==null?'':t; return e.innerHTML; }
+    function hhmm(iso){
+      if (!iso) return '';
+      const d = new Date(iso.endsWith('Z')||iso.includes('+') ? iso : iso + 'Z');
+      let h=d.getHours(), m=String(d.getMinutes()).padStart(2,'0');
+      const ap = h<12 ? '오전' : '오후'; h = h%12 || 12;
+      return ap+' '+h+':'+m;
+    }
+    function scrollBottom(){
+      const main = document.querySelector('main');
+      if (main) main.scrollTop = main.scrollHeight;
+    }
+
+    function bubble(m){
+      const mine = (m.sender_id === myId);
+      const time = '<span class="text-[10px] text-on-surface-variant/70 leading-none mb-1">'+hhmm(m.created_at)+'</span>';
+      const body = '<div class="max-w-[72%] px-3.5 py-2 text-[14px] leading-relaxed '
+        + (mine ? 'bg-primary text-on-primary rounded-2xl rounded-br-md' : 'bg-white text-on-surface rounded-2xl rounded-bl-md ring-1 ring-black/[.04]')
+        + '">'+esc(m.content)+'</div>';
+      return '<div class="flex items-end gap-1.5 '+(mine?'flex-row-reverse':'')+'">'+body+time+'</div>';
+    }
+
+    async function loadMe(){
+      try{
+        const r = await fetch(API_BASE + '/api/users/me');
+        if (window.nfHandleAuthError && nfHandleAuthError(r)) return;
+        if (r.ok){ const u = await r.json(); myId = u.id; }
+      }catch(e){}
+    }
+
+    async function loadCard(postId){
+      if (!postId) return;
+      try{
+        const r = await fetch(API_BASE + '/posts/' + postId);
+        if (!r.ok) return;
+        const p = await r.json();
+        const typeKo = p.type==='groupbuy' ? '공구' : (p.type==='exchange' ? '교환' : '나눔');
+        const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+        set('cardType', typeKo);
+        set('cardTitle', p.title || '');
+        set('cardSub', p.category || '이웃 거래');
+        let price;
+        if (p.type==='groupbuy') price = (p.gb_price ? Number(p.gb_price).toLocaleString() : '0') + '원';
+        else if (p.type==='exchange') price = '교환 희망';
+        else price = '무료 나눔';
+        set('cardPrice', price);
+        const stMap = { active:'거래중', completed:'거래완료', expired:'마감' };
+        set('cardStatus', stMap[p.status] || '거래중');
+        const img = document.getElementById('cardImg');
+        if (img){
+          if (p.images && p.images.length){ img.onerror=function(){this.style.display='none';}; img.src = API_BASE + '/uploads/' + p.images[0]; img.style.display=''; }
+        }
+        const card = document.getElementById('itemCard');
+        if (card){
+          const detail = (p.type==='groupbuy' ? 'Group_Buy_Detail.html' : 'Product_Detail.html') + '?id=' + postId;
+          card.onclick = function(){ location.href = detail; };
+        }
+      }catch(e){}
+    }
+
+    async function loadPartnerInfo(){
+      // 채팅 목록에서 이 방의 메타(상대 닉네임·게시글 제목)를 찾아 헤더에 반영
+      try{
+        const r = await fetch(API_BASE + '/api/chats');
+        if (!r.ok) return;
+        const data = await r.json();
+        const c = (data.items||[]).find(x => String(x.id) === String(convId));
+        if (c){
+          const name = c.partnerNickname || '이웃';
+          document.getElementById('partnerName').textContent = name;
+          document.getElementById('partnerInitial').textContent = (name.trim().charAt(0)||'?');
+          document.getElementById('postTitleLabel').textContent = c.post_title || '';
+          loadCard(c.post_id);
+        }
+      }catch(e){}
+    }
+
+    async function poll(){
+      try{
+        const r = await fetch(API_BASE + '/api/chats/'+convId+'/messages' + (lastId ? '?after_id='+lastId : ''));
+        if (window.nfHandleAuthError && nfHandleAuthError(r)) return;
+        if (!r.ok){
+          if (r.status === 403 || r.status === 404){
+            listEl.innerHTML = '<p class="text-center text-[13px] text-on-surface-variant py-10">대화를 불러올 수 없어요.</p>';
+            clearInterval(pollTimer);
+          }
+          return;
+        }
+        const data = await r.json();
+        if (data.items && data.items.length){
+          const atBottom = true;
+          listEl.insertAdjacentHTML('beforeend', data.items.map(bubble).join(''));
+          lastId = data.items[data.items.length-1].id;
+          scrollBottom();
+        }
+      }catch(e){}
+    }
+
+    async function send(){
+      const text = inputEl.value.trim();
+      if (!text) return;
+      inputEl.value = ''; inputEl.style.height = 'auto';
+      sendBtn.disabled = true;
+      try{
+        const r = await fetch(API_BASE + '/api/chats/'+convId+'/messages', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ content: text })
+        });
+        if (window.nfHandleAuthError && nfHandleAuthError(r)) return;
+        if (!r.ok){ const d = await r.json(); alert(d.detail || '전송에 실패했어요.'); return; }
+        await poll();   // 보낸 메시지 즉시 반영
+      }catch(e){ alert('서버에 연결할 수 없어요.'); }
+      finally{ sendBtn.disabled = false; inputEl.focus(); }
+    }
+
+    sendBtn.addEventListener('click', send);
+    inputEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); send(); }
+    });
+
+    (async function init(){
+      await loadMe();
+      await loadPartnerInfo();
+      await poll();
+      pollTimer = setInterval(poll, 4000);   // 4초 주기 증분 폴링
+    })();
+  })();
+</script>
+</body>
+</html>

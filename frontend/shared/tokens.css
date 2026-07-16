@@ -1,0 +1,12 @@
+/* NeighborFood 디자인 토큰 — frontend/shared/tokens.css
+   여러 화면이 var(--*) 로 참조하는 공통 색/선 값입니다.
+   값은 기존 디자인 시스템(녹색 테마, Index.html 기준)과 동일합니다. */
+:root {
+  --bg:           #faf9f5;             /* 페이지 배경 */
+  --ink:          #191c1d;             /* 기본 텍스트 */
+  --muted:        #3f4a3c;             /* 보조 텍스트 */
+  --line:         rgba(0, 0, 0, 0.08); /* 구분선 · 테두리 */
+  --primary:      #006e1c;             /* 브랜드 그린 */
+  --primary-soft: #e3efd8;             /* 연한 그린 (배경 강조) */
+  --sheet-height: 44dvh;               /* 바텀시트 기본 높이 */
+}

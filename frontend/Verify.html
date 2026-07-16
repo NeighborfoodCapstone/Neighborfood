@@ -1,0 +1,489 @@
+<!-- 최근 수정 : 2026.05.10 -->
+<!-- FastAPI 문서 링크 http://127.0.0.1:8000/docs -->
+<!DOCTYPE html>
+<html class="light" lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script src="shared/auth.js"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "on-background": "#181d16",
+          "error": "#ba1a1a",
+          "surface-container-lowest": "#ffffff",
+          "on-surface-variant": "#3f4a3d",
+          "primary-fixed-dim": "#7edb7b",
+          "surface-container-high": "#e7e8e9",
+          "secondary-fixed": "#ffdcbe",
+          "outline": "#6f7a6b",
+          "on-tertiary-fixed-variant": "#2e4a58",
+          "on-primary-container": "#8fee8b",
+          "surface-container-low": "#f3f4f5",
+          "on-error": "#ffffff",
+          "on-primary-fixed": "#002204",
+          "tertiary-container": "#466270",
+          "secondary-fixed-dim": "#ffb871",
+          "secondary": "#8b5000",
+          "tertiary-fixed-dim": "#adcbdb",
+          "surface-bright": "#f6fbf0",
+          "on-error-container": "#93000a",
+          "on-secondary": "#ffffff",
+          "on-primary-fixed-variant": "#005313",
+          "inverse-on-surface": "#edf3e7",
+          "on-tertiary-container": "#bfdded",
+          "on-primary": "#ffffff",
+          "primary-container": "#006e1c",
+          "surface-container-highest": "#dfe4d9",
+          "surface": "#f8f9fa",
+          "on-tertiary": "#ffffff",
+          "on-tertiary-fixed": "#001f2a",
+          "inverse-primary": "#7edb7b",
+          "on-secondary-container": "#653900",
+          "on-surface": "#181d16",
+          "surface-dim": "#d9dadb",
+          "on-secondary-fixed": "#2d1600",
+          "outline-variant": "#becab9",
+          "tertiary-fixed": "#c9e7f8",
+          "tertiary": "#2e4a58",
+          "secondary-container": "#ff9800",
+          "surface-tint": "#006e1c",
+          "inverse-surface": "#2c322b",
+          "surface-variant": "#dfe4d9",
+          "primary-fixed": "#99f894",
+          "primary": "#005313",
+          "surface-container": "#edeeef",
+          "background": "#f8f9fa",
+          "error-container": "#ffdad6",
+          "on-secondary-fixed-variant": "#6a3c00"
+        },
+        borderRadius: {
+          DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px"
+        },
+        spacing: {
+          "card-gap": "12px", sm: "8px", xs: "4px", xl: "32px",
+          lg: "24px", "container-padding": "16px", base: "4px", md: "16px"
+        },
+        fontFamily: {
+          "headline-md": ["Plus Jakarta Sans"],
+          "body-md":     ["Plus Jakarta Sans"],
+          "body-lg":     ["Plus Jakarta Sans"],
+          "display":     ["Plus Jakarta Sans"],
+          "headline-sm": ["Plus Jakarta Sans"],
+          "label-md":    ["Plus Jakarta Sans"],
+          "label-bold":  ["Plus Jakarta Sans"]
+        },
+        fontSize: {
+          "headline-md": ["20px", {lineHeight:"28px", fontWeight:"600"}],
+          "body-md":     ["14px", {lineHeight:"20px", fontWeight:"400"}],
+          "body-lg":     ["16px", {lineHeight:"24px", fontWeight:"400"}],
+          "display":     ["30px", {lineHeight:"38px", letterSpacing:"-0.02em", fontWeight:"700"}],
+          "headline-sm": ["18px", {lineHeight:"24px", fontWeight:"600"}],
+          "label-md":    ["12px", {lineHeight:"16px", fontWeight:"500"}],
+          "label-bold":  ["12px", {lineHeight:"16px", letterSpacing:"0.02em", fontWeight:"700"}]
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body { font-family: 'Plus Jakarta Sans', sans-serif; min-height: max(884px, 100dvh); }
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
+  /* 6칸 입력 포커스 링 애니메이션 */
+  .code-input {
+    transition: border-color .15s ease, box-shadow .15s ease, transform .1s ease;
+  }
+  .code-input:focus {
+    border-color: #005313;
+    box-shadow: 0 0 0 3px rgba(0,83,19,.15);
+    transform: scale(1.06);
+  }
+  .code-input.filled {
+    border-color: #005313;
+    background-color: #f0faf0;
+  }
+
+  /* 인증하기 버튼 비활성화 상태*/
+  #btn-verify:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  /* 타이머 만료 색상 */
+  .timer-expired { color: #ba1a1a !important; }
+</style>
+</head>
+
+<body class="bg-background text-on-surface min-h-screen flex flex-col">
+
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-md shadow-sm flex justify-between items-center px-container-padding h-16">
+  <div class="flex items-center gap-4">
+    <a href="My_Page.html" class="text-on-surface-variant active:scale-95 transition-transform">
+      <span class="material-symbols-outlined">arrow_back</span>
+    </a>
+    <h1 class="font-headline-md text-headline-md text-primary">본인 인증</h1>
+  </div>
+  <div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-primary-container">
+    <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">person</span>
+  </div>
+</header>
+
+<!-- Main Content -->
+<main class="flex-1 mt-16 mb-24 px-container-padding py-lg max-w-md mx-auto w-full">
+
+  <!-- Banner -->
+  <div class="bg-surface-container-low border border-outline-variant rounded-xl p-md mb-xl flex items-start gap-4">
+    <div class="bg-primary/10 p-2 rounded-full text-primary shrink-0">
+      <span class="material-symbols-outlined">verified_user</span>
+    </div>
+    <div>
+      <h2 class="font-headline-sm text-headline-sm text-on-surface mb-xs">안전한 이웃 커뮤니티</h2>
+      <p class="font-body-md text-body-md text-on-surface-variant">본인 인증을 통해 이웃과 더 신뢰할 수 있는 식재료 나눔 환경을 만들 수 있습니다.</p>
+    </div>
+  </div>
+
+  <!-- Form -->
+  <section class="space-y-lg">
+
+    <!-- 이름 -->
+    <div class="space-y-base">
+      <label class="font-label-bold text-label-bold text-on-surface-variant px-xs">이름</label>
+      <input
+        id="name-input"
+        class="w-full h-12 px-md bg-surface border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-outline-variant font-body-md text-body-md"
+        placeholder="이름을 입력해 주세요"
+        type="text"
+      />
+    </div>
+
+    <!-- 휴대폰 번호 + 인증요청 -->
+    <div class="space-y-base">
+      <label class="font-label-bold text-label-bold text-on-surface-variant px-xs">휴대폰 번호</label>
+      <div class="flex gap-2">
+        <input
+          id="phone-input"
+          class="flex-1 h-12 px-md bg-surface border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-outline-variant font-body-md text-body-md"
+          placeholder="010-0000-0000"
+          type="tel"
+          maxlength="13"
+        />
+        <button
+          id="btn-request-auth"
+          class="px-md h-12 bg-secondary-container text-on-secondary-container font-label-bold text-label-bold rounded-xl active:scale-95 transition-all whitespace-nowrap"
+        >인증요청</button>
+      </div>
+      <!-- 전화번호 형식 안내 -->
+      <p id="phone-hint" class="hidden font-label-md text-label-md text-error px-xs">
+        010-0000-0000 형식으로 입력해 주세요.
+      </p>
+    </div>
+
+    <!-- 6칸 인증번호 입력 -->
+    <div class="space-y-base pt-md border-t border-surface-container-highest">
+      <div class="flex justify-between items-center px-xs">
+        <label class="font-label-bold text-label-bold text-on-surface-variant">인증번호</label>
+        <!-- [수정] id 부여 → JS에서 정확히 참조 -->
+        <span id="timer-display" class="font-label-md text-label-md text-secondary">03:00</span>
+      </div>
+
+      <!-- [신규] 6칸 — class="code-input" + id="code-N" 부여 -->
+      <div class="grid grid-cols-6 gap-2" id="code-grid">
+        <input id="code-0" class="code-input w-full aspect-square text-center bg-surface border border-outline-variant rounded-lg outline-none text-headline-sm font-headline-sm" maxlength="1" type="text" inputmode="numeric" autocomplete="one-time-code"/>
+        <input id="code-1" class="code-input w-full aspect-square text-center bg-surface border border-outline-variant rounded-lg outline-none text-headline-sm font-headline-sm" maxlength="1" type="text" inputmode="numeric"/>
+        <input id="code-2" class="code-input w-full aspect-square text-center bg-surface border border-outline-variant rounded-lg outline-none text-headline-sm font-headline-sm" maxlength="1" type="text" inputmode="numeric"/>
+        <input id="code-3" class="code-input w-full aspect-square text-center bg-surface border border-outline-variant rounded-lg outline-none text-headline-sm font-headline-sm" maxlength="1" type="text" inputmode="numeric"/>
+        <input id="code-4" class="code-input w-full aspect-square text-center bg-surface border border-outline-variant rounded-lg outline-none text-headline-sm font-headline-sm" maxlength="1" type="text" inputmode="numeric"/>
+        <input id="code-5" class="code-input w-full aspect-square text-center bg-surface border border-outline-variant rounded-lg outline-none text-headline-sm font-headline-sm" maxlength="1" type="text" inputmode="numeric"/>
+      </div>
+      <p class="font-label-md text-label-md text-outline px-xs mt-xs">SMS로 전송된 6자리 인증번호를 입력해 주세요.</p>
+    </div>
+
+    <!-- 인증하기 + 재전송 -->
+    <div class="pt-xl">
+      <button
+        id="btn-verify"
+        disabled
+        class="w-full h-14 bg-primary text-on-primary font-headline-sm text-headline-sm rounded-full shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+      >
+        <span>인증하기</span>
+        <span class="material-symbols-outlined">arrow_forward</span>
+      </button>
+      <button id="btn-resend" class="w-full mt-md py-sm text-on-surface-variant font-label-md text-label-md hover:underline">
+        인증번호를 받지 못하셨나요? 재전송
+      </button>
+    </div>
+
+  </section>
+
+  <!-- Illustration -->
+  <div class="mt-xl flex justify-center">
+    <div class="w-48 h-48 bg-primary/5 rounded-full flex items-center justify-center overflow-hidden">
+      <img
+        alt="Identity verification visual"
+        class="w-32 h-32 object-contain opacity-80"
+        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAW_eTGd5fBgAoMoVUajL9JFq_baTq94ILqpZZle8-GQIfNIU0HFGr92E_iv6-aWuVVZ6P_CbhtBktjGCacAiViV9o6pR4wn9WmUsD1VhBunMMdz0U18E1hfZ4B_eU-PIXaswJbcv7yYn5B8e9KuRZws2qGu_KVwhGSsyOHPr5RYI2I1frKH0hdoeS0g4j8zHBsGENqutAOTZzQKngCeXOdQ3YJoXsJa8-t5xzd-KmDtJNWMwi0Eh-s9N3JdCAFCuHp4JSL0NJF"
+      />
+    </div>
+  </div>
+
+</main>
+
+<!-- BottomNavBar — [수정] button → a href로 교체 -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-sm h-20 pb-safe bg-surface shadow-[0_-4px_12px_0_rgba(0,0,0,0.04)] rounded-t-xl">
+  <a href="Home.html" class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary active:scale-90 transition-transform duration-150">
+    <span class="material-symbols-outlined">home</span>
+    <span class="font-label-md text-label-md">홈</span>
+  </a>
+  <a href="Map.html" class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary active:scale-90 transition-transform duration-150">
+    <span class="material-symbols-outlined">map</span>
+    <span class="font-label-md text-label-md">지도</span>
+  </a>
+  <a href="Register.html" class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary active:scale-90 transition-transform duration-150">
+    <span class="material-symbols-outlined">add_circle</span>
+    <span class="font-label-md text-label-md">등록</span>
+  </a>
+  <a href="Chat_List.html" class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary active:scale-90 transition-transform duration-150">
+    <span class="material-symbols-outlined">chat</span>
+    <span class="font-label-md text-label-md">채팅</span>
+  </a>
+  <a href="My_Page.html" class="flex flex-col items-center justify-center text-primary bg-primary-container/10 rounded-full px-4 py-1 active:scale-90 transition-transform duration-150">
+    <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">person</span>
+    <span class="font-label-md text-label-md">마이</span>
+  </a>
+</nav>
+
+<!-- =====================================================================
+     JavaScript — </body> 직전 배치 (DOM 로드 완료 보장)
+     ===================================================================== -->
+<script>
+(function () {
+  const API = 'http://127.0.0.1:8000';
+
+  // ── 요소 참조 ───────────────────────────────────────────────────────────
+  const nameInput    = document.getElementById('name-input');
+  const phoneInput   = document.getElementById('phone-input');
+  const requestBtn   = document.getElementById('btn-request-auth');
+  const verifyBtn    = document.getElementById('btn-verify');
+  const resendBtn    = document.getElementById('btn-resend');
+  const timerDisplay = document.getElementById('timer-display');
+  const phoneHint    = document.getElementById('phone-hint');
+  const codeInputs   = [...document.querySelectorAll('.code-input')]; 
+
+  // ── 상태 변수 ───────────────────────────────────────────────────────────
+  let timerInterval = null;
+  let isExpired = false; // [추가] 타이머 만료 상태 추적 플래그
+
+  function startTimer() {
+    if (timerInterval) clearInterval(timerInterval); 
+    let time = 180; // 3분
+    isExpired = false; 
+    timerDisplay.classList.remove('timer-expired');
+    timerDisplay.textContent = '03:00';
+
+    timerInterval = setInterval(() => {
+      time--;
+      const m = Math.floor(time / 60);
+      const s = time % 60;
+      timerDisplay.textContent = `${m}:${s < 10 ? '0' : ''}${s}`;
+      
+      if (time <= 0) {
+        clearInterval(timerInterval);
+        isExpired = true; // 만료 상태 변환
+        timerDisplay.textContent = '만료';
+        timerDisplay.classList.add('timer-expired');
+        syncVerifyButton(); // 버튼 상태 즉시 업데이트
+      }
+    }, 1000);
+  }
+
+  // ── 전화번호 형식 자동 하이픈 삽입 ─────────────────────────────────────
+  phoneInput.addEventListener('input', () => {
+    let v = phoneInput.value.replace(/\D/g, '');
+    if (v.length > 11) v = v.slice(0, 11);
+    if (v.length > 7)      v = v.slice(0,3) + '-' + v.slice(3,7) + '-' + v.slice(7);
+    else if (v.length > 3) v = v.slice(0,3) + '-' + v.slice(3);
+    phoneInput.value = v;
+    phoneHint.classList.toggle('hidden', /^010-\d{4}-\d{4}$/.test(v) || v === '');
+  });
+
+  // ── 인증요청 ────────────────────────────────────────────────────────────
+  requestBtn.addEventListener('click', async () => {
+    const name = nameInput.value.trim();
+    const phone = phoneInput.value.trim();
+
+    // [추가] 이름 입력 상단 검증 추가
+    if (!name) {
+      alert('이름을 입력해 주세요.');
+      nameInput.focus();
+      return;
+    }
+
+    if (!phone) {
+      alert('전화번호를 입력해 주세요.');
+      phoneInput.focus();
+      return;
+    }
+    if (!/^010-\d{4}-\d{4}$/.test(phone)) {
+      phoneHint.classList.remove('hidden');
+      phoneInput.focus();
+      return;
+    }
+
+    requestBtn.disabled = true;
+    requestBtn.textContent = '발송 중…';
+
+    try {
+      const res  = await fetch(`${API}/request-auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: phone })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        alert(data.message + '\n(터미널 로그에서 인증번호를 확인하세요.)');
+        startTimer();
+        clearCodeInputs();
+        codeInputs[0].focus(); 
+      } else {
+        alert('오류: ' + (data.detail || '알 수 없는 오류'));
+      }
+    } catch (err) {
+      alert('서버에 연결할 수 없습니다.\nFastAPI 서버(포트 8000)가 실행 중인지 확인해 주세요.');
+    } finally {
+      requestBtn.disabled = false;
+      requestBtn.textContent = '인증요청';
+    }
+  });
+
+  resendBtn.addEventListener('click', () => requestBtn.click());
+
+  // ── 6칸 자동 포커스 및 입력 예외 처리 ─────────────────────────────────────
+  codeInputs.forEach((input, idx) => {
+
+    // [개선] keydown 단계에서 숫자 및 제어키가 아니면 입력 차단
+    input.addEventListener('keydown', (e) => {
+      const allowedKeys = ['Backspace', 'ArrowLeft', 'ArrowRight', 'Tab', 'Control', 'v', 'c', 'a'];
+      // 숫자가 아니고 허용된 특수 키셋도 아니라면 입력 이벤트를 원천 차단
+      if (isNaN(e.key) && !allowedKeys.includes(e.key) && !e.metaKey) {
+        e.preventDefault();
+        return;
+      }
+
+      if (e.key === 'Backspace') {
+        if (!e.target.value && idx > 0) {
+          codeInputs[idx - 1].value = '';
+          codeInputs[idx - 1].classList.remove('filled');
+          codeInputs[idx - 1].focus();
+        }
+      }
+      if (e.key === 'ArrowLeft'  && idx > 0)                    codeInputs[idx - 1].focus();
+      if (e.key === 'ArrowRight' && idx < codeInputs.length - 1) codeInputs[idx + 1].focus();
+    });
+
+    input.addEventListener('input', (e) => {
+      const val = e.target.value.replace(/\D/g, '');
+      e.target.value = val ? val.slice(-1) : '';
+
+      e.target.classList.toggle('filled', !!e.target.value);
+
+      // 값이 정확히 채워졌을 때만 다음 칸으로 이동
+      if (e.target.value && idx < codeInputs.length - 1) {
+        codeInputs[idx + 1].focus(); 
+      }
+
+      syncVerifyButton();
+    });
+
+    input.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const raw    = (e.clipboardData || window.clipboardData).getData('text');
+      const digits = raw.replace(/\D/g, '').slice(0, 6);
+
+      digits.split('').forEach((d, i) => {
+        if (codeInputs[i]) {
+          codeInputs[i].value = d;
+          codeInputs[i].classList.add('filled');
+        }
+      });
+
+      const focusIdx = Math.min(digits.length, codeInputs.length - 1);
+      if(codeInputs[focusIdx]) codeInputs[focusIdx].focus();
+      syncVerifyButton();
+    });
+
+    input.addEventListener('focus', (e) => e.target.select());
+  });
+
+  // [수정] 6칸이 다 차도 타이머가 만료(`isExpired`)되었다면 버튼 비활성화 유지
+  function syncVerifyButton() {
+    const allFilled = codeInputs.every(i => i.value !== '');
+    verifyBtn.disabled = !allFilled || isExpired;
+  }
+
+  function clearCodeInputs() {
+    codeInputs.forEach(i => {
+      i.value = '';
+      i.classList.remove('filled');
+    });
+    syncVerifyButton();
+  }
+
+  // ── 인증하기 ────────────────────────────────────────────────────────────
+  verifyBtn.addEventListener('click', async () => {
+    if (isExpired) {
+      alert('인증 시간이 만료되었습니다. 인증번호를 재전송해 주세요.');
+      return;
+    }
+
+    const code  = codeInputs.map(i => i.value).join('');
+    const phone = phoneInput.value.trim();
+
+    if (code.length < 6) {
+      alert('6자리 인증번호를 모두 입력해 주세요.');
+      return;
+    }
+
+    verifyBtn.disabled = true;
+    verifyBtn.querySelector('span:first-child').textContent = '확인 중…';
+
+    try {
+      const res  = await fetch(`${API}/verify-auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: phone, code })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        clearInterval(timerInterval);
+        alert('✅ 인증이 완료되었습니다!\n홈으로 이동합니다.');
+        location.href = 'Home.html';
+      } else {
+        alert('❌ ' + (data.detail || '인증 실패'));
+        clearCodeInputs();
+        codeInputs[0].focus();
+      }
+    } catch (err) {
+      alert('서버에 연결할 수 없습니다.\nFastAPI 서버(포트 8000)가 실행 중인지 확인해 주세요.');
+    } finally {
+      verifyBtn.disabled = false;
+      verifyBtn.querySelector('span:first-child').textContent = '인증하기';
+      syncVerifyButton();
+    }
+  });
+
+})();
+</script>
+
+</body>
+</html>
