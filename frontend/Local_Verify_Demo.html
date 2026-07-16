@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GPS 위치 인증 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+<!-- 기존 Location_Detail.html 계열과 동일하게 카카오 지도 SDK + services 사용 -->
+<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=cdb0bdb09959d56a5d81d5f8947d9fc2&libraries=services"></script>
+<script src="shared/auth.js"></script>
+<script>
+ tailwind.config = { theme: { extend: {
+  colors: {
+   primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
+   'on-primary':'#fff','on-primary-fixed-variant':'#005313',
+   secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870',
+   tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+   'surface-container-lowest':'#ffffff','surface-container-low':'#f3f4f5',
+   'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',
+   outline:'#6f7a6b','outline-variant':'#becab9', danger:'#ba1a1a', warm:'#faf9f5'
+  },
+  fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] }
+ }}}
+</script>
+<style>
+ body { background:#faf9f5; overflow:hidden; }
+ #map { width:100%; height:100%; background:#eef1ea; }
+ #map-error { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:#eef1ea; padding:24px; text-align:center; color:#3f4a3c; font-size:14px; line-height:1.5; z-index:1; }
+ #map-error.show { display:flex; }
+ @keyframes ping-anim { 0% { transform:scale(.8); opacity:.6; } 80%, 100% { transform:scale(2.4); opacity:0; } }
+ .me-ping { animation: ping-anim 1.8s ease-out infinite; }
+ #bottomSheet { height: var(--sheet-height, 40dvh); transition: height .18s ease; touch-action:none; }
+ #bottomSheet.dragging { transition:none; }
+ #sheetBody { height: calc(100% - 52px); overflow-y:auto; }
+ #sheetHandle { touch-action:none; }
+ .no-scrollbar::-webkit-scrollbar { display:none; }
+ .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
+ .btn-disabled { opacity:.45; filter:grayscale(1); pointer-events:none; }
+</style>
+</head>
+<body class="text-on-surface antialiased">
+<div id="map" class="fixed inset-0"></div>
+<div id="map-error"><div><p class="font-bold mb-1">지도를 불러올 수 없습니다</p><p class="text-[12px] opacity-80">Kakao JavaScript 키와 도메인 등록을 확인하세요.</p></div></div>
+
+<header class="relative z-10 pt-3 px-3">
+ <div class="max-w-2xl mx-auto flex items-center justify-between">
+  <button onclick="history.back()" class="w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center"><span class="material-symbols-outlined">arrow_back</span></button>
+  <div class="text-center">
+   <p class="text-[10px] font-extrabold text-primary tracking-wide">GPS 1차 인증</p>
+   <p class="text-[13px] font-extrabold">거래 장소 근처 확인</p>
+  </div>
+  <button id="btnCenter" class="w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center"><span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">my_location</span></button>
+ </div>
+</header>
+
+<div class="fixed right-3 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-1.5">
+ <button id="btnZoomIn" class="w-10 h-10 rounded-xl bg-white shadow-md flex items-center justify-center"><span class="material-symbols-outlined">add</span></button>
+ <button id="btnZoomOut" class="w-10 h-10 rounded-xl bg-white shadow-md flex items-center justify-center"><span class="material-symbols-outlined">remove</span></button>
+</div>
+
+<section id="bottomSheet" class="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-20 shadow-[0_-8px_24px_rgba(0,0,0,.10)]">
+ <div id="sheetHandle" class="h-[52px] max-w-2xl mx-auto px-4 pt-3 cursor-ns-resize select-none">
+  <div class="w-10 h-1 bg-outline-variant rounded-full mx-auto mb-2"></div>
+  <div class="flex items-center justify-between gap-3 text-[11px] text-on-surface-variant">
+   <span class="font-extrabold text-on-surface">위치 인증 제어</span>
+   <span>드래그해서 높이 조절</span>
+  </div>
+ </div>
+ <div id="sheetBody" class="no-scrollbar">
+  <div class="max-w-2xl mx-auto px-4 pb-8">
+   <div class="flex items-start gap-3">
+    <div id="statusIcon" class="w-12 h-12 rounded-2xl bg-primary-fixed flex items-center justify-center shrink-0">
+     <span class="material-symbols-outlined text-on-primary-fixed-variant" style="font-variation-settings:'FILL' 1;">location_searching</span>
+    </div>
+    <div class="flex-1 min-w-0">
+     <p id="statusKicker" class="text-[10.5px] font-bold text-primary tracking-wide">대기 중</p>
+     <h2 id="placeTitle" class="text-[16px] font-bold mt-0.5 truncate">더미 거래 지점을 생성하세요</h2>
+     <p id="placeAddress" class="text-[12px] text-on-surface-variant mt-0.5 truncate">현재 위치를 더미 거래 지점으로 저장합니다.</p>
+    </div>
+   </div>
+
+   <div class="grid grid-cols-3 gap-2 mt-4">
+    <div class="bg-surface-container-low rounded-xl p-2.5 text-center"><p class="text-[10px] text-on-surface-variant">거리</p><p id="statDistance" class="text-[14px] font-bold mt-0.5">- m</p></div>
+    <div class="bg-surface-container-low rounded-xl p-2.5 text-center"><p class="text-[10px] text-on-surface-variant">허용 반경</p><p id="statRadius" class="text-[14px] font-bold mt-0.5">300m</p></div>
+    <div class="bg-surface-container-low rounded-xl p-2.5 text-center"><p class="text-[10px] text-on-surface-variant">GPS 정확도</p><p id="statAccuracy" class="text-[14px] font-bold mt-0.5">- m</p></div>
+   </div>
+
+   <div id="messageBox" class="mt-3 bg-tertiary-fixed/40 rounded-2xl p-3 flex gap-2 ring-1 ring-tertiary-fixed-dim/40">
+    <span class="material-symbols-outlined text-tertiary shrink-0" style="font-size:18px;font-variation-settings:'FILL' 1;">tips_and_updates</span>
+    <div><p class="text-[12.5px] font-bold text-on-tertiary-container">시연용 완화 조건</p><p id="messageText" class="text-[11.5px] text-on-tertiary-container/80 mt-0.5">허용 반경 300m, GPS 정확도 ±1500m까지 허용합니다.</p></div>
+   </div>
+
+   <div class="grid grid-cols-2 gap-2 mt-4">
+    <button id="btnCreateDummy" class="bg-primary text-white rounded-2xl py-3 flex items-center justify-center gap-1.5 text-[13px] font-bold"><span class="material-symbols-outlined" style="font-size:18px">add_location_alt</span>더미 지점 생성</button>
+    <button id="btnRefreshGps" class="bg-surface-container-low rounded-2xl py-3 flex items-center justify-center gap-1.5 text-[13px] font-semibold"><span class="material-symbols-outlined" style="font-size:18px">my_location</span>GPS 갱신</button>
+    <button id="btnVerifyGps" class="bg-on-surface text-white rounded-2xl py-3 flex items-center justify-center gap-1.5 text-[13px] font-bold btn-disabled"><span class="material-symbols-outlined" style="font-size:18px">where_to_vote</span>GPS 인증하기</button>
+    <button id="btnGoQr" class="bg-primary text-white rounded-2xl py-3 flex items-center justify-center gap-1.5 text-[13px] font-bold btn-disabled"><span class="material-symbols-outlined" style="font-size:18px">qr_code_scanner</span>QR 인증하기</button>
+   </div>
+  </div>
+ </div>
+</section>
+
+<script>
+const RADIUS_M = 300;
+const ACCURACY_LIMIT_M = 1500;
+const DEFAULT_CENTER = { lat: 37.5452, lng: 127.0865 };
+const API = { create:"/api/location-verify/dummy-target", gpsCheck:(id)=>`/api/location-verify/${encodeURIComponent(id)}/gps-check` };
+let map, geocoder, targetOverlay, myOverlay, circle, targetLatLng, myLatLng, currentPos, currentSession;
+
+function $(id){ return document.getElementById(id); }
+function setSheetHeight(vh){ $("bottomSheet").style.setProperty("--sheet-height", `${Math.min(88, Math.max(18, Number(vh)))}dvh`); }
+function setButtonEnabled(id, enabled){ $(id).classList.toggle("btn-disabled", !enabled); }
+function escapeHtml(str){ return String(str ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function apiJson(url, options={}){ const res = await fetch(url,{...options, headers:{"Content-Type":"application/json", ...(options.headers||{})}}); const data = await res.json().catch(()=>({})); if(!res.ok) throw new Error(data.detail || data.message || `HTTP ${res.status}`); return data; }
+function fmtM(v){ if(v == null || Number.isNaN(Number(v))) return "- m"; const n=Number(v); return n<1000 ? `${Math.round(n)}m` : `${(n/1000).toFixed(1)}km`; }
+function updateMessage(kind, title, body){ $("statusKicker").textContent = kind; $("placeTitle").textContent = title; $("messageText").textContent = body; }
+
+function bootMap(){
+ if(typeof kakao === "undefined" || !kakao.maps){ $("map-error").classList.add("show"); return; }
+ targetLatLng = new kakao.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
+ map = new kakao.maps.Map($("map"), { center: targetLatLng, level: 3 });
+ geocoder = kakao.maps.services ? new kakao.maps.services.Geocoder() : null;
+ bindControls();
+ updateMessage("대기 중", "더미 거래 지점을 생성하세요", "현재 위치를 더미 거래 지점으로 저장한 뒤 GPS 인증을 진행합니다.");
+}
+
+function reverseGeocode(lat, lng){
+ return new Promise(resolve => {
+  if(!geocoder) return resolve("");
+  geocoder.coord2Address(lng, lat, (result, status) => {
+   if(status === kakao.maps.services.Status.OK){
+    const r = result[0] || {};
+    resolve((r.road_address && r.road_address.address_name) || (r.address && r.address.address_name) || "");
+   } else resolve("");
+  });
+ });
+}
+function getCurrentPosition(){
+ return new Promise((resolve, reject) => {
+  if(!navigator.geolocation) return reject(new Error("이 브라우저는 GPS를 지원하지 않습니다."));
+  navigator.geolocation.getCurrentPosition(
+   pos => resolve({ lat:pos.coords.latitude, lng:pos.coords.longitude, accuracy:pos.coords.accuracy, capturedAt:new Date().toISOString() }),
+   err => reject(new Error(err.message || "GPS 권한이 필요합니다.")),
+   { enableHighAccuracy:true, timeout:8000, maximumAge:0 }
+  );
+ });
+}
+function drawTarget(lat, lng, address=""){
+ targetLatLng = new kakao.maps.LatLng(lat, lng);
+ if(targetOverlay) targetOverlay.setMap(null);
+ const wrap = document.createElement("div");
+ wrap.innerHTML = `<div class="flex flex-col items-center" style="transform:translateY(-50%);"><div class="bg-white rounded-lg shadow-md px-2.5 py-1.5 ring-1 ring-black/5 mb-1"><p class="text-[11px] font-bold whitespace-nowrap">더미 거래 지점</p></div><div class="relative"><span class="absolute inset-0 -m-1 rounded-full bg-danger/30" style="animation: ping-anim 1.8s ease-out infinite;"></span><span class="block w-10 h-10 rounded-full bg-danger flex items-center justify-center shadow-lg ring-4 ring-white"><span class="material-symbols-outlined text-white" style="font-variation-settings:'FILL' 1;">location_on</span></span></div></div>`;
+ targetOverlay = new kakao.maps.CustomOverlay({ position:targetLatLng, content:wrap, yAnchor:1, xAnchor:.5, zIndex:10 });
+ targetOverlay.setMap(map);
+ if(circle) circle.setMap(null);
+ circle = new kakao.maps.Circle({ center:targetLatLng, radius:RADIUS_M, strokeWeight:2, strokeColor:'#006e1c', strokeOpacity:.85, strokeStyle:'solid', fillColor:'#94f990', fillOpacity:.18 });
+ circle.setMap(map);
+ map.panTo(targetLatLng);
+ if(address) $("placeAddress").textContent = address;
+}
+function drawMe(lat, lng, accuracy){
+ myLatLng = new kakao.maps.LatLng(lat, lng);
+ if(myOverlay) myOverlay.setMap(null);
+ const dot = document.createElement("div");
+ dot.className = "relative";
+ dot.innerHTML = `<span class="absolute inset-0 -m-2 rounded-full bg-primary/30 me-ping"></span><span class="block w-4 h-4 rounded-full bg-primary border-[3px] border-white shadow"></span>`;
+ myOverlay = new kakao.maps.CustomOverlay({ position:myLatLng, content:dot, yAnchor:.5, xAnchor:.5, zIndex:5 });
+ myOverlay.setMap(map);
+ $("statAccuracy").textContent = fmtM(accuracy);
+ updateDistance();
+}
+function updateDistance(){
+ if(!myLatLng || !targetLatLng) return;
+ const line = new kakao.maps.Polyline({ path:[myLatLng, targetLatLng], strokeWeight:0 });
+ const meters = line.getLength();
+ $("statDistance").textContent = fmtM(meters);
+}
+async function createDummy(){
+ try{
+  updateMessage("GPS 요청 중", "현재 위치 확인 중", "브라우저 위치 권한을 허용하세요.");
+  const pos = await getCurrentPosition();
+  currentPos = pos;
+  const address = await reverseGeocode(pos.lat, pos.lng);
+  const data = await apiJson(API.create, { method:"POST", body:JSON.stringify({ lat:pos.lat, lng:pos.lng, accuracy:pos.accuracy, address, radiusM:RADIUS_M }) });
+  currentSession = data.session;
+  drawTarget(pos.lat, pos.lng, address);
+  drawMe(pos.lat, pos.lng, pos.accuracy);
+  $("placeAddress").textContent = address || "주소 정보 없음";
+  $("statRadius").textContent = fmtM(RADIUS_M);
+  setButtonEnabled("btnVerifyGps", true);
+  setButtonEnabled("btnGoQr", false);
+  updateMessage("지점 생성 완료", "더미 거래 지점 생성됨", "이제 GPS 갱신 후 GPS 인증하기를 누르세요.");
+ }catch(e){ alert(e.message || e); updateMessage("실패", "더미 지점 생성 실패", e.message || String(e)); }
+}
+async function refreshGps(){
+ try{
+  const pos = await getCurrentPosition();
+  currentPos = pos;
+  drawMe(pos.lat, pos.lng, pos.accuracy);
+  updateMessage("GPS 갱신 완료", "현재 위치 갱신됨", "좌표를 갱신했습니다. GPS 인증하기를 눌러 1차 인증을 진행하세요.");
+ }catch(e){ alert(e.message || e); }
+}
+async function verifyGps(){
+ if(!currentSession){ alert("먼저 더미 지점을 생성하세요."); return; }
+ if(!currentPos) await refreshGps();
+ try{
+  const data = await apiJson(API.gpsCheck(currentSession.id), { method:"POST", body:JSON.stringify({ lat:currentPos.lat, lng:currentPos.lng, accuracy:currentPos.accuracy, radiusM:RADIUS_M, accuracyLimitM:ACCURACY_LIMIT_M }) });
+  currentSession = data.session;
+  if(data.ok){
+   setButtonEnabled("btnGoQr", true);
+   updateMessage("1차 인증 완료", "GPS 위치 인증 성공", "QR 인증하기 버튼이 활성화되었습니다. 다음 단계로 이동하세요.");
+  }else{
+   setButtonEnabled("btnGoQr", false);
+   updateMessage("1차 인증 실패", "GPS 위치 인증 실패", data.message || "조건을 만족하지 못했습니다.");
+  }
+  $("statDistance").textContent = fmtM(currentSession.distance_m);
+  $("statAccuracy").textContent = fmtM(currentSession.current_accuracy);
+ }catch(e){ alert(e.message || e); }
+}
+function goQr(){
+ if(!currentSession || currentSession.status !== "LOCATION_VERIFIED") return;
+ const subjectId = currentSession.subject_id || currentSession.id;
+ const url = `./QR_Scan.html?mode=issue&subjectId=${encodeURIComponent(subjectId)}&purpose=pickup_confirm&ttlSeconds=300&locationSessionId=${encodeURIComponent(currentSession.id)}`;
+ location.href = url;
+}
+function bindControls(){
+ $("btnZoomIn").addEventListener("click",()=>map.setLevel(map.getLevel()-1,{animate:true}));
+ $("btnZoomOut").addEventListener("click",()=>map.setLevel(map.getLevel()+1,{animate:true}));
+ $("btnCenter").addEventListener("click",()=>{ if(myLatLng) map.panTo(myLatLng); else refreshGps(); });
+ $("btnCreateDummy").addEventListener("click",createDummy);
+ $("btnRefreshGps").addEventListener("click",refreshGps);
+ $("btnVerifyGps").addEventListener("click",verifyGps);
+ $("btnGoQr").addEventListener("click",goQr);
+ initSheetDrag();
+}
+function initSheetDrag(){
+ const sheet=$("bottomSheet"), handle=$("sheetHandle"); let startY=0,startH=40,dragging=false;
+ const finish=e=>{ if(!dragging) return; dragging=false; sheet.classList.remove("dragging"); const cur=sheet.getBoundingClientRect().height/window.innerHeight*100; const snaps=[28,40,62,82]; const snap=snaps.reduce((a,b)=>Math.abs(b-cur)<Math.abs(a-cur)?b:a); setSheetHeight(snap); try{handle.releasePointerCapture(e.pointerId)}catch(_){} };
+ handle.addEventListener("pointerdown",e=>{ dragging=true; startY=e.clientY; startH=sheet.getBoundingClientRect().height/window.innerHeight*100; sheet.classList.add("dragging"); handle.setPointerCapture(e.pointerId); });
+ handle.addEventListener("pointermove",e=>{ if(!dragging) return; setSheetHeight(startH + ((startY-e.clientY)/window.innerHeight*100)); });
+ handle.addEventListener("pointerup",finish); handle.addEventListener("pointercancel",finish); handle.addEventListener("dblclick",()=>setSheetHeight(sheet.getBoundingClientRect().height/window.innerHeight*100 < 45 ? 72 : 28));
+}
+bootMap();
+</script>
+</body>
+</html>

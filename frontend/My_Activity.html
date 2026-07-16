@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>내 활동 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script src="shared/auth.js"></script>
+<script src="shared/guard.js"></script>
+<script>nfRequireMember();</script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870','on-secondary-fixed-variant':'#693c00',
+    tertiary:'#466270','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:max(884px,100dvh); font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+  .seg-on { background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.08); color:#191c1d; }
+  .ph { background: linear-gradient(135deg,#e9e7df,#dcdacf); }
+  .tab { padding:10px 0; border-bottom:2px solid transparent; color:#3f4a3c; font-weight:600; font-size:14px; cursor:pointer;}
+  .tab.on { color:#006e1c; border-color:#006e1c; }
+  .pane { display:none; }
+  .pane.on { display:block; }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-28">
+
+<header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-black/[.05]">
+  <div class="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+    <p class="text-[20px] font-bold tracking-tight">내 활동</p>
+    <div class="flex items-center gap-1">
+      <button class="p-2 rounded-full hover:bg-black/5"><span class="material-symbols-outlined">search</span></button>
+      <button class="p-2 rounded-full hover:bg-black/5 relative">
+        <span class="material-symbols-outlined">notifications</span>
+        <span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-secondary-container"></span>
+      </button>
+    </div>
+  </div>
+  <!-- Tabs -->
+  <div class="max-w-2xl mx-auto px-4 flex gap-6">
+    <button class="tab on" data-tab="chat">채팅 <span id="tabChat" class="text-[11px] font-semibold opacity-70">0</span></button>
+    <button class="tab" data-tab="posts">내 글 <span id="tabPosts" class="text-[11px] font-semibold opacity-70">0</span></button>
+    <button class="tab" data-tab="history">거래 내역 <span id="tabHistory" class="text-[11px] font-semibold opacity-70">0</span></button>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pt-3">
+
+  <!-- Quick summary -->
+  <section class="bg-white rounded-2xl ring-soft p-3 grid grid-cols-3 gap-2 mb-4 text-center">
+    <a href="#" data-jump="chat" class="py-1.5">
+      <p id="sumChat" class="text-[18px] font-bold">0</p><p class="text-[11px] text-on-surface-variant mt-0.5">진행 채팅</p>
+    </a>
+    <a href="#" data-jump="posts" class="py-1.5 border-x border-black/[.05]">
+      <p id="sumPosts" class="text-[18px] font-bold">0</p><p class="text-[11px] text-on-surface-variant mt-0.5">내가 쓴 글</p>
+    </a>
+    <a href="#" data-jump="history" class="py-1.5">
+      <p id="sumDone" class="text-[18px] font-bold text-primary">0</p><p class="text-[11px] text-on-surface-variant mt-0.5">거래 완료</p>
+    </a>
+  </section>
+
+  <!-- ===== Pane: Chat ===== -->
+  <section class="pane on" id="pane-chat">
+    <ul id="chatList" class="bg-white rounded-2xl ring-soft divide-y divide-black/[.05] overflow-hidden">
+      <li class="p-6 text-center text-[12px] text-on-surface-variant">채팅을 불러오는 중…</li>
+    </ul>
+    <p class="text-center text-[11.5px] text-on-surface-variant/70 mt-4">새 채팅은 글 상세에서 시작할 수 있어요.</p>
+  </section>
+
+  <!-- ===== Pane: My Posts ===== -->
+  <section class="pane" id="pane-posts">
+    <div id="postFilter" class="bg-[#ececeb] rounded-full p-1 flex text-[12px] font-semibold mb-3">
+      <button class="flex-1 py-2 rounded-full seg-on" data-status="all">전체</button>
+      <button class="flex-1 py-2 rounded-full text-on-surface-variant" data-status="active">진행중</button>
+      <button class="flex-1 py-2 rounded-full text-on-surface-variant" data-status="completed">완료</button>
+    </div>
+    <ul id="postList" class="flex flex-col gap-3">
+      <li class="bg-white rounded-2xl ring-soft p-6 text-center text-[12px] text-on-surface-variant">내 글을 불러오는 중…</li>
+    </ul>
+    <a href="Create_Post.html" class="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-primary text-white text-[14px] font-bold">
+      <span class="material-symbols-outlined" style="font-size:18px">add</span> 새 글 작성하기
+    </a>
+  </section>
+
+  <!-- ===== Pane: History (compact) ===== -->
+  <section class="pane" id="pane-history">
+    <div class="bg-white rounded-2xl ring-soft p-4 mb-3">
+      <div class="grid grid-cols-3 gap-2">
+        <div class="text-center"><p id="hAll" class="text-[18px] font-bold text-primary">0</p><p class="text-[11px] text-on-surface-variant mt-0.5">전체</p></div>
+        <div class="text-center border-x border-black/[.05]"><p id="hShare" class="text-[18px] font-bold">0</p><p class="text-[11px] text-on-surface-variant mt-0.5">나눔</p></div>
+        <div class="text-center"><p id="hRecv" class="text-[18px] font-bold">0</p><p class="text-[11px] text-on-surface-variant mt-0.5">받음</p></div>
+      </div>
+    </div>
+    <ul id="historyList" class="flex flex-col gap-3">
+      <li class="bg-white rounded-2xl ring-soft p-6 text-center text-[12px] text-on-surface-variant">거래 내역을 불러오는 중…</li>
+    </ul>
+    <a href="Transaction_History.html" class="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-2xl ring-1 ring-outline-variant bg-white text-[13px] font-semibold text-on-surface">
+      전체 거래 내역 보기 <span class="material-symbols-outlined" style="font-size:18px">arrow_forward</span>
+    </a>
+  </section>
+
+  <div class="h-6"></div>
+</main>
+
+<!-- Bottom Nav -->
+<nav class="fixed bottom-0 left-0 w-full bg-white border-t border-black/[.06] z-50 flex justify-around items-center pt-2 pb-5 px-2">
+  <a class="flex flex-col items-center text-on-surface-variant" href="Home.html"><span class="material-symbols-outlined" style="font-size:24px">home</span><span class="text-[10px] mt-0.5">홈</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Map.html"><span class="material-symbols-outlined" style="font-size:24px">map</span><span class="text-[10px] mt-0.5">지도</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Create_Post.html"><span class="material-symbols-outlined" style="font-size:24px">add_circle</span><span class="text-[10px] mt-0.5">등록</span></a>
+  <a class="flex flex-col items-center text-primary" href="My_Activity.html"><span class="material-symbols-outlined" style="font-size:24px;font-variation-settings:'FILL' 1;">interests</span><span class="text-[10px] font-bold mt-0.5">내 활동</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="My_Page.html"><span class="material-symbols-outlined" style="font-size:24px">person</span><span class="text-[10px] mt-0.5">마이</span></a>
+</nav>
+
+<script>
+  const tabs = document.querySelectorAll('.tab');
+  const panes = { chat: document.getElementById('pane-chat'), posts: document.getElementById('pane-posts'), history: document.getElementById('pane-history') };
+  function activate(name) {
+    tabs.forEach(t => t.classList.toggle('on', t.dataset.tab === name));
+    Object.entries(panes).forEach(([k, el]) => el.classList.toggle('on', k === name));
+  }
+  tabs.forEach(t => t.addEventListener('click', () => activate(t.dataset.tab)));
+  document.querySelectorAll('[data-jump]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); activate(a.dataset.jump); window.scrollTo({top:0,behavior:'smooth'}); }));
+  // optional ?tab=
+  const t = new URLSearchParams(location.search).get('tab');
+  if (t && panes[t]) activate(t);
+</script>
+
+<script>
+  // ===== 내 활동: 채팅 / 내 글 / 거래 내역 실데이터 연동 =====
+  (function () {
+    var API = window.location.origin;
+    function esc(x){ return (x==null?'':String(x)).replace(/[&<>"']/g, function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);}); }
+    function setText(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; }
+    function timeAgo(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d)) return ''; var m=Math.floor((Date.now()-d.getTime())/60000);
+      if(m<1) return '방금'; if(m<60) return m+'분 전'; var h=Math.floor(m/60); if(h<24) return h+'시간 전'; return Math.floor(h/24)+'일 전'; }
+    function authFail(r){ return window.nfHandleAuthError && nfHandleAuthError(r); }
+
+    // ---- 채팅 ----
+    fetch(API+'/api/chats').then(function(r){ if(authFail(r)) return null; return r.ok?r.json():null; }).then(function(d){
+      if(!d) return; var ul=document.getElementById('chatList'); var items=d.items||[];
+      setText('tabChat', items.length); setText('sumChat', items.filter(function(x){return (x.unread_count||0)>0;}).length || items.length);
+      if(items.length===0){ ul.innerHTML='<li class="p-6 text-center text-[12px] text-on-surface-variant">아직 채팅이 없어요.</li>'; return; }
+      ul.innerHTML = items.map(function(c){
+        var partner=c.partnerNickname||'이웃'; var ini=esc(partner.charAt(0)||'?');
+        var unread=(c.unread_count||0)>0 ? '<span class="self-center w-5 h-5 rounded-full bg-primary text-white text-[10.5px] font-bold flex items-center justify-center shrink-0">'+c.unread_count+'</span>' : '';
+        return '<li><a href="'+(c.kind==="group"?"Group_Chat.html":"Chat_Detail.html")+'?id='+c.id+'" class="flex gap-3 p-3 hover:bg-black/[.02]">'
+          + '<div class="w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant font-bold shrink-0">'+ini+'</div>'
+          + '<div class="flex-1 min-w-0"><div class="flex items-baseline justify-between gap-2">'
+          + '<p class="text-[14.5px] font-semibold truncate">'+esc(partner)+' <span class="text-[11px] text-on-surface-variant font-normal">· '+esc(c.post_title||'')+'</span></p>'
+          + '<span class="text-[11px] text-on-surface-variant shrink-0">'+timeAgo(c.last_message_at)+'</span></div>'
+          + '<p class="text-[13px] text-on-surface-variant truncate mt-0.5">'+esc(c.last_message||'대화를 시작해 보세요')+'</p></div>'+unread+'</a></li>';
+      }).join('');
+    }).catch(function(){});
+
+    // ---- 내 글 (author_id === 내 id 로 필터) ----
+    var STATUS_LABEL={active:'진행중',completed:'완료',expired:'만료'};
+    var STATUS_BADGE={active:'bg-primary text-white',completed:'bg-primary-fixed text-on-primary-fixed-variant',expired:'bg-surface-container-high text-on-surface-variant'};
+    var myPosts=[];
+    function renderPosts(status){
+      var ul=document.getElementById('postList');
+      var list = (status==='all'||!status) ? myPosts : myPosts.filter(function(p){return p.status===status;});
+      if(list.length===0){ ul.innerHTML='<li class="bg-white rounded-2xl ring-soft p-6 text-center text-[12px] text-on-surface-variant">해당하는 글이 없어요.</li>'; return; }
+      ul.innerHTML=list.map(function(p){
+        var detail=(p.type==='groupbuy'?'Group_Buy_Detail.html':'Product_Detail.html')+'?id='+p.id;
+        var typeKo=p.type==='groupbuy'?'공구':(p.type==='exchange'?'교환':'나눔');
+        var stat=p.status||'active'; var badge='<span class="px-2 py-0.5 rounded-full text-[10px] font-bold '+(STATUS_BADGE[stat]||STATUS_BADGE.active)+'">'+(STATUS_LABEL[stat]||stat)+'</span>';
+        var thumb=(p.images&&p.images.length)? 'style="background:center/cover url(\''+API+'/uploads/'+esc(p.images[0])+'\')"' : 'style="background:linear-gradient(135deg,#efe4cc,#e4d3a8)"';
+        var sub = p.type==='groupbuy' ? ((p.gb_current||0)+'/'+(p.gb_target||0)+'명 모집') : (p.type==='exchange' ? ('교환 희망: '+esc(p.exchange_want||'-')) : '무료 나눔');
+        return '<li class="bg-white rounded-2xl ring-soft p-3 flex gap-3">'
+          + '<a href="'+detail+'" class="w-20 h-20 rounded-xl shrink-0" '+thumb+'></a>'
+          + '<div class="flex-1 min-w-0"><div class="flex items-center gap-1.5">'+badge
+          + '<span class="text-[10.5px] text-on-surface-variant">'+typeKo+' · '+timeAgo(p.created_at)+'</span></div>'
+          + '<p class="text-[14px] font-semibold leading-snug mt-1 line-clamp-2"><a href="'+detail+'" class="hover:underline">'+esc(p.title)+'</a></p>'
+          + '<p class="text-[11px] text-on-surface-variant mt-1">'+sub+'</p></div></li>';
+      }).join('');
+    }
+    fetch(API+'/api/users/me').then(function(r){ if(authFail(r)) return null; return r.ok?r.json():null; }).then(function(me){
+      if(!me) return;
+      return fetch(API+'/posts?limit=200').then(function(r){return r.ok?r.json():null;}).then(function(d){
+        myPosts=((d&&d.items)||[]).filter(function(p){return p.author_id===me.id;});
+        setText('tabPosts', myPosts.length); setText('sumPosts', myPosts.length);
+        renderPosts('all');
+      });
+    }).catch(function(){});
+    // 글 상태 필터
+    var pf=document.getElementById('postFilter');
+    if(pf){ pf.addEventListener('click', function(e){ var b=e.target.closest('button'); if(!b) return;
+      pf.querySelectorAll('button').forEach(function(x){ x.classList.toggle('seg-on', x===b); x.classList.toggle('text-on-surface-variant', x!==b); });
+      renderPosts(b.dataset.status); }); }
+
+    // ---- 거래 내역 ----
+    var TX_LABEL={pending:'대기',confirmed:'예약중',completed:'완료',canceled:'취소'};
+    var TX_BADGE={pending:'bg-surface-container-high text-on-surface-variant',confirmed:'bg-secondary-fixed text-on-secondary-fixed-variant',completed:'bg-primary-fixed text-on-primary-fixed-variant',canceled:'bg-surface-container-high text-on-surface-variant'};
+    fetch(API+'/api/transactions').then(function(r){ if(authFail(r)) return null; return r.ok?r.json():null; }).then(function(d){
+      if(!d) return; var st=d.stats||{}; var items=d.items||[];
+      var all=(st.shared||0)+(st.received||0);
+      setText('hAll', all); setText('hShare', st.shared||0); setText('hRecv', st.received||0);
+      setText('tabHistory', d.count||0); setText('sumDone', all);
+      var ul=document.getElementById('historyList');
+      if(items.length===0){ ul.innerHTML='<li class="bg-white rounded-2xl ring-soft p-6 text-center text-[12px] text-on-surface-variant">거래 내역이 없어요.</li>'; return; }
+      ul.innerHTML=items.slice(0,10).map(function(t){
+        var stat=t.status||'pending'; var badge='<span class="px-2 py-0.5 rounded-full text-[10px] font-bold '+(TX_BADGE[stat]||TX_BADGE.pending)+'">'+(TX_LABEL[stat]||stat)+'</span>';
+        var roleKo=t.myRole==='provider'?'제공':'받음'; var when=t.appointmentAt?('약속 '+timeAgo(t.appointmentAt)):timeAgo(t.createdAt);
+        return '<li class="bg-white rounded-2xl ring-soft p-3 flex gap-3">'
+          + '<div class="w-16 h-16 rounded-xl shrink-0" style="background:linear-gradient(135deg,#d6e7d0,#bfd9b8)"></div>'
+          + '<div class="flex-1 min-w-0"><div class="flex items-center gap-1.5">'+badge+'<span class="text-[10.5px] text-on-surface-variant">'+roleKo+' · '+when+'</span></div>'
+          + '<p class="text-[14px] font-semibold leading-snug mt-1 line-clamp-1">'+esc(t.postTitle||'(삭제된 게시글)')+'</p>'
+          + '<p class="text-[11.5px] text-on-surface-variant mt-0.5">상대 · '+esc(t.partner||'-')+'</p></div></li>';
+      }).join('');
+    }).catch(function(){});
+  })();
+</script>
+</body>
+</html>

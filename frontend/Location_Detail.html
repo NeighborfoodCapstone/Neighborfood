@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>거래 장소 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<!-- 카카오 지도 SDK + services 라이브러리 (좌표→주소 역지오코딩용) -->
+<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=cdb0bdb09959d56a5d81d5f8947d9fc2&libraries=services"></script>
+<script src="shared/auth.js"></script>
+<!-- shared/tokens.css는 Map.html에서 지도 렌더링 충돌이 있어 의도적으로 미포함 -->
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: {
+      primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
+      'on-primary':'#fff','on-primary-fixed-variant':'#005313',
+      secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870',
+      tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+      'surface-container-lowest':'#ffffff','surface-container-low':'#f3f4f5',
+      'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',
+      outline:'#6f7a6b','outline-variant':'#becab9',
+      error:'#ba1a1a',
+      warm:'#faf9f5'
+    },
+    fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] }
+  }}}
+</script>
+<style>
+  body { background:#faf9f5; overflow:hidden; }
+  /* 실제 카카오맵이 들어갈 컨테이너 */
+  #map { width:100%; height:100%; background:#eef1ea; }
+
+  /* SDK 로드 실패 안내 */
+  #map-error {
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    background:#eef1ea; padding:24px; text-align:center; color:#3f4a3c; font-size:14px;
+    line-height:1.5; z-index:1;
+  }
+  #map-error.show { display:flex; }
+
+  /* 핀 ping 애니메이션 */
+  @keyframes ping-anim {
+    0%   { transform:scale(.8); opacity:.6; }
+    80%, 100% { transform:scale(2.4); opacity:0; }
+  }
+  .me-ping { animation: ping-anim 1.8s ease-out infinite; }
+</style>
+</head>
+<body class="text-on-surface antialiased">
+
+<!-- 카카오 지도 컨테이너 (Map.html과 동일 패턴) -->
+<div id="map" class="fixed inset-0"></div>
+
+<!-- SDK 로드 실패 안내 -->
+<div id="map-error">
+  <div>
+    <p class="font-bold mb-1">지도를 불러올 수 없습니다</p>
+    <p class="text-[12px] opacity-80">
+      Kakao JavaScript 키를 확인하고,<br/>
+      developers.kakao.com에서 도메인이 등록됐는지 확인하세요.
+    </p>
+  </div>
+</div>
+
+<!-- Top bar -->
+<header class="relative z-10 pt-3 px-3">
+  <div class="max-w-2xl mx-auto flex items-center justify-between">
+    <button onclick="history.back()" class="w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center">
+      <span class="material-symbols-outlined">arrow_back</span>
+    </button>
+    <button id="shareBtn" class="px-3 h-10 rounded-full bg-white shadow-md flex items-center gap-1.5 text-[12.5px] font-bold">
+      <span class="material-symbols-outlined" style="font-size:18px">share_location</span>
+      위치 공유
+    </button>
+  </div>
+</header>
+
+<!-- Floating controls (오른쪽 줌/내 위치) -->
+<div class="fixed right-3 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-1.5">
+  <button id="btnZoomIn" class="w-10 h-10 rounded-xl bg-white shadow-md flex items-center justify-center">
+    <span class="material-symbols-outlined">add</span>
+  </button>
+  <button id="btnZoomOut" class="w-10 h-10 rounded-xl bg-white shadow-md flex items-center justify-center">
+    <span class="material-symbols-outlined">remove</span>
+  </button>
+  <button id="btnMyLocation" class="w-10 h-10 rounded-xl bg-white shadow-md flex items-center justify-center mt-1">
+    <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">my_location</span>
+  </button>
+</div>
+
+<!-- Bottom sheet -->
+<section class="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-20 shadow-[0_-8px_24px_rgba(0,0,0,.08)]">
+  <div class="max-w-2xl mx-auto px-4 pt-3 pb-6">
+    <div class="w-10 h-1 bg-outline-variant rounded-full mx-auto mb-3"></div>
+
+    <div class="flex items-start gap-3">
+      <div class="w-12 h-12 rounded-2xl bg-primary-fixed flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-on-primary-fixed-variant" style="font-variation-settings:'FILL' 1;">storefront</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-[10.5px] font-bold text-primary tracking-wide">추천 거래 장소</p>
+        <h2 id="placeTitle" class="text-[16px] font-bold mt-0.5 truncate">한들마을 3단지 정문 앞</h2>
+        <p id="placeAddress" class="text-[12px] text-on-surface-variant mt-0.5 truncate">주소를 불러오는 중…</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-2 mt-4">
+      <div class="bg-surface-container-low rounded-xl p-2.5 text-center">
+        <p class="text-[10px] text-on-surface-variant">거리</p>
+        <p id="statDistance" class="text-[14px] font-bold mt-0.5">- m</p>
+      </div>
+      <div class="bg-surface-container-low rounded-xl p-2.5 text-center">
+        <p class="text-[10px] text-on-surface-variant">도보</p>
+        <p id="statWalk" class="text-[14px] font-bold mt-0.5">- 분</p>
+      </div>
+      <div class="bg-surface-container-low rounded-xl p-2.5 text-center">
+        <p class="text-[10px] text-on-surface-variant">CCTV</p>
+        <p class="text-[14px] font-bold mt-0.5 text-primary">있음</p>
+      </div>
+    </div>
+
+    <!-- Tips -->
+    <div class="mt-3 bg-tertiary-fixed/40 rounded-2xl p-3 flex gap-2 ring-1 ring-tertiary-fixed-dim/40">
+      <span class="material-symbols-outlined text-tertiary shrink-0" style="font-size:18px;font-variation-settings:'FILL' 1;">tips_and_updates</span>
+      <div>
+        <p class="text-[12.5px] font-bold text-on-tertiary-container">안전 거래 장소예요</p>
+        <p class="text-[11.5px] text-on-tertiary-container/80 mt-0.5">사람이 자주 다니는 곳, 의자도 있어 잠깐 인사 나누기 좋아요.</p>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="grid grid-cols-2 gap-2 mt-4">
+      <button id="btnDirections" class="bg-surface-container-low rounded-2xl py-3 flex items-center justify-center gap-1.5 text-[13px] font-semibold">
+        <span class="material-symbols-outlined" style="font-size:18px">directions_walk</span>
+        길찾기
+      </button>
+      <a href="Chat Detail.html" class="bg-primary text-white rounded-2xl py-3 flex items-center justify-center gap-1.5 text-[13px] font-bold">
+        <span class="material-symbols-outlined" style="font-size:18px">chat</span>
+        채팅으로 공유
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 지도 로딩 ─────────── -->
+<script>
+  const API_BASE = window.location.origin;
+  const DEFAULT_CENTER = { lat: 37.5452, lng: 127.0865 }; // 구의1동 (Map.html과 동일)
+
+  // SDK 로드 가드
+  if (typeof kakao === 'undefined' || !kakao.maps) {
+    document.getElementById('map-error').classList.add('show');
+  } else {
+    boot();
+  }
+
+  let map = null;
+  let pinOverlay = null;
+  let myLocOverlay = null;
+  let targetLatLng = null;   // 표시 대상(거래 장소) 좌표
+  let myLatLng = null;       // 사용자 현재 위치
+
+  async function boot() {
+    // URL 파라미터 파싱
+    const qs    = new URLSearchParams(location.search);
+    const id    = qs.get('id');
+    const qLat  = parseFloat(qs.get('lat'));
+    const qLng  = parseFloat(qs.get('lng'));
+    const qAddr = qs.get('address');
+    const qTitle= qs.get('title');
+
+    // 1) 우선 URL 파라미터(lat/lng) 사용
+    let lat     = !isNaN(qLat) ? qLat : null;
+    let lng     = !isNaN(qLng) ? qLng : null;
+    let title   = qTitle || '';
+    let address = qAddr  || '';
+
+    // 2) 좌표가 없고 id만 있으면 백엔드에서 게시글 조회
+    if ((lat == null || lng == null) && id) {
+      try {
+        const res = await fetch(`${API_BASE}/posts/${id}`);
+        if (res.ok) {
+          const post = await res.json();
+          lat     = lat     ?? post.lat;
+          lng     = lng     ?? post.lng;
+          title   = title   || post.title   || '';
+          address = address || post.address || '';
+        }
+      } catch (e) {
+        console.warn('post fetch 실패:', e);
+      }
+    }
+
+    // 3) 그래도 좌표가 없으면 기본값
+    if (lat == null || lng == null) {
+      lat = DEFAULT_CENTER.lat;
+      lng = DEFAULT_CENTER.lng;
+    }
+
+    initMap(lat, lng, title, address);
+  }
+
+  function initMap(lat, lng, title, address) {
+    targetLatLng = new kakao.maps.LatLng(lat, lng);
+    map = new kakao.maps.Map(document.getElementById('map'), {
+      center: targetLatLng,
+      level: 3,
+    });
+
+    // 거래 장소 핀 (CustomOverlay)
+    drawTargetPin(title || '거래 장소');
+
+    // 하단 시트 텍스트 갱신
+    if (title)   document.getElementById('placeTitle').textContent = title;
+    if (address) {
+      document.getElementById('placeAddress').textContent = address;
+    } else if (kakao.maps.services) {
+      // 주소가 비었으면 좌표→주소 역지오코딩
+      const geocoder = new kakao.maps.services.Geocoder();
+      geocoder.coord2Address(lng, lat, (result, status) => {
+        if (status === kakao.maps.services.Status.OK) {
+          const r = result[0];
+          const addr =
+            (r.road_address && r.road_address.address_name) ||
+            (r.address && r.address.address_name) || '';
+          document.getElementById('placeAddress').textContent = addr || '주소 정보 없음';
+        } else {
+          document.getElementById('placeAddress').textContent = '주소 정보 없음';
+        }
+      });
+    } else {
+      document.getElementById('placeAddress').textContent = '주소 정보 없음';
+    }
+
+    bindControls();
+
+    // 내 위치 시도 (실패해도 조용히 무시)
+    tryGetMyLocation();
+  }
+
+  function drawTargetPin(title) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `
+      <div class="flex flex-col items-center" style="transform:translateY(-50%);">
+        <div class="bg-white rounded-lg shadow-md px-2.5 py-1.5 ring-1 ring-black/5 mb-1">
+          <p class="text-[11px] font-bold whitespace-nowrap">${escapeHtml(title)}</p>
+        </div>
+        <div class="relative">
+          <span class="absolute inset-0 -m-1 rounded-full bg-error/30"
+                style="animation: ping-anim 1.8s ease-out infinite;"></span>
+          <span class="block w-10 h-10 rounded-full bg-error flex items-center justify-center shadow-lg ring-4 ring-white">
+            <span class="material-symbols-outlined text-white" style="font-variation-settings:'FILL' 1;">location_on</span>
+          </span>
+        </div>
+      </div>
+    `;
+    if (pinOverlay) pinOverlay.setMap(null);
+    pinOverlay = new kakao.maps.CustomOverlay({
+      position: targetLatLng,
+      content:  wrap,
+      yAnchor:  1,
+      xAnchor:  0.5,
+      zIndex:   10,
+    });
+    pinOverlay.setMap(map);
+  }
+
+  function drawMyLocation(latlng) {
+    if (myLocOverlay) myLocOverlay.setMap(null);
+    const dot = document.createElement('div');
+    dot.className = 'relative';
+    dot.innerHTML = `
+      <span class="absolute inset-0 -m-2 rounded-full bg-primary/30 me-ping"></span>
+      <span class="block w-4 h-4 rounded-full bg-primary border-[3px] border-white shadow"></span>
+    `;
+    myLocOverlay = new kakao.maps.CustomOverlay({
+      position: latlng, content: dot, yAnchor:0.5, xAnchor:0.5, zIndex:5
+    });
+    myLocOverlay.setMap(map);
+  }
+
+  function tryGetMyLocation() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        myLatLng = new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+        drawMyLocation(myLatLng);
+        updateDistance();
+      },
+      err => console.warn('내 위치 거부/실패:', err.message),
+      { enableHighAccuracy:true, timeout:5000 }
+    );
+  }
+
+  function updateDistance() {
+    if (!myLatLng || !targetLatLng) return;
+    // Polyline.getLength() → 직선 거리(m)
+    const line = new kakao.maps.Polyline({
+      path: [myLatLng, targetLatLng], strokeWeight: 0
+    });
+    const meters = line.getLength();
+    const dStr = meters < 1000
+      ? Math.round(meters) + 'm'
+      : (meters/1000).toFixed(1) + 'km';
+    // 도보 4km/h ≈ 67m/min
+    const minutes = Math.max(1, Math.round(meters / 67));
+    document.getElementById('statDistance').textContent = dStr;
+    document.getElementById('statWalk').textContent     = minutes + '분';
+  }
+
+  function bindControls() {
+    document.getElementById('btnZoomIn').addEventListener('click', () => {
+      map.setLevel(map.getLevel() - 1, { animate:true });
+    });
+    document.getElementById('btnZoomOut').addEventListener('click', () => {
+      map.setLevel(map.getLevel() + 1, { animate:true });
+    });
+    document.getElementById('btnMyLocation').addEventListener('click', () => {
+      if (myLatLng) map.panTo(myLatLng);
+      else tryGetMyLocation();
+    });
+    document.getElementById('btnDirections').addEventListener('click', () => {
+      // 카카오맵 외부 링크로 길찾기
+      const c = targetLatLng;
+      const url = `https://map.kakao.com/link/to/거래장소,${c.getLat()},${c.getLng()}`;
+      window.open(url, '_blank');
+    });
+    document.getElementById('shareBtn').addEventListener('click', async () => {
+      const url = location.href;
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: '거래 장소', url });
+        } else {
+          await navigator.clipboard.writeText(url);
+          alert('링크가 복사되었어요');
+        }
+      } catch (e) { /* 사용자 취소 */ }
+    });
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+</script>
+
+</body>
+</html>

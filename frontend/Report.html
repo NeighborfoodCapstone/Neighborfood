@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>신고하기 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/guard.js"></script>
+<script>nfRequireMember();</script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','on-primary-fixed-variant':'#005313',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','on-secondary-fixed-variant':'#693c00',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+    error:'#ba1a1a','error-container':'#ffdad6','on-error-container':'#93000a',
+    'surface-container-low':'#f3f4f5','surface-container':'#edeeef',
+    warm:'#faf9f5'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:max(884px,100dvh); font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+  .ph { background: repeating-linear-gradient(135deg, #eef2ea 0 8px, #e4ebe0 8px 16px); }
+  .reason input { position:absolute; opacity:0; }
+  .reason { display:flex; align-items:center; gap:10px; padding:14px; border-radius:12px; background:#fff; box-shadow: 0 0 0 1px rgba(0,0,0,.05); cursor:pointer; }
+  .reason .dot { width:18px; height:18px; border-radius:50%; border:2px solid #becab9; background:#fff; flex-shrink:0; position:relative; }
+  .reason input:checked + .dot { border-color:#ba1a1a; }
+  .reason input:checked + .dot::after { content:''; position:absolute; inset:2px; border-radius:50%; background:#ba1a1a; }
+  .reason input:checked ~ .label { font-weight:700; color:#ba1a1a; }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-32">
+
+<header class="sticky top-0 z-40 bg-warm/90 backdrop-blur border-b border-black/[.04]">
+  <div class="max-w-2xl mx-auto px-3 h-14 flex items-center">
+    <button onclick="history.back()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">arrow_back</span></button>
+    <h1 class="text-[15px] font-bold ml-1">신고하기</h1>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pt-4">
+
+  <!-- Subject card -->
+  <section class="bg-white rounded-2xl ring-soft p-3 flex items-start gap-3">
+    <div class="w-16 h-16 rounded-xl ph shrink-0"></div>
+    <div class="flex-1 min-w-0">
+      <span class="inline-block text-[10px] font-bold bg-error-container text-on-error-container px-2 py-0.5 rounded-full mb-1">게시글 신고</span>
+      <p class="text-[13.5px] font-semibold leading-snug">유통기한 임박 식재료 나눔 (계란/우유)</p>
+      <p class="text-[11px] text-on-surface-variant mt-0.5">작성자 · 김지연 · 20분 전</p>
+    </div>
+  </section>
+
+  <p class="text-[12.5px] text-on-surface-variant mt-4 leading-relaxed">
+    NeighborFood의 건강한 커뮤니티를 위해 신고 사유를 명확히 선택해 주세요. 관리팀에서 24시간 안에 검토합니다.
+  </p>
+
+  <!-- Reasons -->
+  <section class="mt-4">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">신고 사유 <span class="text-error">*</span></p>
+    <div class="space-y-2">
+      <label class="reason"><input type="radio" name="r" checked/><span class="dot"></span><span class="label text-[13.5px]">잘못된 식품 정보 · 위생 위험</span></label>
+      <label class="reason"><input type="radio" name="r"/><span class="dot"></span><span class="label text-[13.5px]">스팸 · 광고 · 도배</span></label>
+      <label class="reason"><input type="radio" name="r"/><span class="dot"></span><span class="label text-[13.5px]">사기 · 사칭 의심</span></label>
+      <label class="reason"><input type="radio" name="r"/><span class="dot"></span><span class="label text-[13.5px]">거래 매너 불량</span></label>
+      <label class="reason"><input type="radio" name="r"/><span class="dot"></span><span class="label text-[13.5px]">혐오 표현 · 부적절한 언어</span></label>
+      <label class="reason"><input type="radio" name="r"/><span class="dot"></span><span class="label text-[13.5px]">개인정보 노출</span></label>
+      <label class="reason"><input type="radio" name="r"/><span class="dot"></span><span class="label text-[13.5px]">기타</span></label>
+    </div>
+  </section>
+
+  <!-- Details -->
+  <section class="mt-5">
+    <div class="flex items-center justify-between mb-2">
+      <p class="text-[11px] font-bold text-on-surface-variant tracking-wide">상세 내용 <span class="text-error">*</span></p>
+      <p class="text-[10.5px] text-on-surface-variant">0 / 500</p>
+    </div>
+    <textarea rows="5" class="w-full bg-white rounded-2xl ring-1 ring-outline-variant px-4 py-3.5 text-[14px] leading-6 resize-none focus:ring-2 focus:ring-error outline-none" placeholder="언제, 어떤 상황이 있었는지 구체적으로 적어주세요. 사실관계 파악에 큰 도움이 됩니다."></textarea>
+  </section>
+
+  <!-- Evidence -->
+  <section class="mt-5">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">증빙 자료 <span class="text-on-surface-variant/60 font-medium">(선택, 최대 3장)</span></p>
+    <div class="flex gap-2">
+      <button class="w-20 h-20 rounded-xl border-2 border-dashed border-outline-variant bg-white flex flex-col items-center justify-center text-on-surface-variant">
+        <span class="material-symbols-outlined" style="font-size:22px">add_a_photo</span>
+        <span class="text-[10px] mt-0.5 font-semibold">0/3</span>
+      </button>
+      <p class="flex-1 text-[11.5px] text-on-surface-variant self-center bg-surface-container-low rounded-xl px-3 py-3 leading-relaxed">스크린샷이나 사진을 첨부하면 처리가 더 빨라요. 개인정보가 보이면 가려서 올려주세요.</p>
+    </div>
+  </section>
+
+  <!-- Anonymity -->
+  <section class="mt-5 bg-white rounded-2xl ring-soft divide-y divide-black/[.05]">
+    <label class="flex items-center justify-between px-4 py-3.5">
+      <div>
+        <p class="text-[13.5px] font-semibold">익명 신고</p>
+        <p class="text-[11px] text-on-surface-variant mt-0.5">신고 내용에만 사용되며, 상대방에게 노출되지 않아요</p>
+      </div>
+      <span class="w-10 h-6 bg-primary rounded-full p-0.5 flex justify-end"><span class="w-5 h-5 bg-white rounded-full shadow"></span></span>
+    </label>
+    <label class="flex items-center justify-between px-4 py-3.5">
+      <div>
+        <p class="text-[13.5px] font-semibold">상대방 차단</p>
+        <p class="text-[11px] text-on-surface-variant mt-0.5">앞으로 이 사용자의 글을 보지 않아요</p>
+      </div>
+      <span class="w-10 h-6 bg-outline-variant rounded-full p-0.5"><span class="w-5 h-5 bg-white rounded-full shadow"></span></span>
+    </label>
+  </section>
+
+  <!-- Warning -->
+  <section class="mt-4 bg-[#fff7ec] border border-[#ffe4bd] rounded-2xl p-3.5 flex gap-2">
+    <span class="material-symbols-outlined text-secondary shrink-0" style="font-size:18px;font-variation-settings:'FILL' 1;">info</span>
+    <p class="text-[11.5px] text-on-surface leading-relaxed">허위 신고는 NeighborFood 이용에 제한이 있을 수 있어요. 사실에 기반해서 신중하게 작성해 주세요.</p>
+  </section>
+
+</main>
+
+<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-black/[.06] z-40">
+  <div class="max-w-2xl mx-auto px-4 py-3 pb-6 flex gap-2">
+    <button onclick="history.back()" class="px-4 rounded-2xl ring-1 ring-outline-variant bg-white text-[13px] font-semibold">취소</button>
+    <button class="flex-1 bg-error text-white rounded-2xl py-3.5 text-[14px] font-bold active:scale-[.99] transition flex items-center justify-center gap-1.5">
+      <span class="material-symbols-outlined" style="font-size:18px">flag</span>
+      신고 제출
+    </button>
+  </div>
+</div>
+
+</body>
+</html>

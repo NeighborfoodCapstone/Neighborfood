@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>나눔 글쓰기 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/guard.js"></script>
+<script>nfRequireMember();</script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<!-- 카카오 지도 SDK + services 라이브러리 (좌표→주소 변환용) -->
+<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=cdb0bdb09959d56a5d81d5f8947d9fc2&libraries=services"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: {
+      primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
+      'on-primary':'#fff','on-primary-fixed-variant':'#005313',
+      secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870',
+      'on-secondary-container':'#653900',
+      tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+      'surface-container-lowest':'#ffffff','surface-container-low':'#f3f4f5','surface-container':'#edeeef',
+      'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',
+      outline:'#6f7a6b','outline-variant':'#becab9',
+      warm:'#faf9f5'
+    },
+    fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] }
+  }}}
+</script>
+<style>
+  body { background:#faf9f5; }
+  .ph { background: repeating-linear-gradient(135deg, #eef2ea 0 8px, #e4ebe0 8px 16px); }
+  .seg { display:inline-flex; background:#eef2ea; padding:3px; border-radius:999px; }
+  .seg button { padding:7px 14px; border-radius:999px; font-size:12.5px; font-weight:600; color:#3f4a3c; }
+  .seg button.on { background:#fff; color:#006e1c; box-shadow:0 1px 2px rgba(0,0,0,.06); }
+  textarea, input[type=text], input[type=number] { font-family: inherit; }
+  /* 웹킷 브라우저에서 기본 슬라이더 썸 숨기기 (커스텀 썸 사용 위해) */
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  /* 카카오 지도 컨테이너 */
+  #locationMap { width:100%; height:100%; background:#eef1ea; }
+  /* 중앙 고정 핀 (지도를 움직여도 화면 정중앙에 고정) */
+  .center-pin {
+    position:absolute; left:50%; top:50%;
+    transform:translate(-50%, -100%);
+    pointer-events:none; z-index:5;
+  }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-32">
+
+<header class="sticky top-0 z-50 bg-warm/90 backdrop-blur border-b border-black/[.04]">
+  <div class="max-w-2xl mx-auto px-3 h-14 flex items-center justify-between">
+    <button onclick="history.back()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">close</span></button>
+    <h1 id="pageTitle" class="text-[15px] font-bold">나눔 글쓰기</h1>
+    <button class="text-[13px] font-bold text-primary px-3 py-1.5 rounded-full bg-primary-fixed/40">임시저장</button>
+  </div>
+  <div class="h-1 bg-black/[.04]"><div class="h-1 bg-primary w-1/3"></div></div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4">
+
+  <section class="mt-4">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">거래 유형</p>
+    <div class="seg" id="typeSeg">
+      <button type="button" data-type="share" class="on">🤲 나눔</button>
+      <button type="button" data-type="exchange">🔄 교환</button>
+      <button type="button" data-type="groupbuy">👥 공동구매</button>
+    </div>
+  </section>
+
+  <section class="mt-5">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">사진 <span class="text-on-surface/50 font-medium">(최대 10장)</span></p>
+    <div id="photoStrip" class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+      <label class="shrink-0 w-20 h-20 rounded-xl border-2 border-dashed border-outline-variant bg-white flex flex-col items-center justify-center text-on-surface-variant cursor-pointer">
+        <input id="photoInput" type="file" accept="image/*" multiple class="hidden"/>
+        <span class="material-symbols-outlined" style="font-size:22px">add_a_photo</span>
+        <span id="photoCount" class="text-[10px] mt-0.5 font-semibold">0/10</span>
+      </label>
+      </div>
+    <button class="mt-2 w-full text-left bg-tertiary-fixed/50 rounded-xl px-3 py-2.5 flex items-center gap-2 ring-1 ring-tertiary-fixed-dim/40">
+      <span class="material-symbols-outlined text-tertiary" style="font-size:18px;font-variation-settings:'FILL' 1;">auto_awesome</span>
+      <span class="text-[12.5px] flex-1 text-on-tertiary-container">사진 한 장으로 식재료를 자동 인식해드려요</span>
+      <a href="AI Recognize.html" class="text-[12px] font-bold text-tertiary">시작 →</a>
+    </button>
+  </section>
+
+  <section class="mt-5">
+    <input id="titleInput" type="text" placeholder="제목을 입력해주세요" class="w-full bg-white rounded-xl ring-1 ring-outline-variant px-4 py-3.5 text-[15px] font-semibold focus:ring-2 focus:ring-primary outline-none"/>
+  </section>
+
+  <section class="mt-3">
+    <div class="w-full bg-white rounded-xl ring-1 ring-outline-variant px-4 py-2 flex items-center justify-between">
+      <span class="text-[13.5px] text-on-surface-variant">카테고리</span>
+      <select id="categoryInput" class="text-[13.5px] font-semibold bg-transparent outline-none py-1.5 pr-2">
+        <option value="채소">🥬 채소</option>
+        <option value="과일">🍎 과일</option>
+        <option value="육류">🥩 육류</option>
+        <option value="베이커리">🍞 베이커리</option>
+        <option value="유제품">🥛 유제품</option>
+        <option value="기본 식재료">🌾 기본 식재료</option>
+        <option value="기타">기타</option>
+      </select>
+    </div>
+  </section>
+
+  <section class="mt-3">
+    <textarea id="descInput" rows="6" class="w-full bg-white rounded-xl ring-1 ring-outline-variant px-4 py-3.5 text-[14px] leading-6 focus:ring-2 focus:ring-primary outline-none resize-none" placeholder="식재료 상태, 보관 방법, 나눔 이유 등을 적어주세요."></textarea>
+    <div class="flex justify-between mt-1.5 text-[11px] text-on-surface-variant px-1">
+      <span>예의 있는 표현 부탁드려요</span>
+      <span><span id="descCount">0</span> / 1,000</span>
+    </div>
+  </section>
+
+  <section id="exchangeSection" class="mt-3 hidden">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">교환을 원하는 품목</p>
+    <input id="exchangeWantInput" type="text" placeholder="예: 당근 1개, 사워도우 빵 등" class="w-full bg-white rounded-xl ring-1 ring-outline-variant px-4 py-3.5 text-[14px] focus:ring-2 focus:ring-primary outline-none"/>
+  </section>
+
+  <section id="groupbuySection" class="mt-3 hidden">
+    <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">공동구매 조건</p>
+    <div class="bg-white rounded-xl ring-1 ring-outline-variant divide-y divide-black/[.05]">
+      <label class="flex items-center justify-between px-4 py-3">
+        <span class="text-[13.5px]">목표 인원</span>
+        <input id="gbTargetInput" type="number" min="2" max="20" placeholder="4" class="w-20 text-right bg-transparent outline-none text-[14px] font-semibold"/>
+      </label>
+      <label class="flex items-center justify-between px-4 py-3">
+        <span class="text-[13.5px]">1인당 가격(원)</span>
+        <input id="gbPriceInput" type="number" min="0" placeholder="12000" class="w-28 text-right bg-transparent outline-none text-[14px] font-semibold"/>
+      </label>
+    </div>
+  </section>
+
+  <section class="mt-5 bg-white rounded-2xl p-4 ring-1 ring-black/[.04]">
+    <div class="flex items-center justify-between mb-2">
+      <p class="text-[13px] font-bold">유통기한까지</p>
+      <span id="expiryText" class="text-[12.5px] font-bold text-secondary bg-secondary-fixed px-2 py-0.5 rounded-full">3일 남음</span>
+    </div>
+    <div class="relative h-8 flex items-center group">
+      <div class="absolute left-0 right-0 h-2 bg-surface-container-low rounded-full pointer-events-none"></div>
+      <div id="expiryTrack" class="absolute left-0 h-2 rounded-full bg-gradient-to-r from-primary via-secondary-container to-error pointer-events-none" style="width:10%"></div>
+      <div id="expiryThumb" class="absolute w-5 h-5 bg-white rounded-full ring-2 ring-secondary shadow pointer-events-none z-10" style="left:calc(10% - 10px)"></div>
+      <input type="range" id="expiryRange" min="0" max="30" value="3" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
+    </div>
+    <div class="flex justify-between text-[10.5px] text-on-surface-variant mt-0.5">
+      <span>오늘</span><span>10일</span><span>20일</span><span>30일+</span>
+    </div>
+  </section>
+
+  <section class="mt-3 bg-white rounded-2xl ring-1 ring-black/[.04] overflow-hidden">
+    <div class="p-4 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">location_on</span>
+        <p class="text-[13.5px] font-bold">거래 희망 장소</p>
+      </div>
+      <button id="myLocationBtn" type="button" class="text-[12px] font-bold text-primary flex items-center gap-1">
+        <span class="material-symbols-outlined" style="font-size:16px">my_location</span>
+        내 위치
+      </button>
+    </div>
+    <div class="h-44 relative">
+      <div id="locationMap" class="absolute inset-0"></div>
+      <!-- 중앙 고정 핀 (지도 이동 시 핀은 화면 중앙에 고정) -->
+      <div class="center-pin">
+        <div class="w-10 h-10 rounded-full bg-error flex items-center justify-center shadow-lg ring-4 ring-white">
+          <span class="material-symbols-outlined text-white" style="font-variation-settings:'FILL' 1;">location_on</span>
+        </div>
+      </div>
+      <!-- 안내 토스트 -->
+      <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-black/65 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full pointer-events-none">
+        지도를 움직여 위치를 정해주세요
+      </div>
+    </div>
+    <div class="p-4 border-t border-black/[.04]">
+      <p id="addressInput" class="text-[13px] font-semibold">한들마을 3단지 정문 앞</p>
+      <p class="text-[11.5px] text-on-surface-variant mt-0.5">대략적인 위치만 표시되고, 채팅에서 정확한 장소를 공유해요</p>
+    </div>
+  </section>
+
+  <section class="mt-3 bg-white rounded-2xl ring-1 ring-black/[.04] divide-y divide-black/[.04]">
+    <label class="flex items-center justify-between px-4 py-3.5 cursor-pointer">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined text-on-surface-variant">flash_on</span>
+        <div>
+          <p class="text-[13.5px] font-semibold">오늘 안에 픽업</p>
+          <p class="text-[11px] text-on-surface-variant">신선한 식재료에 추천해요</p>
+        </div>
+      </div>
+      <div class="relative flex items-center">
+        <input type="checkbox" id="pickupToday" class="sr-only peer" checked>
+        <div class="w-10 h-6 bg-outline-variant rounded-full peer peer-checked:bg-primary transition-colors duration-200 ease-in-out"></div>
+        <div class="absolute left-[2px] w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out peer-checked:translate-x-[16px]"></div>
+      </div>
+    </label>
+
+    <label class="flex items-center justify-between px-4 py-3.5 cursor-pointer">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined text-on-surface-variant">package_2</span>
+        <p class="text-[13.5px] font-semibold">비대면 거래 가능</p>
+      </div>
+      <div class="relative flex items-center">
+        <input type="checkbox" id="untactTrade" class="sr-only peer">
+        <div class="w-10 h-6 bg-outline-variant rounded-full peer peer-checked:bg-primary transition-colors duration-200 ease-in-out"></div>
+        <div class="absolute left-[2px] w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out peer-checked:translate-x-[16px]"></div>
+      </div>
+    </label>
+
+    <div class="flex items-center justify-between px-4 py-3.5">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined text-on-surface-variant">verified</span>
+        <div>
+          <p class="text-[13.5px] font-semibold">영수증으로 인증</p>
+          <p class="text-[11px] text-on-surface-variant">신뢰 온도 +0.3°</p>
+        </div>
+      </div>
+      <a href="Receipt_Verify.html" class="text-[12px] font-bold text-primary px-3 py-1.5 rounded-full bg-primary-fixed/40 hover:bg-primary-fixed/60 transition-colors">추가</a>
+    </div>
+  </section>
+
+</main>
+
+<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-black/[.06] z-40">
+  <div class="max-w-2xl mx-auto px-4 py-3 pb-6 flex gap-2">
+    <button type="button" class="px-4 rounded-2xl ring-1 ring-outline-variant text-[13px] font-semibold">미리보기</button>
+    <button id="submitBtn" type="button" class="flex-1 bg-primary text-white rounded-2xl py-3.5 text-[14px] font-bold active:scale-[.99] transition">나눔 게시하기</button>
+  </div>
+</div>
+
+<script>
+  // 시연용: 로그인 미구현이라 author_id를 하드코딩
+  const CURRENT_USER_ID = 'user_demo_01';
+  // 백엔드 주소 - 같은 호스트면 빈 문자열로 두면 되고, 다른 포트면 절대 주소
+  const API_BASE = window.location.origin;
+
+  // 현재 선택된 거래 유형 ('share' | 'exchange' | 'groupbuy')
+  let currentType = 'share';
+  // 업로드 완료된 이미지 파일명 (서버가 돌려준 uuid 파일명)
+  let uploadedImages = [];
+
+  // ── 현재 선택된 거래 위치(지도에서 사용자가 정한 좌표) ──
+  let selectedLat = 37.5452;  // 구의1동 기본
+  let selectedLng = 127.0865;
+
+  // ── Kakao 지도 초기화 (인터랙티브) ──
+  let locationMap = null;
+  let geocoder = null;
+  (function initLocationMap() {
+    if (typeof kakao === 'undefined' || !kakao.maps) {
+      console.warn('Kakao SDK 미로드 — 지도 기능 비활성화');
+      return;
+    }
+    const container = document.getElementById('locationMap');
+    const center = new kakao.maps.LatLng(selectedLat, selectedLng);
+    locationMap = new kakao.maps.Map(container, { center, level: 3 });
+
+    // 좌표 → 주소 변환기 (services 라이브러리)
+    if (kakao.maps.services) {
+      geocoder = new kakao.maps.services.Geocoder();
+    }
+
+    // 지도 이동 끝나면 중앙 좌표를 선택 좌표로 갱신 + 주소 갱신
+    kakao.maps.event.addListener(locationMap, 'idle', () => {
+      const c = locationMap.getCenter();
+      selectedLat = c.getLat();
+      selectedLng = c.getLng();
+      reverseGeocode(selectedLat, selectedLng);
+    });
+
+    // 초기 주소도 한 번 갱신
+    reverseGeocode(selectedLat, selectedLng);
+  })();
+
+  // 좌표 → 주소 변환
+  function reverseGeocode(lat, lng) {
+    if (!geocoder) return;
+    geocoder.coord2Address(lng, lat, (result, status) => {
+      if (status !== kakao.maps.services.Status.OK) return;
+      const r = result[0];
+      // 도로명 주소 우선, 없으면 지번 주소
+      const addr =
+        (r.road_address && r.road_address.address_name) ||
+        (r.address && r.address.address_name) || '';
+      if (addr) document.getElementById('addressInput').textContent = addr;
+    });
+  }
+
+  // 내 위치 버튼
+  document.getElementById('myLocationBtn').addEventListener('click', () => {
+    if (!navigator.geolocation || !locationMap) {
+      alert('위치 정보를 사용할 수 없어요.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const ll = new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+        locationMap.setCenter(ll);
+      },
+      err => alert('현재 위치를 가져오지 못했어요: ' + err.message),
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+  });
+
+  // ── 상단 타이틀 및 거래 유형 토글 ──
+  const pageTitle = document.getElementById('pageTitle');
+  const typeSeg = document.getElementById('typeSeg');
+  const exchangeSection = document.getElementById('exchangeSection');
+  const groupbuySection = document.getElementById('groupbuySection');
+  const submitBtn = document.getElementById('submitBtn');
+
+  typeSeg.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      typeSeg.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      currentType = btn.dataset.type;
+      
+      exchangeSection.classList.toggle('hidden', currentType !== 'exchange');
+      groupbuySection.classList.toggle('hidden', currentType !== 'groupbuy');
+      
+      // 거래 유형에 따른 텍스트 변경
+      if (currentType === 'share') {
+        pageTitle.textContent = '나눔 글쓰기';
+        submitBtn.textContent = '나눔 게시하기';
+      } else if (currentType === 'exchange') {
+        pageTitle.textContent = '교환 글쓰기';
+        submitBtn.textContent = '교환 게시하기';
+      } else if (currentType === 'groupbuy') {
+        pageTitle.textContent = '공동구매 글쓰기';
+        submitBtn.textContent = '공동구매 모집하기';
+      }
+    });
+  });
+
+  // ── 유통기한 슬라이더 연동 로직 ──
+  const expiryRange = document.getElementById('expiryRange');
+  const expiryTrack = document.getElementById('expiryTrack');
+  const expiryThumb = document.getElementById('expiryThumb');
+  const expiryText = document.getElementById('expiryText');
+
+  expiryRange.addEventListener('input', (e) => {
+    const val = parseInt(e.target.value, 10);
+    const max = parseInt(e.target.max, 10);
+    
+    // 퍼센트 계산
+    const percent = (val / max) * 100;
+    
+    // 시각적 트랙 길이 및 썸 위치 업데이트
+    expiryTrack.style.width = `${percent}%`;
+    expiryThumb.style.left = `calc(${percent}% - 10px)`;
+    
+    // 상단 라벨 텍스트 변경
+    if (val === 0) {
+      expiryText.textContent = '오늘까지';
+    } else if (val === max) {
+      expiryText.textContent = '30일 이상 남음';
+    } else {
+      expiryText.textContent = `${val}일 남음`;
+    }
+  });
+
+  // ── 설명 글자수 카운터 ──
+  const descInput = document.getElementById('descInput');
+  const descCount = document.getElementById('descCount');
+  descInput.addEventListener('input', () => {
+    descCount.textContent = descInput.value.length;
+  });
+
+  // ── 사진 업로드 ──
+  const photoInput = document.getElementById('photoInput');
+  const photoStrip = document.getElementById('photoStrip');
+  const photoCount = document.getElementById('photoCount');
+
+  photoInput.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    if (uploadedImages.length + files.length > 10) {
+      alert('사진은 최대 10장까지 올릴 수 있어요.');
+      return;
+    }
+
+    // FormData에 파일들 담아서 한 번에 업로드
+    const fd = new FormData();
+    files.forEach(f => fd.append('files', f));
+
+    try {
+      const res = await fetch(`${API_BASE}/upload-images`, { method:'POST', body:fd });
+      if (!res.ok) throw new Error((await res.json()).detail || '업로드 실패');
+      const data = await res.json();
+      // 서버가 돌려준 파일명을 누적 저장
+      uploadedImages = uploadedImages.concat(data.files);
+      renderPhotos();
+    } catch (err) {
+      alert('이미지 업로드 실패: ' + err.message);
+    } finally {
+      // 같은 파일 다시 선택할 수 있게 초기화
+      photoInput.value = '';
+    }
+  });
+
+  function renderPhotos() {
+    // 기존 미리보기 모두 제거 (첫 번째 <label> 입력기는 유지)
+    photoStrip.querySelectorAll('.preview-thumb').forEach(n => n.remove());
+
+    uploadedImages.forEach((name, idx) => {
+      const div = document.createElement('div');
+      div.className = 'preview-thumb shrink-0 w-20 h-20 rounded-xl relative ring-1 ring-black/5 overflow-hidden bg-cover bg-center';
+      div.style.backgroundImage = `url("${API_BASE}/uploads/${name}")`;
+      if (idx === 0) {
+        const badge = document.createElement('span');
+        badge.className = 'absolute top-1 left-1 text-[9px] font-bold bg-primary text-white px-1 py-0.5 rounded';
+        badge.textContent = '대표';
+        div.appendChild(badge);
+      }
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'absolute -top-1.5 -right-1.5 w-5 h-5 bg-on-surface text-white rounded-full flex items-center justify-center';
+      remove.innerHTML = '<span class="material-symbols-outlined" style="font-size:13px">close</span>';
+      remove.addEventListener('click', () => {
+        uploadedImages.splice(idx, 1);
+        renderPhotos();
+      });
+      div.appendChild(remove);
+      photoStrip.appendChild(div);
+    });
+
+    photoCount.textContent = `${uploadedImages.length}/10`;
+  }
+
+  // ── 게시 버튼: 폼 → POST /posts ──
+  submitBtn.addEventListener('click', async () => {
+    const title = document.getElementById('titleInput').value.trim();
+    const description = descInput.value.trim();
+    const category = document.getElementById('categoryInput').value;
+    const address = document.getElementById('addressInput').textContent.trim();
+    
+    // 체크박스 옵션 데이터 (게시할 때 포함되도록 수정 가능)
+    const isPickupToday = document.getElementById('pickupToday').checked;
+    const isUntactTrade = document.getElementById('untactTrade').checked;
+    const expiryDays = document.getElementById('expiryRange').value;
+
+    // 기본 검증
+    if (!title)       return alert('제목을 입력해 주세요.');
+    if (!description) return alert('설명을 입력해 주세요.');
+
+    const payload = {
+      type: currentType,
+      title, description, category,
+      images: uploadedImages,
+      address,
+      // 사용자가 지도에서 직접 정한 좌표 사용 (기본값: 구의1동)
+      lat: selectedLat, lng: selectedLng,
+      author_id: CURRENT_USER_ID,
+      options: { 
+        pickup_today: isPickupToday, 
+        untact_trade: isUntactTrade,
+        expiry_days: parseInt(expiryDays, 10)
+      }
+    };
+
+    if (currentType === 'exchange') {
+      const want = document.getElementById('exchangeWantInput').value.trim();
+      if (!want) return alert('교환을 원하는 품목을 적어 주세요.');
+      payload.exchange_want = want;
+    }
+    if (currentType === 'groupbuy') {
+      const target = parseInt(document.getElementById('gbTargetInput').value, 10);
+      const price  = parseInt(document.getElementById('gbPriceInput').value, 10);
+      if (!target || target < 2) return alert('목표 인원을 2명 이상으로 입력해 주세요.');
+      if (isNaN(price) || price < 0) return alert('1인당 가격을 입력해 주세요.');
+      payload.gb_target = target;
+      payload.gb_price  = price;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = '게시 중…';
+
+    try {
+      const res = await fetch(`${API_BASE}/posts`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error((await res.json()).detail || '게시 실패');
+      const data = await res.json();
+      alert('게시글이 등록되었습니다! (#' + data.id + ')');
+      // 등록된 글의 상세 페이지로 이동
+      const detailPage = currentType === 'groupbuy' ? 'Group_Buy_Detail.html' : 'Product_Detail.html';
+      location.href = `${detailPage}?id=${data.id}`;
+    } catch (err) {
+      alert('게시 실패: ' + err.message);
+      submitBtn.disabled = false;
+      submitBtn.textContent = currentType === 'groupbuy' ? '공동구매 모집하기'
+                            : currentType === 'exchange' ? '교환 게시하기' : '나눔 게시하기';
+    }
+  });
+</script>
+
+</body>
+</html>

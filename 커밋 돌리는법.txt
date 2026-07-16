@@ -1,0 +1,11 @@
+가능합니다. force push 전 원격 커밋(eba000f)이 GitHub에 아직 남아 있어요. PowerShell에서 실행해주세요:
+powershellcd C:\Projects\Neighborfood
+
+# 1. 이전 커밋 해시로 직접 되돌리기
+git fetch origin
+git reset --hard eba000f
+
+# 2. 강제 푸시로 GitHub도 덮어쓰기
+git push --force origin main
+eba000f는 force push 직전 원격에 있던 커밋입니다. GitHub는 참조가 끊긴 커밋도 일정 기간(보통 30~90일) 보관하므로 지금은 접근 가능합니다.
+단, git reset --hard는 로컬 작업 파일도 그 시점으로 되돌리므로 현재 코드 변경사항이 모두 사라집니다. 진행할까요?

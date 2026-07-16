@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>영수증 인증 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/guard.js"></script>
+<script>nfRequireMember();</script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: {
+      primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
+      'on-primary':'#fff','on-primary-fixed-variant':'#005313',
+      secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870',
+      tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+      'surface-container-lowest':'#ffffff','surface-container-low':'#f3f4f5',
+      'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',
+      outline:'#6f7a6b','outline-variant':'#becab9',
+      warm:'#faf9f5'
+    },
+    fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] }
+  }}}
+</script>
+<style>
+  body { background:#faf9f5; }
+  .receipt {
+    background: #fffdf6;
+    background-image:
+      repeating-linear-gradient(transparent 0 22px, rgba(0,0,0,.04) 22px 23px);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.08);
+    transform: rotate(-1.5deg);
+  }
+  .receipt::before, .receipt::after {
+    content:""; position:absolute; left:0; right:0; height:10px;
+    background: radial-gradient(circle at 5px 0, transparent 5px, #fffdf6 5.5px);
+    background-size: 10px 10px; background-repeat: repeat-x;
+  }
+  .receipt::before { top:-1px; }
+  .receipt::after { bottom:-9px; transform: scaleY(-1); }
+  .scan-line { animation: scan 2.5s ease-in-out infinite; }
+  @keyframes scan { 0%,100% { top:10%; } 50% { top:90%; } }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-32">
+
+<header class="sticky top-0 z-50 bg-warm/90 backdrop-blur border-b border-black/[.04]">
+  <div class="max-w-2xl mx-auto px-3 h-14 flex items-center">
+    <button onclick="history.back()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">arrow_back</span></button>
+    <h1 class="text-[15px] font-bold ml-1">영수증 인증</h1>
+    <button class="ml-auto text-[12px] text-on-surface-variant flex items-center gap-1">
+      <span class="material-symbols-outlined" style="font-size:18px">help</span>
+    </button>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4">
+
+  <!-- Hero -->
+  <section class="mt-5 text-center">
+    <span class="inline-flex items-center gap-1 bg-primary-fixed/40 text-primary px-3 py-1 rounded-full text-[11px] font-bold ring-1 ring-primary-fixed-dim/40">
+      <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1;">verified</span>
+      신뢰 온도 +0.3°
+    </span>
+    <h2 class="text-[20px] font-bold mt-3 leading-snug">영수증을 찍으면<br/>식재료가 진짜라는 걸 보여줄 수 있어요</h2>
+    <p class="text-[12.5px] text-on-surface-variant mt-2">개인정보(카드번호 일부, 이름)는 자동으로 가려져요</p>
+  </section>
+
+  <!-- 스캔 결과 검토: 영수증 원본 ↔ 인식 항목 비교 (모바일=상하, md+=좌우) -->
+  <div class="mt-6 md:grid md:grid-cols-2 md:gap-5 md:items-start">
+
+  <!-- Scanner -->
+  <section id="scanArea" class="relative bg-on-surface rounded-3xl p-4 aspect-[4/5] overflow-hidden cursor-pointer md:sticky md:top-20">
+    <!-- 업로드한 영수증 미리보기 (스캔 후 표시) -->
+    <img id="receiptPreview" class="hidden absolute inset-0 w-full h-full object-contain p-4" alt="영수증 미리보기"/>
+    <!-- Receipt mock -->
+    <div id="receiptMock" class="absolute inset-0 flex items-center justify-center p-8">
+      <div class="receipt w-full max-w-[200px] py-5 px-4 text-[10px] leading-[18px] text-on-surface relative">
+        <p class="text-center font-bold">로컬푸드마트 한들점</p>
+        <p class="text-center text-[8.5px]">서울 마포구 한들로 12</p>
+        <p class="text-center text-[8.5px]">사업자 ●●●-●●-●●●●●</p>
+        <p class="border-t border-dashed border-black/30 my-1"></p>
+        <p>2026-05-06 14:23</p>
+        <p class="border-t border-dashed border-black/30 my-1"></p>
+        <p class="flex justify-between"><span>유기농 시금치 ×2</span><span>4,800</span></p>
+        <p class="flex justify-between"><span>친환경 우유 1L</span><span>3,200</span></p>
+        <p class="flex justify-between"><span>국내산 애호박</span><span>1,500</span></p>
+        <p class="border-t border-dashed border-black/30 my-1"></p>
+        <p class="flex justify-between font-bold"><span>합계</span><span>9,500</span></p>
+      </div>
+    </div>
+
+    <!-- Scan frame -->
+    <div class="absolute inset-6 pointer-events-none">
+      <div class="absolute top-0 left-0 w-7 h-7 border-t-[3px] border-l-[3px] border-primary-fixed rounded-tl-xl"></div>
+      <div class="absolute top-0 right-0 w-7 h-7 border-t-[3px] border-r-[3px] border-primary-fixed rounded-tr-xl"></div>
+      <div class="absolute bottom-0 left-0 w-7 h-7 border-b-[3px] border-l-[3px] border-primary-fixed rounded-bl-xl"></div>
+      <div class="absolute bottom-0 right-0 w-7 h-7 border-b-[3px] border-r-[3px] border-primary-fixed rounded-br-xl"></div>
+      <div class="scan-line absolute left-3 right-3 h-0.5 bg-primary-fixed shadow-[0_0_16px_2px_rgba(148,249,144,.7)]"></div>
+    </div>
+
+    <!-- Status pill -->
+    <div class="absolute top-4 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur rounded-full px-3 py-1.5 flex items-center gap-1.5 shadow">
+      <span id="statusDot" class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+      <span id="statusText" class="text-[11px] font-bold">분석 중...</span>
+    </div>
+  </section>
+
+  <!-- Detected items -->
+  <section class="mt-5 md:mt-0">
+    <div class="flex items-baseline justify-between">
+      <h3 class="text-[14px] font-bold">인식된 항목 <span id="detectedCount" class="text-primary">0개</span></h3>
+      <button id="addItemBtn" class="text-[11.5px] text-primary font-bold">직접 추가</button>
+    </div>
+    <div id="detectedList" class="mt-2 space-y-2">
+      <label class="bg-white rounded-2xl p-3.5 ring-1 ring-black/[.04] flex items-center gap-3">
+        <span class="w-5 h-5 rounded-md bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-white" style="font-size:14px">check</span></span>
+        <span class="w-9 h-9 rounded-lg bg-primary-fixed/40 flex items-center justify-center text-[18px]">🥬</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-[13.5px] font-semibold truncate">유기농 시금치 ×2</p>
+          <p class="text-[10.5px] text-on-surface-variant">2026-05-06 · 4,800원</p>
+        </div>
+        <span class="text-[10.5px] font-bold text-primary bg-primary-fixed/40 px-2 py-1 rounded-full">선택됨</span>
+      </label>
+      <label class="bg-white rounded-2xl p-3.5 ring-1 ring-black/[.04] flex items-center gap-3">
+        <span class="w-5 h-5 rounded-md ring-2 ring-outline-variant shrink-0"></span>
+        <span class="w-9 h-9 rounded-lg bg-tertiary-fixed flex items-center justify-center text-[18px]">🥛</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-[13.5px] font-semibold truncate">친환경 우유 1L</p>
+          <p class="text-[10.5px] text-on-surface-variant">2026-05-06 · 3,200원</p>
+        </div>
+        <span class="text-[10.5px] text-on-surface-variant">미선택</span>
+      </label>
+      <label class="bg-white rounded-2xl p-3.5 ring-1 ring-black/[.04] flex items-center gap-3">
+        <span class="w-5 h-5 rounded-md ring-2 ring-outline-variant shrink-0"></span>
+        <span class="w-9 h-9 rounded-lg bg-secondary-fixed flex items-center justify-center text-[18px]">🥒</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-[13.5px] font-semibold truncate">국내산 애호박</p>
+          <p class="text-[10.5px] text-on-surface-variant">2026-05-06 · 1,500원</p>
+        </div>
+        <span class="text-[10.5px] text-on-surface-variant">미선택</span>
+      </label>
+    </div>
+  </section>
+
+  </div>
+  <!-- Tip -->
+  <section class="mt-5 bg-tertiary-fixed/40 ring-1 ring-tertiary-fixed-dim/40 rounded-2xl p-3.5 flex gap-2">
+    <span class="material-symbols-outlined text-tertiary shrink-0" style="font-size:18px;font-variation-settings:'FILL' 1;">privacy_tip</span>
+    <p class="text-[11.5px] text-on-tertiary-container leading-relaxed">개인 식별 정보(이름·카드번호)는 인증이 끝나면 자동 삭제됩니다. 게시글에는 매장명과 구매일만 표시돼요.</p>
+  </section>
+
+</main>
+
+<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-black/[.06] z-40">
+  <div class="max-w-2xl mx-auto px-4 py-3 pb-6 flex gap-2">
+    <button id="rescanBtn" class="px-4 rounded-2xl ring-1 ring-outline-variant text-[13px] font-semibold flex items-center gap-1.5">
+      <span class="material-symbols-outlined" style="font-size:18px">refresh</span>
+      다시 찍기
+    </button>
+    <button id="verifyBtn" class="flex-1 bg-primary text-white rounded-2xl py-3.5 text-[14px] font-bold">선택 항목으로 인증</button>
+  </div>
+</div>
+
+<!-- 카메라/사진 선택 (모바일에서는 카메라가 바로 열립니다) -->
+<input id="receiptFile" type="file" accept="image/*" capture="environment" class="hidden"/>
+
+<!-- 항목 수정 모달 (스캔 결과 검토/편집) -->
+<div id="editModal" class="hidden fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+  <div id="editBackdrop" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+  <div class="relative w-full sm:max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-5 shadow-[0_-12px_40px_rgba(0,0,0,.25)] sm:shadow-2xl">
+    <div class="w-10 h-1 bg-on-surface-variant/30 rounded-full mx-auto mb-4 sm:hidden"></div>
+
+    <div class="flex items-center gap-2 mb-4">
+      <span class="w-9 h-9 rounded-xl bg-primary-fixed/40 flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-primary" style="font-size:20px">edit</span>
+      </span>
+      <h3 class="text-[15px] font-bold">항목 수정</h3>
+      <button id="editCancelX" type="button" class="ml-auto w-8 h-8 rounded-full hover:bg-black/5 flex items-center justify-center">
+        <span class="material-symbols-outlined" style="font-size:20px">close</span>
+      </button>
+    </div>
+
+    <label class="block">
+      <span class="text-[11.5px] font-bold text-on-surface-variant">품목명</span>
+      <input id="editName" type="text" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 text-[14px] outline-none focus:border-primary" placeholder="예: 유기농 시금치"/>
+    </label>
+
+    <div class="mt-3 grid grid-cols-2 gap-3">
+      <label class="block">
+        <span class="text-[11.5px] font-bold text-on-surface-variant">수량</span>
+        <input id="editQty" type="number" min="1" step="1" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 text-[14px] outline-none focus:border-primary"/>
+      </label>
+      <label class="block">
+        <span class="text-[11.5px] font-bold text-on-surface-variant">금액(원)</span>
+        <input id="editPrice" type="number" min="0" step="1" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 text-[14px] outline-none focus:border-primary"/>
+      </label>
+    </div>
+
+    <div class="mt-5 flex gap-2">
+      <button id="editDeleteBtn" type="button" class="px-4 rounded-2xl ring-1 ring-rose-300 text-rose-600 text-[13px] font-bold flex items-center gap-1">
+        <span class="material-symbols-outlined" style="font-size:18px">delete</span>
+        삭제
+      </button>
+      <button id="editSaveBtn" type="button" class="flex-1 bg-primary text-white rounded-2xl py-3 text-[14px] font-bold">수정 완료</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  NeighborFood · 영수증 인증 (main.py API 연동)
+//  - POST /api/receipt/scan   : 영수증 이미지 업로드 → OCR/파싱 → 인식 항목
+//  - POST /api/receipt/verify : 선택 항목으로 인증 확정 → 신뢰 온도 +0.3°
+//  - QR_Create / QR_Scan 과 동일한 API_BASE · fetch 규칙을 따릅니다.
+//  - 기존 HTML 구조(클래스/레이아웃)는 그대로 두고, id 후크 + 스크립트만 추가했습니다.
+// ============================================================
+
+// ▼ 이 줄이 콘솔(F12)에 보이면 "연동된" 페이지가 맞습니다.
+console.log("%c[NeighborFood] Receipt_Verify build 2026-05-26 v2 · scan+verify+edit", "color:#006e1c;font-weight:bold");
+
+// 같은 출처(http://127.0.0.1:8000)면 ""(상대경로), file:// 로 직접 열면 절대경로
+const API_BASE = location.protocol === "file:" ? window.location.origin : "";
+const API = {
+  scan:    API_BASE + "/api/receipt/scan",
+  verify:  API_BASE + "/api/receipt/verify",
+  history: API_BASE + "/api/receipt/history",
+  fridgeFromReceipt: API_BASE + "/api/fridge/from-receipt"
+};
+
+// 이 영수증이 증빙할 거래/게시글 식별자 (실제 서비스에서는 거래정보로 채움)
+const SUBJECT_ID = "pickup_minji_spinach";
+
+const $ = (id) => document.getElementById(id);
+
+// 사용자가 편집한 품목명 등을 안전하게 출력하기 위한 escape
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+  ));
+}
+
+// 화면 상태 (메모리 보관 — localStorage 미사용)
+const state = {
+  scanId: null,
+  store: null,
+  purchasedAt: null,
+  items: [],        // { name, qty, price, selected }
+  verified: false
+};
+
+// 품목명 → 대표 이모지 (없으면 장바구니)
+function itemEmoji(name) {
+  const n = String(name || "");
+  const table = [
+    [/시금치|채소|상추|깻잎|나물|쌈/, "🥬"], [/우유|요거트|유제품/, "🥛"],
+    [/애호박|호박|오이|가지/, "🥒"], [/사과|배|과일|포도|딸기/, "🍎"],
+    [/토마토/, "🍅"], [/계란|달걀/, "🥚"], [/생선|고등어|오징어|회/, "🐟"],
+    [/고기|육|돈|닭|소고기/, "🥩"], [/쌀|곡물|콩/, "🍚"], [/빵|베이커리/, "🍞"],
+    [/파|양파|마늘/, "🧅"]
+  ];
+  for (const [re, emo] of table) if (re.test(n)) return emo;
+  return "🛒";
+}
+
+function setStatus(text, ok = true) {
+  $("statusText").textContent = text;
+  $("statusDot").className = ok
+    ? "w-2 h-2 rounded-full bg-primary animate-pulse"
+    : "w-2 h-2 rounded-full bg-rose-500";
+}
+
+// 선택된 항목 개수에 맞춰 헤더/버튼 라벨 갱신
+function refreshSummary() {
+  const total = state.items.length;
+  const picked = state.items.filter((i) => i.selected).length;
+  $("detectedCount").textContent = `${total}개`;
+  const btn = $("verifyBtn");
+  if (state.verified) {
+    btn.textContent = "인증 완료됨";
+    btn.disabled = true;
+    btn.className = "flex-1 bg-primary/40 text-white rounded-2xl py-3.5 text-[14px] font-bold";
+  } else {
+    btn.textContent = picked ? `선택 ${picked}개로 인증` : "선택 항목으로 인증";
+    btn.disabled = false;
+    btn.className = "flex-1 bg-primary text-white rounded-2xl py-3.5 text-[14px] font-bold";
+  }
+}
+
+// 기존 mock 과 동일한 모양의 항목 카드를 렌더 (구조 유지) + 항목별 수정 버튼
+function renderItems() {
+  const list = $("detectedList");
+
+  if (!state.items.length) {
+    list.innerHTML = `
+      <div class="bg-white rounded-2xl p-5 ring-1 ring-black/[.04] text-center">
+        <p class="text-[13px] font-bold text-on-surface">아직 인식된 항목이 없습니다</p>
+        <p class="mt-1 text-[11px] text-on-surface-variant">영수증을 촬영하면 OCR 결과가 여기에 표시됩니다.</p>
+      </div>`;
+    refreshSummary();
+    return;
+  }
+
+  list.innerHTML = state.items.map((it, idx) => {
+    const sub = `${state.purchasedAt ? state.purchasedAt.slice(0, 10) : "-"} · ${Number(it.price).toLocaleString()}원`;
+    const check = it.selected
+      ? `<span class="w-5 h-5 rounded-md bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-white" style="font-size:14px">check</span></span>`
+      : `<span class="w-5 h-5 rounded-md ring-2 ring-outline-variant shrink-0"></span>`;
+    const tag = it.selected
+      ? `<span class="text-[10.5px] font-bold text-primary bg-primary-fixed/40 px-2 py-1 rounded-full">선택됨</span>`
+      : `<span class="text-[10.5px] text-on-surface-variant">미선택</span>`;
+    const qty = it.qty && it.qty > 1 ? ` ×${it.qty}` : "";
+    // 인증 완료 후에는 수정 버튼을 숨김
+    const editBtn = state.verified ? "" : `
+        <button type="button" data-edit="${idx}" class="edit-btn w-8 h-8 rounded-full hover:bg-black/5 flex items-center justify-center shrink-0" title="수정">
+          <span class="material-symbols-outlined text-on-surface-variant" style="font-size:18px">edit</span>
+        </button>`;
+    return `
+      <label data-idx="${idx}" class="bg-white rounded-2xl p-3.5 ring-1 ring-black/[.04] flex items-center gap-3 cursor-pointer">
+        ${check}
+        <span class="w-9 h-9 rounded-lg bg-primary-fixed/40 flex items-center justify-center text-[18px]">${itemEmoji(it.name)}</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-[13.5px] font-semibold truncate">${esc(it.name)}${qty}</p>
+          <p class="text-[10.5px] text-on-surface-variant">${sub}</p>
+        </div>
+        ${tag}
+        ${editBtn}
+      </label>`;
+  }).join("");
+
+  // 카드 탭 → 선택 토글
+  list.querySelectorAll("label[data-idx]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (state.verified) return;
+      const i = Number(el.dataset.idx);
+      state.items[i].selected = !state.items[i].selected;
+      renderItems();
+      refreshSummary();
+    });
+  });
+
+  // 수정 버튼(연필) → 모달 열기 (선택 토글로 전파되지 않도록 stopPropagation)
+  list.querySelectorAll("button[data-edit]").forEach((b) => {
+    b.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openEditModal(Number(b.dataset.edit));
+    });
+  });
+
+  refreshSummary();
+}
+
+// ── 스캔 결과 검토/편집 모달 ─────────────────────────────────
+let editingIdx = null;
+
+function openEditModal(idx) {
+  if (state.verified) return;          // 인증 완료 후엔 수정 불가
+  editingIdx = idx;
+  const it = state.items[idx] || {};
+  $("editName").value = it.name || "";
+  $("editQty").value = it.qty || 1;
+  $("editPrice").value = it.price || 0;
+  $("editModal").classList.remove("hidden");
+  $("editName").focus();
+}
+
+function closeEditModal() {
+  editingIdx = null;
+  $("editModal").classList.add("hidden");
+}
+
+// '수정 완료' → 데이터 바인딩: state.items 에 즉시 반영하고 화면 갱신
+function saveEdit() {
+  if (editingIdx === null) return;
+  const name = $("editName").value.trim();
+  const qty = Math.max(1, parseInt($("editQty").value, 10) || 1);
+  const price = Math.max(0, parseInt($("editPrice").value, 10) || 0);
+  if (!name) {
+    alert("품목명을 입력하세요.");
+    return;
+  }
+  state.items[editingIdx] = { ...state.items[editingIdx], name, qty, price };
+  closeEditModal();
+  renderItems();   // 수정 내용 즉시 반영
+}
+
+// 잘못 인식된 항목 삭제
+function deleteEditItem() {
+  if (editingIdx === null) return;
+  state.items.splice(editingIdx, 1);
+  closeEditModal();
+  renderItems();
+}
+
+function resetReceiptState(message = "영수증을 촬영해 주세요") {
+  state.scanId = null;
+  state.store = null;
+  state.purchasedAt = null;
+  state.items = [];
+  state.verified = false;
+  try { closeEditModal(); } catch (_) {}
+  renderItems();
+  refreshSummary();
+  setStatus(message);
+}
+
+// ── 스캔: POST /api/receipt/scan ─────────────────────────────
+async function scanReceipt(file) {
+  resetReceiptState("분석 중...");
+  state.verified = false;
+
+  // 미리보기 표시
+  const preview = $("receiptPreview");
+  preview.src = URL.createObjectURL(file);
+  preview.classList.remove("hidden");
+  $("receiptMock").classList.add("hidden");
+
+  const fd = new FormData();
+  fd.append("file", file);
+
+  try {
+    const res = await fetch(API.scan + "?subjectId=" + encodeURIComponent(SUBJECT_ID), {
+      method: "POST",
+      body: fd
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.message || "분석 실패");
+
+    const s = data.scan;
+    state.scanId = s.id;
+    state.store = s.store;
+    state.purchasedAt = s.purchasedAt;
+    // 첫 항목만 기본 선택 (mock 과 동일한 UX)
+    state.items = (s.items || []).map((it, i) => ({ ...it, selected: i === 0 }));
+
+    renderItems();
+    const note = s.ocrEngine === "demo" ? " (데모 인식)" : "";
+    setStatus(`분석 완료 · ${state.items.length}개${note}`);
+  } catch (err) {
+    console.error(err);
+    setStatus("분석 실패 · 서버 확인", false);
+    alert("영수증 분석 실패: " + err.message + "\n(main.py가 8000 포트에서 실행 중인지 확인하세요.)");
+  }
+}
+
+// ── 인증(최종 전송): POST /api/receipt/verify ────────────────
+//   '수정 완료'로 편집된 내용은 state.items 에 반영돼 있으므로,
+//   하단 '선택 항목으로 인증' 버튼을 누르면 최종 수정본이 그대로 서버로 전송됩니다.
+async function verifySelected() {
+  if (state.verified) return;
+  const picked = state.items.filter((i) => i.selected);   // 편집이 반영된 최종 항목
+  if (picked.length === 0) {
+    alert("인증할 항목을 1개 이상 선택하세요.");
+    return;
+  }
+
+  setStatus("인증 처리 중...");
+  try {
+    const res = await fetch(API.verify, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scanId: state.scanId,
+        subjectId: SUBJECT_ID,
+        store: state.store,
+        purchasedAt: state.purchasedAt,
+        items: picked.map(({ name, qty, price }) => ({ name, qty, price }))
+      })
+    });
+    const data = await res.json();
+    console.log("[receipt verify] 응답:", data);
+
+    if (data.result === "verified") {
+      state.verified = true;
+      setStatus(`인증 완료 · 신뢰 온도 +${data.trustDelta}°`);
+      refreshSummary();
+      alert(`영수증 인증이 완료되었습니다.\n신뢰 온도가 +${data.trustDelta}° 올랐어요.`);
+    } else if (data.result === "already_used") {
+      state.verified = true;
+      setStatus("이미 사용된 영수증", false);
+      refreshSummary();
+      alert("이미 인증에 사용된 영수증입니다.");
+    } else {
+      setStatus("인증 실패", false);
+      alert(data.message || "인증에 실패했습니다.");
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus("서버 연결 실패", false);
+    alert("인증 실패: 서버 연결을 확인하세요.");
+  }
+}
+
+// ── 직접 추가 ────────────────────────────────────────────────
+function addManualItem() {
+  const name = prompt("품목명을 입력하세요 (예: 국내산 두부)");
+  if (!name) return;
+  const priceStr = prompt("금액(원)을 입력하세요 (숫자만)", "0") || "0";
+  const price = parseInt(priceStr.replace(/[^0-9]/g, ""), 10) || 0;
+  state.items.push({ name: name.trim(), qty: 1, price, selected: true });
+  renderItems();
+}
+
+// ── 이벤트 바인딩 ────────────────────────────────────────────
+$("receiptFile").addEventListener("change", (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (file) scanReceipt(file);
+  e.target.value = "";  // 같은 파일 재선택 허용
+});
+
+// 스캔 영역 탭 또는 "다시 찍기" → 파일/카메라 열기
+$("scanArea").addEventListener("click", () => $("receiptFile").click());
+$("rescanBtn").addEventListener("click", () => { resetReceiptState("새 영수증을 선택해 주세요"); $("receiptFile").click(); });
+$("verifyBtn").addEventListener("click", verifySelected);
+$("addItemBtn").addEventListener("click", addManualItem);
+
+// 수정 모달 이벤트
+$("editSaveBtn").addEventListener("click", saveEdit);
+$("editDeleteBtn").addEventListener("click", deleteEditItem);
+$("editCancelX").addEventListener("click", closeEditModal);
+$("editBackdrop").addEventListener("click", closeEditModal);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("editModal").classList.contains("hidden")) closeEditModal();
+});
+
+// 최초 진입: 실제 영수증 촬영 전에는 항목을 비워 둡니다.
+state.items = [];
+state.purchasedAt = null;
+state.store = null;
+renderItems();
+setStatus("영수증을 촬영해 주세요");
+</script>
+
+</body>
+</html>

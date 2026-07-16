@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>사용자 관리 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="shared/auth.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','on-secondary-fixed-variant':'#693c00','secondary-fixed-dim':'#ffb870',
+    tertiary:'#466270','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+    error:'#ba1a1a','error-container':'#ffdad6','on-error-container':'#93000a',
+    'surface-container-low':'#f3f4f5','surface-container':'#edeeef','surface-container-high':'#e7e8e9',
+    ink:'#2c322b'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#f3f4f5; min-height:100dvh; font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+  .sidebar { background:#2c322b; color:#fff; width:240px; }
+  .nav a { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:10px; color:rgba(255,255,255,.78); font-size:13px; font-weight:500; text-decoration:none; }
+  .nav a:hover { background:rgba(255,255,255,.06); color:#fff; }
+  .nav a.on { background:#005313; color:#fff; font-weight:700; }
+  .group-label { font-size:10px; font-weight:700; letter-spacing:.1em; color:rgba(255,255,255,.5); margin:18px 8px 6px; text-transform:uppercase; }
+</style>
+</head>
+<body class="text-on-surface antialiased">
+
+<div class="flex min-h-screen">
+
+  <!-- Sidebar (shared) -->
+  <aside class="sidebar shrink-0 hidden md:flex md:flex-col px-3 py-5 sticky top-0 h-screen overflow-y-auto">
+    <div class="px-2 mb-4 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-primary-fixed"></span>
+      <p class="font-extrabold text-[15px] tracking-tight">NeighborFood</p>
+      <span class="ml-auto text-[9px] font-bold bg-error text-white px-1.5 py-0.5 rounded">ADMIN</span>
+    </div>
+    <nav class="nav flex flex-col gap-0.5">
+      <p class="group-label">개요</p>
+      <a href="Admin_Dashboard.html"><span class="material-symbols-outlined" style="font-size:18px">dashboard</span> 대시보드</a>
+      <p class="group-label">운영</p>
+      <a href="Admin_Report_Detail.html"><span class="material-symbols-outlined" style="font-size:18px">flag</span> 신고 처리 <span class="ml-auto text-[10px] bg-error text-white px-1.5 rounded">24</span></a>
+      <a href="Admin_Chat_History.html"><span class="material-symbols-outlined" style="font-size:18px">chat</span> 채팅 기록</a>
+      <a href="Admin_Notices.html"><span class="material-symbols-outlined" style="font-size:18px">campaign</span> 공지 관리</a>
+      <p class="group-label">사용자</p>
+      <a class="on" href="Admin_Users.html"><span class="material-symbols-outlined" style="font-size:18px">group</span> 사용자 관리</a>
+      <a href="Admin_Staff_Invite.html"><span class="material-symbols-outlined" style="font-size:18px">person_add</span> 운영진 초대</a>
+      <p class="group-label">기타</p>
+      <a href="#"><span class="material-symbols-outlined" style="font-size:18px">settings</span> 설정</a>
+    </nav>
+    <div class="mt-auto bg-white/5 rounded-xl p-2.5 flex gap-2.5 items-center mt-6">
+      <div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[11px] font-bold">박</div>
+      <div class="text-[11.5px] min-w-0 flex-1"><p class="font-semibold truncate">박운영</p><p class="text-white/50 text-[10px]">슈퍼 관리자</p></div>
+      <span class="material-symbols-outlined text-white/60" style="font-size:18px">logout</span>
+    </div>
+  </aside>
+
+  <main class="flex-1 min-w-0">
+    <header class="bg-white border-b border-black/[.05] sticky top-0 z-10">
+      <div class="px-5 h-14 flex items-center gap-3">
+        <button class="md:hidden w-9 h-9 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">menu</span></button>
+        <div class="flex-1 max-w-md bg-surface-container-low rounded-xl px-3 py-2 flex items-center gap-2 text-[12.5px] text-on-surface-variant">
+          <span class="material-symbols-outlined" style="font-size:16px">search</span>
+          <input class="bg-transparent outline-none flex-1" placeholder="닉네임, 이메일, ID 검색..."/>
+        </div>
+        <button class="w-9 h-9 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">notifications</span></button>
+      </div>
+    </header>
+
+    <div class="p-5 md:p-6 max-w-[1200px]">
+
+      <div class="flex items-end justify-between flex-wrap gap-3 mb-4">
+        <div>
+          <p class="text-[11px] font-bold text-on-surface-variant tracking-wide">USER MANAGEMENT</p>
+          <h1 class="text-[24px] font-bold mt-0.5">사용자 관리</h1>
+          <p class="text-[12px] text-on-surface-variant mt-1">총 <b class="text-on-surface">24,182</b>명 · 오늘 신규 <b class="text-primary">87</b>명</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="text-[12px] bg-white px-3 py-2 rounded-lg ring-1 ring-outline-variant font-semibold flex items-center gap-1.5"><span class="material-symbols-outlined" style="font-size:14px">download</span> 내보내기</button>
+          <button class="text-[12px] bg-ink text-white px-3 py-2 rounded-lg font-bold flex items-center gap-1.5"><span class="material-symbols-outlined" style="font-size:14px">person_add</span> 사용자 초대</button>
+        </div>
+      </div>
+
+      <!-- Filter chips -->
+      <div class="flex flex-wrap gap-2 mb-3">
+        <button class="text-[11.5px] font-bold bg-ink text-white px-3 py-1.5 rounded-full">전체 24,182</button>
+        <button class="text-[11.5px] font-semibold bg-white text-on-surface px-3 py-1.5 rounded-full ring-1 ring-black/5">정상 23,108</button>
+        <button class="text-[11.5px] font-semibold bg-white text-secondary px-3 py-1.5 rounded-full ring-1 ring-secondary/30">경고 824</button>
+        <button class="text-[11.5px] font-semibold bg-white text-error px-3 py-1.5 rounded-full ring-1 ring-error/30">정지 187</button>
+        <button class="text-[11.5px] font-semibold bg-white text-on-surface-variant px-3 py-1.5 rounded-full ring-1 ring-black/5">탈퇴 대기 63</button>
+        <button class="text-[11.5px] font-semibold bg-white text-on-surface px-3 py-1.5 rounded-full ring-1 ring-black/5">신규 ⏱ 24h</button>
+        <button class="text-[11.5px] font-semibold bg-white text-on-surface-variant px-3 py-1.5 rounded-full ring-1 ring-black/5 ml-auto flex items-center gap-1">필터 추가 <span class="material-symbols-outlined" style="font-size:14px">tune</span></button>
+      </div>
+
+      <!-- Table -->
+      <section class="bg-white rounded-2xl ring-soft overflow-hidden">
+        <div class="px-4 py-2.5 border-b border-black/[.05] flex items-center justify-between text-[12px]">
+          <p class="text-on-surface-variant">선택된 <b class="text-on-surface">0</b>명</p>
+          <div class="flex gap-1">
+            <button class="px-2.5 py-1 rounded-md hover:bg-black/5">정렬</button>
+            <button class="px-2.5 py-1 rounded-md hover:bg-black/5">컬럼</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-[12.5px] min-w-[820px]">
+            <thead class="text-[10.5px] text-on-surface-variant text-left">
+              <tr class="border-b border-black/[.05] bg-surface-container-low">
+                <th class="py-2.5 pl-4 font-bold w-8"><input type="checkbox" class="rounded"/></th>
+                <th class="py-2.5 font-bold tracking-wider">USER</th>
+                <th class="py-2.5 font-bold tracking-wider">동네</th>
+                <th class="py-2.5 font-bold tracking-wider">신뢰 온도</th>
+                <th class="py-2.5 font-bold tracking-wider">거래</th>
+                <th class="py-2.5 font-bold tracking-wider">신고</th>
+                <th class="py-2.5 font-bold tracking-wider">가입</th>
+                <th class="py-2.5 font-bold tracking-wider">상태</th>
+                <th class="py-2.5 pr-4 font-bold tracking-wider text-right">조치</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-black/[.04] hover:bg-surface-container-low/40">
+                <td class="py-3 pl-4"><input type="checkbox" class="rounded"/></td>
+                <td>
+                  <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[11px] font-bold">건</div>
+                    <div>
+                      <p class="font-semibold">건강한이웃</p>
+                      <p class="text-[10.5px] text-on-surface-variant">healthy****@gmail.com</p>
+                    </div>
+                  </div>
+                </td>
+                <td>한들마을 3단지</td>
+                <td><span class="font-bold text-primary">38.2°</span></td>
+                <td>23건</td>
+                <td>—</td>
+                <td class="text-on-surface-variant">2025.09.04</td>
+                <td><span class="text-[10px] font-bold bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full">정상</span></td>
+                <td class="pr-4 text-right"><button class="text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button></td>
+              </tr>
+              <tr class="border-b border-black/[.04] hover:bg-surface-container-low/40">
+                <td class="py-3 pl-4"><input type="checkbox" class="rounded"/></td>
+                <td>
+                  <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-tertiary-fixed-dim flex items-center justify-center text-on-tertiary-container text-[11px] font-bold">따</div>
+                    <div>
+                      <p class="font-semibold flex items-center gap-1">따뜻한아랫집 <span class="text-[9px] bg-tertiary-fixed text-on-tertiary-container px-1.5 py-0.5 rounded font-bold">호스트</span></p>
+                      <p class="text-[10.5px] text-on-surface-variant">warm****@naver.com</p>
+                    </div>
+                  </div>
+                </td>
+                <td>한들마을 2단지</td>
+                <td><span class="font-bold text-primary">41.2°</span></td>
+                <td>67건</td>
+                <td>—</td>
+                <td class="text-on-surface-variant">2024.11.18</td>
+                <td><span class="text-[10px] font-bold bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full">정상</span></td>
+                <td class="pr-4 text-right"><button class="text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button></td>
+              </tr>
+              <tr class="border-b border-black/[.04] hover:bg-surface-container-low/40 bg-secondary-fixed/15">
+                <td class="py-3 pl-4"><input type="checkbox" class="rounded"/></td>
+                <td>
+                  <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-secondary-fixed-dim flex items-center justify-center text-on-secondary-fixed-variant text-[11px] font-bold">이</div>
+                    <div>
+                      <p class="font-semibold">이○○</p>
+                      <p class="text-[10.5px] text-on-surface-variant">lee****@gmail.com</p>
+                    </div>
+                  </div>
+                </td>
+                <td>한들마을 1단지</td>
+                <td><span class="font-bold text-secondary">33.1°</span></td>
+                <td>4건</td>
+                <td><span class="text-[10px] font-bold text-error">3건</span></td>
+                <td class="text-on-surface-variant">2026.04.22</td>
+                <td><span class="text-[10px] font-bold bg-secondary-fixed text-on-secondary-fixed-variant px-2 py-0.5 rounded-full">경고 (1)</span></td>
+                <td class="pr-4 text-right"><button class="text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button></td>
+              </tr>
+              <tr class="border-b border-black/[.04] hover:bg-surface-container-low/40">
+                <td class="py-3 pl-4"><input type="checkbox" class="rounded"/></td>
+                <td>
+                  <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[11px] font-bold">민</div>
+                    <div>
+                      <p class="font-semibold">민지 이웃</p>
+                      <p class="text-[10.5px] text-on-surface-variant">minji****@kakao.com</p>
+                    </div>
+                  </div>
+                </td>
+                <td>한들마을 3단지</td>
+                <td><span class="font-bold text-primary">38.6°</span></td>
+                <td>12건</td>
+                <td>—</td>
+                <td class="text-on-surface-variant">2025.07.14</td>
+                <td><span class="text-[10px] font-bold bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full">정상</span></td>
+                <td class="pr-4 text-right"><button class="text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button></td>
+              </tr>
+              <tr class="border-b border-black/[.04] hover:bg-surface-container-low/40 bg-error-container/20">
+                <td class="py-3 pl-4"><input type="checkbox" class="rounded"/></td>
+                <td>
+                  <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-error-container flex items-center justify-center text-on-error-container text-[11px] font-bold">광</div>
+                    <div>
+                      <p class="font-semibold flex items-center gap-1">광고○○ <span class="text-[9px] bg-error text-white px-1.5 py-0.5 rounded font-bold">정지</span></p>
+                      <p class="text-[10.5px] text-on-surface-variant">ads_***@hotmail.com</p>
+                    </div>
+                  </div>
+                </td>
+                <td>(미인증)</td>
+                <td><span class="font-bold text-error">28.0°</span></td>
+                <td>0건</td>
+                <td><span class="text-[10px] font-bold text-error">12건</span></td>
+                <td class="text-on-surface-variant">2026.05.10</td>
+                <td><span class="text-[10px] font-bold bg-error text-white px-2 py-0.5 rounded-full">7일 정지</span></td>
+                <td class="pr-4 text-right"><button class="text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button></td>
+              </tr>
+              <tr class="hover:bg-surface-container-low/40">
+                <td class="py-3 pl-4"><input type="checkbox" class="rounded"/></td>
+                <td>
+                  <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-secondary-fixed-dim flex items-center justify-center text-on-secondary-fixed-variant text-[11px] font-bold">빵</div>
+                    <div>
+                      <p class="font-semibold">빵굽는이웃</p>
+                      <p class="text-[10.5px] text-on-surface-variant">bbang****@gmail.com</p>
+                    </div>
+                  </div>
+                </td>
+                <td>한들마을 3단지</td>
+                <td><span class="font-bold text-primary">37.0°</span></td>
+                <td>18건</td>
+                <td>—</td>
+                <td class="text-on-surface-variant">2025.05.22</td>
+                <td><span class="text-[10px] font-bold bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full">정상</span></td>
+                <td class="pr-4 text-right"><button class="text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="px-4 py-3 border-t border-black/[.05] flex items-center justify-between text-[12px] text-on-surface-variant">
+          <p><b class="text-on-surface">1</b> – <b class="text-on-surface">6</b> / 24,182</p>
+          <div class="flex gap-1">
+            <button class="px-2 py-1 rounded-md hover:bg-black/5"><span class="material-symbols-outlined" style="font-size:16px">chevron_left</span></button>
+            <button class="px-2.5 py-1 rounded-md bg-ink text-white font-bold">1</button>
+            <button class="px-2.5 py-1 rounded-md hover:bg-black/5">2</button>
+            <button class="px-2.5 py-1 rounded-md hover:bg-black/5">3</button>
+            <span class="px-2 py-1">…</span>
+            <button class="px-2 py-1 rounded-md hover:bg-black/5"><span class="material-symbols-outlined" style="font-size:16px">chevron_right</span></button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

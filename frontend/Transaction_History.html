@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>거래 내역 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/guard.js"></script>
+<script>nfRequireMember();</script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313',
+    secondary:'#8b5000','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870','on-secondary-fixed-variant':'#693c00',
+    tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+    'surface-container-low':'#f3f4f5','surface-container':'#edeeef'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:max(884px,100dvh); font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+  .ph { background: linear-gradient(135deg,#e9e7df,#dcdacf); }
+  .seg-on { background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.08); color:#191c1d; }
+  .star { color:#f5b056; }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-12">
+
+<header class="sticky top-0 z-40 bg-white/85 backdrop-blur border-b border-black/[.05]">
+  <div class="max-w-2xl mx-auto px-2 h-14 flex items-center">
+    <button onclick="history.back()" class="p-2 rounded-full hover:bg-black/5"><span class="material-symbols-outlined">arrow_back</span></button>
+    <p class="text-[16px] font-bold">거래 내역</p>
+    <button class="ml-auto p-2 mr-1 rounded-full hover:bg-black/5"><span class="material-symbols-outlined">search</span></button>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pt-4">
+
+  <!-- Summary -->
+  <section class="bg-white rounded-2xl ring-soft p-4">
+    <div class="grid grid-cols-3 gap-2">
+      <div class="text-center">
+        <p id="statTotal" class="text-[20px] font-bold text-primary">0</p>
+        <p class="text-[11px] text-on-surface-variant mt-0.5">전체 거래</p>
+      </div>
+      <div class="text-center border-x border-black/[.05]">
+        <p id="statShared" class="text-[20px] font-bold">0</p>
+        <p class="text-[11px] text-on-surface-variant mt-0.5">나눔한 횟수</p>
+      </div>
+      <div class="text-center">
+        <p id="statReceived" class="text-[20px] font-bold">0</p>
+        <p class="text-[11px] text-on-surface-variant mt-0.5">받은 횟수</p>
+      </div>
+    </div>
+    <!-- 에코 통계 배너 (완료 거래 있을 때만 표시) -->
+    <div id="ecoRow" class="hidden mt-3 pt-3 border-t border-black/[.05] items-center gap-2 text-[12px]">
+      <span class="material-symbols-outlined text-primary" style="font-size:16px;font-variation-settings:'FILL' 1;">eco</span>
+      <p class="text-on-surface-variant">덕분에 약 <b id="ecoKg" class="text-primary">0kg</b>의 음식물 쓰레기를 줄였어요.</p>
+    </div>
+  </section>
+
+  <!-- Segmented filter -->
+  <div id="segBar" class="mt-4 bg-[#ececeb] rounded-full p-1 flex text-[12px] font-semibold">
+    <button data-status="" class="flex-1 py-2 rounded-full seg-on">전체</button>
+    <button data-status="pending,confirmed" class="flex-1 py-2 rounded-full text-on-surface-variant">진행중 <span id="ongoingBadge" class="text-[10px] opacity-70 hidden"></span></button>
+    <button data-status="completed" class="flex-1 py-2 rounded-full text-on-surface-variant">완료</button>
+    <button data-status="canceled" class="flex-1 py-2 rounded-full text-on-surface-variant">취소</button>
+  </div>
+
+  <!-- 월별 그룹 동적 렌더링 -->
+  <div id="txList" class="mt-1"></div>
+
+  <div id="txEmpty" class="hidden flex-col items-center justify-center text-center py-16">
+    <span class="material-symbols-outlined text-outline-variant" style="font-size:48px">receipt_long</span>
+    <p class="text-[14px] font-semibold text-on-surface-variant mt-3">거래 내역이 없어요</p>
+    <p class="text-[12px] text-on-surface-variant/70 mt-1">게시글에서 거래를 신청하면 여기에 표시돼요.</p>
+  </div>
+
+  <button id="loadMoreBtn" class="hidden w-full mt-5 py-3 text-[12.5px] font-semibold text-on-surface-variant rounded-xl ring-1 ring-outline-variant bg-white">전체 내역 더보기</button>
+
+  <div class="h-6"></div>
+</main>
+
+<nav class="fixed bottom-0 left-0 w-full bg-white border-t border-black/[.06] z-50 flex justify-around items-center pt-2 pb-5 px-2">
+  <a class="flex flex-col items-center text-on-surface-variant" href="Home.html"><span class="material-symbols-outlined" style="font-size:24px">home</span><span class="text-[10px] mt-0.5">홈</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Map.html"><span class="material-symbols-outlined" style="font-size:24px">map</span><span class="text-[10px] mt-0.5">지도</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Create_Post.html"><span class="material-symbols-outlined" style="font-size:24px">add_circle</span><span class="text-[10px] mt-0.5">등록</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="My_Activity.html"><span class="material-symbols-outlined" style="font-size:24px">interests</span><span class="text-[10px] mt-0.5">내 활동</span></a>
+  <a class="flex flex-col items-center text-primary" href="My_Page.html"><span class="material-symbols-outlined" style="font-size:24px;font-variation-settings:'FILL' 1;">person</span><span class="text-[10px] font-bold mt-0.5">마이</span></a>
+</nav>
+
+<script>
+  (function () {
+    const API_BASE = window.location.origin;
+    const listEl   = document.getElementById('txList');
+    const emptyEl  = document.getElementById('txEmpty');
+    let allItems   = [];
+
+    const STATUS_LABEL = {
+      pending:   { t:'예약중', cls:'bg-secondary-fixed text-on-secondary-fixed-variant' },
+      confirmed: { t:'진행중', cls:'bg-tertiary-fixed text-on-tertiary-container' },
+      completed: { t:'완료',   cls:'bg-primary-fixed text-on-primary-fixed-variant' },
+      canceled:  { t:'취소',   cls:'bg-surface-container text-on-surface-variant' }
+    };
+
+    function esc(t){ const e=document.createElement('div'); e.textContent=t==null?'':t; return e.innerHTML; }
+
+    function fmtDate(iso){
+      if (!iso) return '';
+      const d = new Date(iso.endsWith('Z')||iso.includes('+') ? iso : iso+'Z');
+      return (d.getMonth()+1)+'월 '+d.getDate()+'일';
+    }
+
+    function apptText(iso){
+      if (!iso) return '약속 시간 미정';
+      const d = new Date(iso.endsWith('Z')||iso.includes('+') ? iso : iso+'Z');
+      let h=d.getHours(), m=String(d.getMinutes()).padStart(2,'0');
+      const ap = h<12?'오전':'오후'; h=h%12||12;
+      return (d.getMonth()+1)+'월 '+d.getDate()+'일 '+ap+' '+h+':'+m+' 약속';
+    }
+
+    function monthLabel(iso){
+      if (!iso) return '거래 내역';
+      const d = new Date(iso.endsWith('Z')||iso.includes('+') ? iso : iso+'Z');
+      const now = new Date();
+      const thisYM = now.getFullYear()*100 + now.getMonth();
+      const itemYM = d.getFullYear()*100 + d.getMonth();
+      if (itemYM === thisYM) return '이번 달';
+      if (itemYM === thisYM - 1) return '지난달';
+      return d.getFullYear()+'년 '+(d.getMonth()+1)+'월';
+    }
+
+    function card(tx){
+      const st       = STATUS_LABEL[tx.status] || STATUS_LABEL.pending;
+      const isActive = tx.status === 'pending' || tx.status === 'confirmed';
+      const isCanceled = tx.status === 'canceled';
+      const roleText = tx.myRole === 'provider' ? '받는 사람' : '준 사람';
+      const partner  = tx.partner || '이웃';
+      const postIdVal = esc(tx.postId || tx.post_id || '');
+
+      const img = tx.postImage
+        ? '<div class="w-16 h-16 rounded-xl bg-cover bg-center shrink-0" style="background-image:url(\'' + API_BASE + '/uploads/' + esc(tx.postImage) + '\')"></div>'
+        : '<div class="w-16 h-16 rounded-xl shrink-0" style="background:linear-gradient(135deg,#d6e7d0,#bfd9b8)"></div>';
+
+      const sub = isActive
+        ? '<span class="text-[10.5px] text-on-surface-variant">' + esc(apptText(tx.appointmentAt)) + '</span>'
+        : '<span class="text-[10.5px] text-on-surface-variant">' + esc(fmtDate(tx.completedAt || tx.createdAt)) + '</span>';
+
+      let actions = '';
+      if (isActive) {
+        actions = '<div class="mt-2 flex gap-2">'
+          + '<a href="Chat_List.html" class="text-[11px] font-bold text-primary px-2.5 py-1 rounded-md ring-1 ring-primary/30">채팅</a>'
+          + '<a href="Product_Detail.html?id=' + postIdVal + '" class="text-[11px] font-semibold text-on-surface-variant px-2.5 py-1 rounded-md ring-1 ring-outline-variant">게시글</a>'
+          + '</div>';
+      } else if (tx.status === 'completed') {
+        actions = '<div class="mt-2">'
+          + '<button class="text-[11px] font-bold text-primary px-2.5 py-1 rounded-md ring-1 ring-primary/30 flex items-center gap-1">'
+          + '<span class="material-symbols-outlined" style="font-size:14px">edit</span>후기 남기기</button>'
+          + '</div>';
+      }
+
+      const titleCls = 'text-[14px] font-semibold leading-snug truncate' + (isCanceled ? ' line-through decoration-on-surface-variant/40' : '');
+      const liCls    = 'bg-white rounded-2xl ring-soft p-3 flex gap-3' + (isCanceled ? ' opacity-70' : '');
+
+      return '<li class="' + liCls + '">'
+        + img
+        + '<div class="flex-1 min-w-0">'
+        +   '<div class="flex items-center gap-1.5 mb-1">'
+        +     '<span class="px-2 py-0.5 rounded-full '+st.cls+' text-[10px] font-bold">'+st.t+'</span>'
+        +     sub
+        +   '</div>'
+        +   '<p class="'+titleCls+'">'+esc(tx.postTitle||'(게시글)')+'</p>'
+        +   '<p class="text-[11.5px] text-on-surface-variant mt-0.5">'+roleText+' · '+esc(partner)+'</p>'
+        +   actions
+        + '</div></li>';
+    }
+
+    function render(filter){
+      let items = allItems;
+      if (filter) {
+        const set = new Set(filter.split(','));
+        items = allItems.filter(t => set.has(t.status));
+      }
+      if (!items.length){
+        listEl.innerHTML = '';
+        emptyEl.classList.remove('hidden'); emptyEl.classList.add('flex');
+        document.getElementById('loadMoreBtn').classList.add('hidden');
+        return;
+      }
+      emptyEl.classList.add('hidden'); emptyEl.classList.remove('flex');
+
+      // 월별 그룹
+      const groups = {};
+      const order  = [];
+      items.forEach(tx => {
+        const m = monthLabel(tx.createdAt || tx.created_at);
+        if (!groups[m]) { groups[m] = []; order.push(m); }
+        groups[m].push(tx);
+      });
+
+      let html = '';
+      order.forEach(month => {
+        html += '<p class="text-[11px] font-bold text-on-surface-variant mt-5 mb-2 px-1 tracking-wider">' + esc(month) + '</p>';
+        html += '<ul class="flex flex-col gap-3">' + groups[month].map(card).join('') + '</ul>';
+      });
+      listEl.innerHTML = html;
+
+      document.getElementById('loadMoreBtn').classList.toggle('hidden', items.length < 20);
+    }
+
+    // 세그먼트 전환
+    document.querySelectorAll('#segBar button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#segBar button').forEach(b => {
+          b.classList.remove('seg-on'); b.classList.add('text-on-surface-variant');
+        });
+        btn.classList.add('seg-on'); btn.classList.remove('text-on-surface-variant');
+        render(btn.dataset.status);
+      });
+    });
+
+    (async function load(){
+      try{
+        const res = await fetch(API_BASE + '/api/transactions');
+        if (window.nfHandleAuthError && nfHandleAuthError(res)) return;
+        if (!res.ok) return;
+        const data = await res.json();
+        allItems = data.items || [];
+        const st = data.stats || {shared:0, received:0, ongoing:0};
+
+        document.getElementById('statShared').textContent   = st.shared   || 0;
+        document.getElementById('statReceived').textContent = st.received  || 0;
+        document.getElementById('statTotal').textContent    = allItems.length;
+
+        // 진행중 카운트 배지
+        if ((st.ongoing || 0) > 0) {
+          const badge = document.getElementById('ongoingBadge');
+          badge.textContent = st.ongoing;
+          badge.classList.remove('hidden');
+        }
+
+        // 에코 통계 (완료 거래당 약 0.35 kg 절약 추정)
+        const completedCount = (st.shared || 0) + (st.received || 0);
+        if (completedCount > 0) {
+          const kg = (completedCount * 0.35).toFixed(1);
+          document.getElementById('ecoKg').textContent = kg + 'kg';
+          const row = document.getElementById('ecoRow');
+          row.classList.remove('hidden');
+          row.classList.add('flex');
+        }
+
+        render('');
+      }catch(e){}
+    })();
+  })();
+</script>
+</body>
+</html>

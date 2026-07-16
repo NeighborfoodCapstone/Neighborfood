@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>채팅 목록 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/guard.js"></script>
+<script>nfRequireMember();</script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
+    'on-primary':'#fff','on-primary-fixed-variant':'#005313','on-primary-fixed':'#002204',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','secondary-fixed-dim':'#ffb870',
+    'on-secondary-container':'#653900','on-secondary-fixed-variant':'#693c00',
+    tertiary:'#466270','tertiary-fixed':'#c9e7f7','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642',
+    'surface-container-lowest':'#fff','surface-container-low':'#f3f4f5','surface-container':'#edeeef','surface-container-high':'#e7e8e9',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',
+    outline:'#6f7a6b','outline-variant':'#becab9'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background: #faf9f5; min-height: max(884px,100dvh); }
+  .row { transition: background-color .15s ease; }
+  .row:active { background-color: rgba(0,0,0,.03); }
+</style>
+</head>
+<body class="text-on-surface antialiased pb-24">
+
+<header class="sticky top-0 z-40 bg-warm/90 backdrop-blur border-b border-black/[.04]">
+  <div class="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+    <p class="text-[20px] font-bold tracking-tight">채팅</p>
+    <div class="flex items-center gap-1">
+      <button class="p-2 rounded-full hover:bg-black/5"><span class="material-symbols-outlined">search</span></button>
+      <button class="p-2 rounded-full hover:bg-black/5"><span class="material-symbols-outlined">edit_square</span></button>
+    </div>
+  </div>
+  <!-- Tabs -->
+  <div class="max-w-2xl mx-auto px-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
+    <button class="shrink-0 bg-primary text-white text-[12.5px] font-semibold px-3.5 py-1.5 rounded-full">전체 <span class="opacity-80 ml-0.5">14</span></button>
+    <button class="shrink-0 bg-white text-on-surface text-[12.5px] font-medium px-3.5 py-1.5 rounded-full ring-1 ring-black/5">안 읽음 <span class="text-primary font-bold ml-0.5">3</span></button>
+    <button class="shrink-0 bg-white text-on-surface text-[12.5px] font-medium px-3.5 py-1.5 rounded-full ring-1 ring-black/5">진행중</button>
+    <button class="shrink-0 bg-white text-on-surface text-[12.5px] font-medium px-3.5 py-1.5 rounded-full ring-1 ring-black/5">예약중</button>
+    <button class="shrink-0 bg-white text-on-surface text-[12.5px] font-medium px-3.5 py-1.5 rounded-full ring-1 ring-black/5">완료</button>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-3 pt-3">
+
+  <div id="chatList" class="flex flex-col gap-1"></div>
+
+  <div id="emptyState" class="hidden flex-col items-center justify-center text-center py-20">
+    <span class="material-symbols-outlined text-outline-variant" style="font-size:48px">forum</span>
+    <p class="text-[14px] font-semibold text-on-surface-variant mt-3">아직 채팅이 없어요</p>
+    <p class="text-[12px] text-on-surface-variant/70 mt-1">관심 있는 게시글에서 채팅을 시작해 보세요.</p>
+    <a href="Home.html" class="mt-4 px-4 py-2.5 rounded-xl bg-primary text-white text-[13px] font-bold">게시판 둘러보기</a>
+  </div>
+
+</main>
+
+<!-- Bottom Nav -->
+<nav class="fixed bottom-0 left-0 w-full bg-white border-t border-black/[.06] z-50 flex justify-around items-center pt-2 pb-5 px-2">
+  <a class="flex flex-col items-center text-on-surface-variant" href="Home.html"><span class="material-symbols-outlined" style="font-size:24px">home</span><span class="text-[10px] mt-0.5">홈</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Map.html"><span class="material-symbols-outlined" style="font-size:24px">map</span><span class="text-[10px] mt-0.5">지도</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="Create_Post.html"><span class="material-symbols-outlined" style="font-size:24px">add_circle</span><span class="text-[10px] mt-0.5">등록</span></a>
+  <a class="flex flex-col items-center text-primary" href="My_Activity.html"><span class="material-symbols-outlined" style="font-size:24px;font-variation-settings:'FILL' 1;">interests</span><span class="text-[10px] font-bold mt-0.5">내 활동</span></a>
+  <a class="flex flex-col items-center text-on-surface-variant" href="My_Page.html"><span class="material-symbols-outlined" style="font-size:24px">person</span><span class="text-[10px] mt-0.5">마이</span></a>
+</nav>
+
+
+<script>
+  const API_BASE = window.location.origin;
+
+  function timeAgo(iso){
+    if (!iso) return '';
+    const d = new Date(iso.endsWith('Z')||iso.includes('+') ? iso : iso + 'Z');
+    const diff = (Date.now() - d.getTime())/1000;
+    if (diff < 60) return '방금';
+    if (diff < 3600) return Math.floor(diff/60)+'분 전';
+    if (diff < 86400) return Math.floor(diff/3600)+'시간 전';
+    return Math.floor(diff/86400)+'일 전';
+  }
+  function esc(t){ const e=document.createElement('div'); e.textContent=t==null?'':t; return e.innerHTML; }
+
+  function rowHtml(c){
+    const name = c.partnerNickname || '이웃';
+    const initial = esc(name.trim().charAt(0) || '?');
+    const unread = c.unread_count || 0;
+    const badge = unread > 0
+      ? '<span class="ml-auto shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-white text-[11px] font-bold flex items-center justify-center">'+unread+'</span>'
+      : '<span class="ml-auto shrink-0 text-[11px] text-on-surface-variant">'+timeAgo(c.last_message_at)+'</span>';
+    return '<a href="'+(c.kind==="group"?"Group_Chat.html":"Chat_Detail.html")+'?id='+c.id+'" class="row flex gap-3 items-center px-2 py-3 rounded-xl">'
+      + '<div class="w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[15px] font-bold shrink-0">'+initial+'</div>'
+      + '<div class="flex-1 min-w-0">'
+      +   '<div class="flex items-center gap-1.5"><p class="text-[14px] font-semibold truncate">'+esc(name)+'</p>'
+      +     '<span class="text-[11px] text-on-surface-variant truncate">· '+esc(c.post_title||'')+'</span></div>'
+      +   '<p class="text-[12.5px] '+(unread>0?'text-on-surface font-medium':'text-on-surface-variant')+' truncate mt-0.5">'+esc(c.last_message||'대화를 시작해 보세요')+'</p>'
+      + '</div>' + badge + '</a>';
+  }
+
+  (async function load(){
+    try{
+      const res = await fetch(API_BASE + '/api/chats');
+      if (window.nfHandleAuthError && nfHandleAuthError(res)) return;
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = document.getElementById('chatList');
+      const empty = document.getElementById('emptyState');
+      if (!data.items || data.items.length === 0){
+        empty.classList.remove('hidden'); empty.classList.add('flex');
+        return;
+      }
+      list.innerHTML = data.items.map(rowHtml).join('');
+    }catch(e){}
+  })();
+</script>
+</body>
+</html>

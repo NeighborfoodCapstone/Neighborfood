@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>관리자 대시보드 - NeighborFood</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="shared/auth.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313',
+    secondary:'#8b5000','secondary-container':'#ff9800','secondary-fixed':'#ffdcbe','on-secondary-fixed-variant':'#693c00','secondary-fixed-dim':'#ffb870',
+    tertiary:'#466270','tertiary-fixed-dim':'#adcbda','on-tertiary-container':'#183642','tertiary-fixed':'#c9e7f7',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',outline:'#6f7a6b','outline-variant':'#becab9',
+    error:'#ba1a1a','error-container':'#ffdad6','on-error-container':'#93000a',
+    'surface-container-low':'#f3f4f5','surface-container':'#edeeef','surface-container-high':'#e7e8e9',
+    ink:'#2c322b'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#f3f4f5; min-height:100dvh; font-family:'Plus Jakarta Sans','Noto Sans KR',system-ui; }
+  .ring-soft { box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+  .sidebar { background:#2c322b; color:#fff; width:240px; }
+  .nav a { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:10px; color:rgba(255,255,255,.78); font-size:13px; font-weight:500; text-decoration:none; }
+  .nav a:hover { background:rgba(255,255,255,.06); color:#fff; }
+  .nav a.on { background:#005313; color:#fff; font-weight:700; }
+  .group-label { font-size:10px; font-weight:700; letter-spacing:.1em; color:rgba(255,255,255,.5); margin:18px 8px 6px; text-transform:uppercase; }
+  /* Sparkline placeholder */
+  .spark { display:flex; align-items:flex-end; gap:3px; height:32px; }
+  .spark span { width:6px; background:#94f990; border-radius:2px; }
+  .bar { display:flex; align-items:flex-end; gap:6px; height:120px; }
+  .bar > div { flex:1; background:#e7e8e9; border-radius:6px 6px 0 0; position:relative; }
+  .bar > div.on { background: linear-gradient(180deg, #78dc77, #006e1c); }
+  .bar > div span { position:absolute; bottom:-18px; left:0; right:0; text-align:center; font-size:10px; color:#3f4a3c; }
+</style>
+</head>
+<body class="text-on-surface antialiased">
+
+<div class="flex min-h-screen">
+
+  <!-- Sidebar -->
+  <aside class="sidebar shrink-0 hidden md:flex md:flex-col px-3 py-5 sticky top-0 h-screen overflow-y-auto">
+    <div class="px-2 mb-4 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-primary-fixed"></span>
+      <p class="font-extrabold text-[15px] tracking-tight">NeighborFood</p>
+      <span class="ml-auto text-[9px] font-bold bg-error text-white px-1.5 py-0.5 rounded">ADMIN</span>
+    </div>
+
+    <nav class="nav flex flex-col gap-0.5">
+      <p class="group-label">개요</p>
+      <a class="on" href="Admin_Dashboard.html"><span class="material-symbols-outlined" style="font-size:18px">dashboard</span> 대시보드</a>
+
+      <p class="group-label">운영</p>
+      <a href="Admin_Report_Detail.html"><span class="material-symbols-outlined" style="font-size:18px">flag</span> 신고 처리 <span id="navReportBadge" class="ml-auto text-[10px] bg-error text-white px-1.5 rounded">0</span></a>
+      <a href="Admin_Chat_History.html"><span class="material-symbols-outlined" style="font-size:18px">chat</span> 채팅 기록</a>
+      <a href="Admin_Notices.html"><span class="material-symbols-outlined" style="font-size:18px">campaign</span> 공지 관리</a>
+
+      <p class="group-label">사용자</p>
+      <a href="Admin_Users.html"><span class="material-symbols-outlined" style="font-size:18px">group</span> 사용자 관리</a>
+      <a href="Admin_Staff_Invite.html"><span class="material-symbols-outlined" style="font-size:18px">person_add</span> 운영진 초대</a>
+
+      <p class="group-label">기타</p>
+      <a href="#"><span class="material-symbols-outlined" style="font-size:18px">settings</span> 설정</a>
+    </nav>
+
+    <div class="mt-auto bg-white/5 rounded-xl p-2.5 flex gap-2.5 items-center mt-6">
+      <div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[11px] font-bold">박</div>
+      <div class="text-[11.5px] min-w-0 flex-1">
+        <p id="adminName" class="font-semibold truncate">관리자</p>
+        <p class="text-white/50 text-[10px]">슈퍼 관리자</p>
+      </div>
+      <span class="material-symbols-outlined text-white/60" style="font-size:18px">logout</span>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 min-w-0">
+    <!-- Topbar -->
+    <header class="bg-white border-b border-black/[.05] sticky top-0 z-10">
+      <div class="px-5 h-14 flex items-center gap-3">
+        <button class="md:hidden w-9 h-9 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">menu</span></button>
+        <div class="flex-1 max-w-md bg-surface-container-low rounded-xl px-3 py-2 flex items-center gap-2 text-[12.5px] text-on-surface-variant">
+          <span class="material-symbols-outlined" style="font-size:16px">search</span>
+          <span>사용자, 게시글, 신고 번호로 검색…</span>
+          <span class="ml-auto text-[10px] bg-white px-1.5 py-0.5 rounded ring-1 ring-black/10">⌘ K</span>
+        </div>
+        <button class="text-[10.5px] font-bold bg-primary-fixed text-on-primary-fixed-variant px-2 py-1 rounded-full">실시간</button>
+        <button class="w-9 h-9 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">notifications</span></button>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="p-5 md:p-6 max-w-[1200px]">
+
+      <div class="flex items-end justify-between flex-wrap gap-3 mb-5">
+        <div>
+          <p class="text-[12px] text-on-surface-variant font-semibold">2026년 5월 14일 · 목요일</p>
+          <h1 class="text-[24px] font-bold mt-0.5">안녕하세요, <span id="adminGreet">관리자</span>님 👋</h1>
+        </div>
+        <div class="flex gap-2">
+          <button class="text-[12px] bg-white px-3 py-2 rounded-lg ring-1 ring-outline-variant font-semibold flex items-center gap-1.5">최근 7일 <span class="material-symbols-outlined" style="font-size:14px">expand_more</span></button>
+          <button class="text-[12px] bg-ink text-white px-3 py-2 rounded-lg font-bold flex items-center gap-1.5"><span class="material-symbols-outlined" style="font-size:14px">download</span> 리포트 받기</button>
+        </div>
+      </div>
+
+      <!-- KPI cards -->
+      <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="bg-white rounded-2xl ring-soft p-4">
+          <p class="text-[11px] font-bold text-on-surface-variant">미처리 신고</p>
+          <div class="flex items-baseline gap-1 mt-1.5">
+            <p id="kpiReports" class="text-[26px] font-bold text-error">0</p>
+            
+          </div>
+          <div class="spark mt-2"><span style="height:30%"></span><span style="height:50%"></span><span style="height:40%"></span><span style="height:60%"></span><span style="height:55%"></span><span style="height:80%"></span><span style="height:90%; background:#ba1a1a"></span></div>
+        </div>
+        <div class="bg-white rounded-2xl ring-soft p-4">
+          <p class="text-[11px] font-bold text-on-surface-variant">오늘 가입</p>
+          <div class="flex items-baseline gap-1 mt-1.5">
+            <p id="kpiToday" class="text-[26px] font-bold">0</p>
+            
+          </div>
+          <div class="spark mt-2"><span style="height:40%"></span><span style="height:55%"></span><span style="height:50%"></span><span style="height:65%"></span><span style="height:70%"></span><span style="height:75%"></span><span style="height:85%"></span></div>
+        </div>
+        <div class="bg-white rounded-2xl ring-soft p-4">
+          <p class="text-[11px] font-bold text-on-surface-variant">진행 중 거래</p>
+          <div class="flex items-baseline gap-1 mt-1.5">
+            <p id="kpiOngoing" class="text-[26px] font-bold">0</p>
+            
+          </div>
+          <div class="spark mt-2"><span style="height:60%"></span><span style="height:55%"></span><span style="height:70%"></span><span style="height:65%"></span><span style="height:80%"></span><span style="height:75%"></span><span style="height:85%"></span></div>
+        </div>
+        <div class="bg-white rounded-2xl ring-soft p-4">
+          <p class="text-[11px] font-bold text-on-surface-variant">전체 회원</p>
+          <div class="flex items-baseline gap-1 mt-1.5">
+            <p id="kpiUsers" class="text-[26px] font-bold text-primary">0</p>
+            
+          </div>
+          <div class="spark mt-2"><span style="height:50%"></span><span style="height:60%"></span><span style="height:55%"></span><span style="height:70%"></span><span style="height:75%"></span><span style="height:80%"></span><span style="height:90%"></span></div>
+        </div>
+      </section>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-3">
+        <!-- Chart -->
+        <section class="lg:col-span-2 bg-white rounded-2xl ring-soft p-4">
+          <div class="flex items-baseline justify-between mb-4">
+            <div>
+              <p class="text-[11px] font-bold text-on-surface-variant tracking-wide">주간 신고 처리</p>
+              <h2 class="text-[15px] font-bold mt-0.5">접수 vs 처리 추이</h2>
+            </div>
+            <div class="flex items-center gap-3 text-[11px] text-on-surface-variant">
+              <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-primary"></span>처리</span>
+              <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-error-container"></span>접수</span>
+            </div>
+          </div>
+          <div class="bar pb-6">
+            <div style="height:50%"><span>월</span></div>
+            <div class="on" style="height:75%"><span>화</span></div>
+            <div style="height:65%"><span>수</span></div>
+            <div class="on" style="height:90%"><span>목</span></div>
+            <div style="height:55%"><span>금</span></div>
+            <div class="on" style="height:80%"><span>토</span></div>
+            <div style="height:70%"><span>일</span></div>
+          </div>
+        </section>
+
+        <!-- Top categories -->
+        <section class="bg-white rounded-2xl ring-soft p-4">
+          <p class="text-[11px] font-bold text-on-surface-variant tracking-wide">신고 사유 분포</p>
+          <ul class="mt-3 space-y-2.5 text-[12.5px]">
+            <li>
+              <div class="flex justify-between mb-1"><span class="font-semibold">위생·식품 위험</span><span class="text-on-surface-variant">38%</span></div>
+              <div class="h-2 bg-surface-container-low rounded-full overflow-hidden"><div class="h-full bg-error rounded-full" style="width:38%"></div></div>
+            </li>
+            <li>
+              <div class="flex justify-between mb-1"><span class="font-semibold">스팸·광고</span><span class="text-on-surface-variant">24%</span></div>
+              <div class="h-2 bg-surface-container-low rounded-full overflow-hidden"><div class="h-full bg-secondary-container rounded-full" style="width:24%"></div></div>
+            </li>
+            <li>
+              <div class="flex justify-between mb-1"><span class="font-semibold">매너 불량</span><span class="text-on-surface-variant">18%</span></div>
+              <div class="h-2 bg-surface-container-low rounded-full overflow-hidden"><div class="h-full bg-tertiary rounded-full" style="width:18%"></div></div>
+            </li>
+            <li>
+              <div class="flex justify-between mb-1"><span class="font-semibold">사기 의심</span><span class="text-on-surface-variant">12%</span></div>
+              <div class="h-2 bg-surface-container-low rounded-full overflow-hidden"><div class="h-full bg-primary rounded-full" style="width:12%"></div></div>
+            </li>
+            <li>
+              <div class="flex justify-between mb-1"><span class="font-semibold">기타</span><span class="text-on-surface-variant">8%</span></div>
+              <div class="h-2 bg-surface-container-low rounded-full overflow-hidden"><div class="h-full bg-outline rounded-full" style="width:8%"></div></div>
+            </li>
+          </ul>
+        </section>
+      </div>
+
+      <!-- Pending reports table -->
+      <section class="bg-white rounded-2xl ring-soft p-4 mt-3 overflow-hidden">
+        <div class="flex items-baseline justify-between mb-3">
+          <div>
+            <p class="text-[11px] font-bold text-on-surface-variant tracking-wide">긴급 처리 대기</p>
+            <h2 class="text-[15px] font-bold mt-0.5">최근 신고 내역</h2>
+          </div>
+          <a href="Admin_Report_Detail.html" class="text-[12px] font-bold text-primary">전체 →</a>
+        </div>
+        <div class="overflow-x-auto -mx-4 px-4">
+          <table class="w-full text-[12.5px] min-w-[680px]">
+            <thead class="text-[10.5px] text-on-surface-variant text-left">
+              <tr class="border-b border-black/[.06]">
+                <th class="py-2 font-bold tracking-wider">#</th>
+                <th class="py-2 font-bold tracking-wider">사유</th>
+                <th class="py-2 font-bold tracking-wider">대상</th>
+                <th class="py-2 font-bold tracking-wider">신고자</th>
+                <th class="py-2 font-bold tracking-wider">접수</th>
+                <th class="py-2 font-bold tracking-wider">상태</th>
+              </tr>
+            </thead>
+            <tbody id="reportTbody">
+              <tr class="border-b border-black/[.04] hover:bg-surface-container-low/40">
+                <td class="py-2.5 font-mono text-on-surface-variant">R-2841</td>
+                <td><span class="text-[10px] font-bold bg-error-container text-on-error-container px-1.5 py-0.5 rounded">위생</span> <span class="ml-1">유통기한 임박 우유</span></td>
+                <td>이○○</td>
+                <td>김지연</td>
+                <td class="text-on-surface-variant">14:22</td>
+                <td><span class="text-[10px] font-bold bg-secondary-fixed text-on-secondary-fixed-variant px-2 py-0.5 rounded-full">검토 중</span></td>
+              </tr>
+              <tr class="border-b border-black/[.04] hover:bg-surface-container-low/40">
+                <td class="py-2.5 font-mono text-on-surface-variant">R-2840</td>
+                <td><span class="text-[10px] font-bold bg-error-container text-on-error-container px-1.5 py-0.5 rounded">스팸</span> <span class="ml-1">홍보 글 도배</span></td>
+                <td>광고○○</td>
+                <td>외 3명</td>
+                <td class="text-on-surface-variant">13:55</td>
+                <td><span class="text-[10px] font-bold bg-error text-white px-2 py-0.5 rounded-full">긴급</span></td>
+              </tr>
+              <tr class="border-b border-black/[.04] hover:bg-surface-container-low/40">
+                <td class="py-2.5 font-mono text-on-surface-variant">R-2839</td>
+                <td><span class="text-[10px] font-bold bg-error-container text-on-error-container px-1.5 py-0.5 rounded">매너</span> <span class="ml-1">노쇼 의심</span></td>
+                <td>이○○</td>
+                <td>박지민</td>
+                <td class="text-on-surface-variant">11:10</td>
+                <td><span class="text-[10px] font-bold bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full">처리 완료</span></td>
+              </tr>
+              <tr class="hover:bg-surface-container-low/40">
+                <td class="py-2.5 font-mono text-on-surface-variant">R-2838</td>
+                <td><span class="text-[10px] font-bold bg-error-container text-on-error-container px-1.5 py-0.5 rounded">사기</span> <span class="ml-1">선결제 요구</span></td>
+                <td>김○○</td>
+                <td>외 2명</td>
+                <td class="text-on-surface-variant">09:40</td>
+                <td><span class="text-[10px] font-bold bg-secondary-fixed text-on-secondary-fixed-variant px-2 py-0.5 rounded-full">검토 중</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Bottom row -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3 pb-8">
+        <section class="bg-gradient-to-br from-primary to-[#004510] text-white rounded-2xl p-5 relative overflow-hidden">
+          <span class="material-symbols-outlined absolute right-3 bottom-3 opacity-10" style="font-size:110px;font-variation-settings:'FILL' 1;">eco</span>
+          <p class="text-[11px] font-bold text-primary-fixed-dim tracking-wide">커뮤니티 건강도</p>
+          <p class="text-[36px] font-bold leading-none mt-2">98<span class="text-[16px] ml-0.5">/100</span></p>
+          <p class="text-[12.5px] text-white/85 mt-2 leading-relaxed">신고 처리율 97%, 평균 응답시간 2시간 18분. <b>안정적</b>으로 운영 중이에요.</p>
+        </section>
+
+        <section class="bg-white rounded-2xl ring-soft p-4">
+          <p class="text-[11px] font-bold text-on-surface-variant tracking-wide">최근 운영 활동</p>
+          <ul class="mt-3 space-y-3 text-[12.5px]">
+            <li class="flex gap-2.5">
+              <span class="w-7 h-7 rounded-full bg-primary-fixed flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary-fixed-variant" style="font-size:14px">check</span></span>
+              <div><b>박운영</b>이 신고 R-2837를 처리했습니다 <span class="text-on-surface-variant ml-1">10분 전</span></div>
+            </li>
+            <li class="flex gap-2.5">
+              <span class="w-7 h-7 rounded-full bg-tertiary-fixed-dim flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-tertiary-container" style="font-size:14px">campaign</span></span>
+              <div>새 공지 "5월 모임 안내"가 게시됨 <span class="text-on-surface-variant ml-1">1시간 전</span></div>
+            </li>
+            <li class="flex gap-2.5">
+              <span class="w-7 h-7 rounded-full bg-secondary-fixed flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-secondary-fixed-variant" style="font-size:14px">person_add</span></span>
+              <div>이지수님이 운영진으로 초대됨 <span class="text-on-surface-variant ml-1">3시간 전</span></div>
+            </li>
+            <li class="flex gap-2.5">
+              <span class="w-7 h-7 rounded-full bg-error-container flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-error-container" style="font-size:14px">block</span></span>
+              <div>이○○ 계정이 7일 정지됨 <span class="text-on-surface-variant ml-1">어제</span></div>
+            </li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+
+
+<script>
+(function(){
+  const API_BASE = window.location.origin;
+  const fmt = n => (n==null ? '-' : Number(n).toLocaleString());
+  const setText = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  function esc(t){ const e=document.createElement('div'); e.textContent=t==null?'':t; return e.innerHTML; }
+  function hhmm(iso){ if(!iso) return ''; const d=new Date((iso.endsWith('Z')||iso.includes('+'))?iso:iso+'Z'); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+  const stKo = {pending:'검토 중', resolved:'처리 완료', dismissed:'반려'};
+  const stCls = {pending:'bg-secondary-fixed text-on-secondary-fixed-variant', resolved:'bg-primary-fixed text-on-primary-fixed-variant', dismissed:'bg-black/10 text-on-surface-variant'};
+
+  (async function(){
+    let me=null;
+    try{ me = await fetch(API_BASE+'/api/users/me').then(r=>r.ok?r.json():null); }catch(e){}
+    if(!me){ location.replace('Login.html?next='+encodeURIComponent('Admin_Dashboard.html')); return; }
+    if(me.role!=='admin'){ alert('관리자만 접근할 수 있어요.'); location.replace('Home.html'); return; }
+    setText('adminName', me.nickname||'관리자');
+    setText('adminGreet', me.nickname||'관리자');
+
+    try{
+      const d = await fetch(API_BASE+'/api/admin/dashboard').then(r=>r.ok?r.json():null);
+      if(d){
+        setText('kpiReports', fmt(d.reportsPending));
+        setText('navReportBadge', d.reportsPending);
+        setText('kpiToday', fmt(d.todaySignups));
+        setText('kpiOngoing', fmt(d.ongoingTransactions));
+        setText('kpiUsers', fmt(d.users));
+      }
+    }catch(e){}
+
+    try{
+      const r = await fetch(API_BASE+'/api/admin/reports').then(x=>x.ok?x.json():null);
+      const tb = document.getElementById('reportTbody');
+      if(r && tb){
+        if(!r.items.length){
+          tb.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-on-surface-variant">접수된 신고가 없습니다.</td></tr>';
+        } else {
+          tb.innerHTML = r.items.slice(0,6).map(function(it){
+            return '<tr class="border-b border-black/[.04] hover:bg-surface-container-low/40">'
+              + '<td class="py-2.5 font-mono text-on-surface-variant">R-'+it.id+'</td>'
+              + '<td><span class="text-[10px] font-bold bg-error-container text-on-error-container px-1.5 py-0.5 rounded">'+(it.target_type==='post'?'게시글':'회원')+'</span> <span class="ml-1">'+esc((it.reason||'').slice(0,24))+'</span></td>'
+              + '<td>'+esc(it.target_label||'-')+'</td>'
+              + '<td>'+esc(it.reporter_nickname||'-')+'</td>'
+              + '<td class="text-on-surface-variant">'+hhmm(it.created_at)+'</td>'
+              + '<td><span class="text-[10px] font-bold '+(stCls[it.status]||'bg-black/10')+' px-2 py-0.5 rounded-full">'+(stKo[it.status]||it.status)+'</span></td>'
+              + '</tr>';
+          }).join('');
+        }
+      }
+    }catch(e){}
+  })();
+})();
+</script>
+</body>
+</html>

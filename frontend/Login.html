@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<title>로그인 - NeighborFood</title>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script src="shared/auth.js"></script>
+<script src="shared/guard.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
+    'on-primary-fixed-variant':'#005313','on-primary-fixed':'#002204',
+    secondary:'#8b5000','secondary-fixed':'#ffdcbe',
+    'surface-container-low':'#f3f4f5','surface-container':'#edeeef',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',
+    outline:'#6f7a6b','outline-variant':'#becab9',
+    error:'#ba1a1a','error-container':'#ffdad6','on-error-container':'#93000a',
+    warm:'#faf9f5'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:100dvh; }
+  .field { width:100%; background:#fff; border:1px solid #becab9; border-radius:14px;
+           padding:13px 14px; font-size:14.5px; }
+  .field:focus { outline:2px solid #006e1c; outline-offset:-1px; border-color:transparent; }
+</style>
+</head>
+<body class="text-on-surface antialiased max-w-md mx-auto px-6 pt-6 pb-10 flex flex-col min-h-dvh">
+ 
+  <a href="Home.html" class="w-9 h-9 -ml-2 rounded-full hover:bg-black/5 flex items-center justify-center">
+    <span class="material-symbols-outlined">arrow_back</span></a>
+ 
+  <div class="mt-8">
+    <div class="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center">
+      <span class="material-symbols-outlined text-white" style="font-size:30px;font-variation-settings:'FILL' 1;">eco</span>
+    </div>
+    <h1 class="mt-5 text-[24px] font-extrabold tracking-tight">다시 만나서 반가워요</h1>
+    <p class="mt-1.5 text-[14px] text-on-surface-variant">아이디와 비밀번호로 로그인하세요.</p>
+  </div>
+ 
+  <div class="mt-8 space-y-3">
+    <input id="loginId" class="field" type="text" placeholder="아이디" autocomplete="username" autocapitalize="none"/>
+    <input id="password" class="field" type="password" placeholder="비밀번호" autocomplete="current-password"/>
+  </div>
+ 
+  <p id="err" class="hidden mt-3 text-[13px] font-semibold text-error bg-error-container/60 rounded-xl px-3.5 py-2.5"></p>
+ 
+  <button id="btn" onclick="doLogin()" class="mt-5 w-full bg-primary text-white text-[15px] font-bold py-3.5 rounded-2xl active:scale-[.99] transition disabled:opacity-50">로그인</button>
+ 
+  <div class="mt-4 flex items-center justify-center gap-3 text-[13px] text-on-surface-variant">
+    <a href="Password_Reset.html" class="font-semibold hover:text-primary">비밀번호 재설정</a>
+    <span class="text-outline-variant">|</span>
+    <a id="signupLink" href="Signup.html" class="font-bold text-primary">회원가입</a>
+  </div>
+ 
+  <div class="mt-auto pt-8 text-center">
+    <a href="Home.html" class="text-[13px] text-on-surface-variant underline underline-offset-2">로그인 없이 둘러보기</a>
+    <p class="mt-1.5 text-[11.5px] text-outline">비회원은 게시판과 지도만 볼 수 있어요.</p>
+  </div>
+ 
+<script>
+ 
+  var API = location.origin.startsWith('http') ? location.origin : window.location.origin;
+  function saveToken(t){ if (typeof window.nfSetToken==='function') window.nfSetToken(t);
+                         else { try{ localStorage.setItem('nf_token', t); }catch(e){} } }
+  function showErr(msg){ var el=document.getElementById('err'); el.textContent=msg; el.classList.remove('hidden'); }
+  function hideErr(){ document.getElementById('err').classList.add('hidden'); }
+  function nextPage(){ var p=new URLSearchParams(location.search).get('next');
+                       return (p && !p.startsWith('http')) ? p : 'Home.html'; }
+ 
+  // 로그인 후 복귀 목적지를 회원가입 링크에도 전달
+  (function(){ var n = new URLSearchParams(location.search).get('next');
+    if (n) document.getElementById('signupLink').href = 'Signup.html?next=' + encodeURIComponent(n); })();
+ 
+  async function doLogin() {
+    hideErr();
+    var id = document.getElementById('loginId').value.trim();
+    var pw = document.getElementById('password').value;
+    if (!id || !pw) return showErr('아이디와 비밀번호를 입력해 주세요.');
+ 
+    var btn = document.getElementById('btn'); btn.disabled = true;
+    try {
+      var res  = await fetch(API + '/api/auth/login', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ login_id:id, password:pw })
+      });
+      var data = await res.json();
+      if (!res.ok) return showErr(data.detail || '로그인에 실패했습니다.');
+      saveToken(data.token);
+      // 관리자 계정이면 next 값과 무관하게 항상 관리자 대시보드로
+      try {
+        var me = await fetch(API + '/api/users/me').then(function (x) { return x.ok ? x.json() : null; });
+        if (me && me.role === 'admin') {
+          location.replace('Admin_Dashboard.html');
+          return;
+        }
+      } catch (e) {}
+      location.replace(nextPage());
+    } catch (e) { showErr('서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.'); }
+    finally { btn.disabled = false; }
+  }
+  document.getElementById('password').addEventListener('keydown', function(e){ if (e.key==='Enter') doLogin(); });
+</script>
+</body>
+</html>

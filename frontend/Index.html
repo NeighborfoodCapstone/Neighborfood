@@ -1,0 +1,393 @@
+<!-- 마지막 수정 : 2026.06.11 -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NeighborFood — 페이지 둘러보기</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script src="shared/auth.js"></script>
+<style>
+  :root {
+    --bg:#faf9f5; --ink:#191c1d; --muted:#3f4a3c; --line:rgba(0,0,0,.08);
+    --primary:#006e1c; --primary-soft:#e3efd8;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: 'Plus Jakarta Sans','Noto Sans KR',system-ui,sans-serif;
+    min-height: 100dvh;
+  }
+  header.top { padding: 28px 24px 8px; max-width: 1440px; margin: 0 auto; }
+  header.top .eyebrow { color: var(--primary); font-weight: 700; letter-spacing: .12em; font-size: 11px; text-transform: uppercase; }
+  header.top h1 { font-size: 28px; margin: 6px 0 4px; letter-spacing: -.02em; }
+  header.top p { color: var(--muted); font-size: 14px; margin: 0; }
+
+  /* ── 로그인 상태 위젯 ── */
+  .auth-bar {
+    max-width: 1440px; margin: 14px auto 0; padding: 0 24px;
+  }
+  .auth-card {
+    background: #fff; border: 1px solid var(--line); border-radius: 14px;
+    padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .auth-dot {
+    width: 9px; height: 9px; border-radius: 50%; background: #becab9; flex-shrink: 0;
+  }
+  .auth-dot.on { background: var(--primary); box-shadow: 0 0 0 3px rgba(0,110,28,.18); }
+  .auth-info { font-size: 13px; flex: 1; min-width: 0; }
+  .auth-info b { font-weight: 700; }
+  .auth-info span { color: var(--muted); margin-left: 6px; font-size: 12px; }
+  .auth-actions { display: flex; gap: 8px; }
+  .auth-btn {
+    font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+    padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line);
+    background: #fff; color: var(--ink); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .auth-btn.login  { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .auth-btn.logout { color: #ba1a1a; border-color: rgba(186,26,26,.2); }
+
+  .toolbar {
+    position: sticky; top: 0; z-index: 20; background: rgba(250,249,245,.92);
+    backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+    margin-top: 16px;
+  }
+  .toolbar-inner {
+    max-width: 1440px; margin: 0 auto; padding: 10px 24px;
+    display:flex; gap: 10px; align-items:center; flex-wrap:wrap;
+  }
+  .nav-btn {
+    border: 1px solid var(--line); background:#fff; padding: 7px 12px;
+    border-radius: 9999px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    display:inline-flex; gap: 6px; align-items:center; color: var(--ink); text-decoration:none;
+  }
+  .nav-btn[disabled] { opacity:.4; cursor:not-allowed; }
+  .nav-btn.primary { background: var(--primary); color: #fff; border-color: var(--primary);}
+  .toolbar .pos { font-size: 12px; color: var(--muted); margin-left:auto; }
+  .toolbar .pos b { color: var(--ink); }
+
+  .stage {
+    max-width: 1440px; margin: 18px auto 40px; padding: 0 24px;
+    display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start;
+  }
+  @media (max-width: 980px) { .stage { grid-template-columns: 1fr; } }
+
+  aside.list-pane {
+    background:#fff; border:1px solid var(--line); border-radius: 16px;
+    position: sticky; top: 64px; max-height: calc(100dvh - 80px); overflow-y: auto;
+  }
+  .group-title { font-size: 10px; font-weight: 800; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; padding: 14px 16px 6px; }
+  .group-title:first-child { padding-top: 10px; }
+  ol.page-list { list-style: none; padding: 4px 6px; margin: 0; }
+  ol.page-list li button {
+    width:100%; text-align:left; background: transparent; border: 0; cursor: pointer;
+    padding: 9px 10px; border-radius: 10px; display:flex; gap: 10px; align-items:center;
+    font: inherit; color: var(--ink);
+  }
+  ol.page-list li button:hover { background: #f3f1ea; }
+  ol.page-list li button .num {
+    width: 22px; height: 22px; border-radius: 50%; background: #ececeb; color: var(--muted);
+    display:inline-flex; align-items:center; justify-content:center; font-size: 11px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  ol.page-list li button .meta { display:flex; flex-direction:column; line-height: 1.3; min-width:0; }
+  ol.page-list li button .meta .name { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+  ol.page-list li button .meta small { color: var(--muted); font-size: 10.5px; }
+  ol.page-list li.active button { background: var(--primary-soft); }
+  ol.page-list li.active button .num { background: var(--primary); color: #fff; }
+  ol.page-list li.admin button .num { background: #2c322b; color:#fff; }
+  ol.page-list li.admin.active button { background: #2c322b; color:#fff; }
+  ol.page-list li.admin.active button .meta small { color: rgba(255,255,255,.65); }
+  ol.page-list li.admin.active button .num { background:#94f990; color:#005313; }
+
+  /* 접근 레벨 뱃지 */
+  .lvl {
+    font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 5px;
+    letter-spacing: .04em; text-transform: uppercase; vertical-align: middle;
+  }
+  .lvl.pub  { background: #e8f4fd; color: #1565c0; }
+  .lvl.mem  { background: var(--primary-soft); color: var(--primary); }
+  .lvl.adm  { background: #2c322b; color: #94f990; }
+
+  .frame-wrap {
+    background: #ececeb; border-radius: 22px; padding: 18px;
+    border: 1px solid var(--line);
+  }
+  .frame-wrap.desktop { background:#dadcd6; }
+  .frame-meta {
+    display:flex; align-items:center; justify-content:space-between; gap: 12px;
+    padding: 0 4px 12px; flex-wrap: wrap;
+  }
+  .frame-meta h2 { margin: 0; font-size: 16px; letter-spacing: -.01em; display:flex; align-items:center; gap:8px; }
+  .frame-meta h2 .badge { font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 6px; letter-spacing:.06em; text-transform: uppercase; }
+  .badge.user  { background: var(--primary-soft); color: var(--primary); }
+  .badge.admin { background: #2c322b; color:#fff; }
+  .badge.auth  { background: #e8f4fd; color: #1565c0; }
+  .frame-meta a.open { font-size: 12px; color: var(--primary); font-weight: 700; text-decoration: none; display: inline-flex; gap: 4px; align-items: center; }
+
+  .device {
+    background: #fff; border-radius: 28px; overflow: hidden;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,.18), 0 6px 16px rgba(0,0,0,.05);
+    margin: 0 auto; width: min(420px, 100%); height: 820px;
+    border: 8px solid #1f1f1f;
+  }
+  .desktop-frame {
+    background: #fff; border-radius: 14px; overflow: hidden;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,.22), 0 8px 18px rgba(0,0,0,.06);
+    margin: 0 auto; width: 100%; height: min(840px, 80dvh);
+    border: 1px solid rgba(0,0,0,.08);
+  }
+  .desktop-frame .chrome {
+    background: #f3f4f5; border-bottom: 1px solid rgba(0,0,0,.06);
+    height: 30px; display: flex; align-items: center; padding: 0 12px; gap: 6px;
+  }
+  .desktop-frame .chrome .dot { width: 10px; height: 10px; border-radius: 50%; background:#e7e8e9; }
+  .desktop-frame .chrome .dot:nth-child(1) { background:#ff6259; }
+  .desktop-frame .chrome .dot:nth-child(2) { background:#febd2f; }
+  .desktop-frame .chrome .dot:nth-child(3) { background:#27c93f; }
+  .desktop-frame .chrome .url { margin: 0 auto; background: #fff; border: 1px solid rgba(0,0,0,.06); padding: 2px 12px; border-radius: 6px; font-size: 11px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .desktop-frame iframe { width:100%; height: calc(100% - 30px); border:0; display:block; }
+  .device iframe { width: 100%; height: 100%; border: 0; display:block; background:#fff; }
+
+  kbd {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: #fff; border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 6px; padding: 1px 6px; font-size: 11px; color: var(--muted);
+  }
+</style>
+<link href="shared/tokens.css" rel="stylesheet"/>
+</head>
+<body>
+
+<header class="top">
+  <p class="eyebrow">NeighborFood · 개발 검증용 페이지 브라우저</p>
+  <h1>전체 화면 한 번에 보기</h1>
+  <p>사용자 화면은 모바일 프레임, 관리자 화면은 데스크탑 프레임으로 렌더됩니다. 키보드 <kbd>←</kbd> <kbd>→</kbd>로도 넘길 수 있어요.</p>
+</header>
+
+<!-- 로그인 상태 위젯 -->
+<div class="auth-bar">
+  <div class="auth-card">
+    <span class="auth-dot" id="authDot"></span>
+    <div class="auth-info">
+      <span id="authText"><b>비회원</b><span>로그인하면 회원 전용 화면을 바로 확인할 수 있어요.</span></span>
+    </div>
+    <div class="auth-actions" id="authActions"></div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="toolbar-inner">
+    <button class="nav-btn" id="prev"><span class="material-symbols-outlined" style="font-size:16px">arrow_back</span> 이전</button>
+    <button class="nav-btn primary" id="next">다음 <span class="material-symbols-outlined" style="font-size:16px">arrow_forward</span></button>
+    <a class="nav-btn" id="open-tab" target="_blank" href="#"><span class="material-symbols-outlined" style="font-size:16px">open_in_new</span> 새 탭에서 열기</a>
+    <span class="pos"><b id="cur">1</b> / <span id="total">0</span> · <span id="curname">홈</span></span>
+  </div>
+</div>
+
+<div class="stage">
+  <aside class="list-pane">
+    <div id="list-container"></div>
+  </aside>
+  <div>
+    <div class="frame-wrap" id="frame-wrap">
+      <div class="frame-meta">
+        <h2 id="title">홈 <span class="badge user" id="kind-badge">USER</span></h2>
+        <a class="open" id="open-link" target="_blank" href="#">파일 열기 →</a>
+      </div>
+      <div id="frame-slot"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // access: 'pub'=비회원 가능 / 'mem'=회원 전용 / 'adm'=관리자
+  const PAGES = [
+    // ====== 인증 흐름 (신규) ======
+    { kind:'mobile', section:'인증', access:'pub', name:'스플래시',        file:'Splash.html',               desc:'앱 진입 · 온보딩 분기' },
+    { kind:'mobile', section:'인증', access:'pub', name:'온보딩',           file:'Onboarding.html',           desc:'첫 방문 3슬라이드' },
+    { kind:'mobile', section:'인증', access:'pub', name:'로그인',           file:'Login.html',                desc:'ID · 비밀번호' },
+    { kind:'mobile', section:'인증', access:'pub', name:'회원가입',         file:'Signup.html',               desc:'ID · PW · 전화번호' },
+    { kind:'mobile', section:'인증', access:'pub', name:'비밀번호 재설정',  file:'Password_Reset.html',       desc:'OTP 재설정 전용' },
+
+    // ====== 사용자 · 공개 ======
+    { kind:'mobile', section:'사용자', access:'pub', name:'홈',             file:'Home.html',                 desc:'메인 피드' },
+    { kind:'mobile', section:'사용자', access:'pub', name:'지도 탐색',      file:'Map.html',                  desc:'주변 둘러보기' },
+    { kind:'mobile', section:'사용자', access:'pub', name:'검색 결과',      file:'Search_Results.html',       desc:'게시판형 검색' },
+    { kind:'mobile', section:'사용자', access:'pub', name:'게시물 상세',    file:'Product_Detail.html',       desc:'게시글 상세' },
+    { kind:'mobile', section:'사용자', access:'pub', name:'거래 장소',      file:'Location_Detail.html',      desc:'지도 + 길찾기' },
+    { kind:'mobile', section:'사용자', access:'pub', name:'공동구매 상세',  file:'Group_Buy_Detail.html',     desc:'공구 참여 현황' },
+
+    // ====== 사용자 · 회원 전용 ======
+    { kind:'mobile', section:'사용자', access:'mem', name:'게시물 작성',    file:'Create_Post.html',          desc:'글 작성 폼' },
+    { kind:'mobile', section:'사용자', access:'mem', name:'예약',           file:'Reservation.html',          desc:'거래 예약 확인' },
+    { kind:'mobile', section:'사용자', access:'mem', name:'관심 목록',      file:'Wishlist.html',             desc:'찜한 글 목록' },
+    { kind:'mobile', section:'사용자', access:'mem', name:'채팅 목록',      file:'Chat_List.html',            desc:'진행 중 대화' },
+    { kind:'mobile', section:'사용자', access:'mem', name:'채팅 상세',      file:'Chat_Detail.html',          desc:'1:1 메시지' },
+    { kind:'mobile', section:'사용자', access:'mem', name:'내 활동',        file:'My_Activity.html',          desc:'채팅 + 내 글 + 거래' },
+    { kind:'mobile', section:'사용자', access:'mem', name:'마이',           file:'My_Page.html',              desc:'프로필 + 메뉴' },
+    { kind:'mobile', section:'사용자', access:'mem', name:'프로필 수정',    file:'Edit_Profile.html',         desc:'닉네임 · 관심사' },
+    { kind:'mobile', section:'사용자', access:'mem', name:'동네 설정',      file:'Neighborhood_Setting.html', desc:'위치 인증' },
+    { kind:'mobile', section:'사용자', access:'mem', name:'거래 내역',      file:'Transaction_History.html',  desc:'완료 · 진행 중' },
+
+    // ====== 유틸 · 회원 전용 ======
+    { kind:'mobile', section:'유틸', access:'mem', name:'영수증 인증',    file:'Receipt_Verify.html',         desc:'OCR + 정품 매칭' },
+{ kind:'mobile', section:'유틸', access:'mem', name:'QR · 바코드 스캔', file:'QR_Scan.html',              desc:'수령 확인 · 정품' },
+    { kind:'mobile', section:'유틸', access:'mem', name:'정산 요청',      file:'Settlement.html',             desc:'공구 호스트 정산' },
+    { kind:'mobile', section:'유틸', access:'mem', name:'신고하기',       file:'Report.html',                 desc:'사유 · 증빙 첨부' },
+    { kind:'mobile', section:'유틸', access:'mem', name:'회원 탈퇴',      file:'Withdraw.html',               desc:'영구 삭제 동의' },
+
+    // ====== 관리자 (목업) ======
+    { kind:'desktop', section:'관리자', access:'adm', admin:true, name:'관리자 대시보드',   file:'Admin_Dashboard.html',     desc:'KPI · 신고 · 차트' },
+    { kind:'desktop', section:'관리자', access:'adm', admin:true, name:'신고 상세 처리',    file:'Admin_Report_Detail.html', desc:'케이스 검토 · 조치' },
+    { kind:'desktop', section:'관리자', access:'adm', admin:true, name:'채팅 기록 모니터', file:'Admin_Chat_History.html',  desc:'3-패널 분석' },
+    { kind:'desktop', section:'관리자', access:'adm', admin:true, name:'사용자 관리',       file:'Admin_Users.html',         desc:'검색 · 정지 · 경고' },
+    { kind:'desktop', section:'관리자', access:'adm', admin:true, name:'공지 관리',         file:'Admin_Notices.html',       desc:'작성 · 예약 · 발송' },
+    { kind:'desktop', section:'관리자', access:'adm', admin:true, name:'운영진 초대',       file:'Admin_Staff_Invite.html',  desc:'역할 · 권한 부여' },
+  ];
+
+  // ── 접근 레벨 레이블 ─────────────────────────────────────────────────
+  const LVL = { pub:'공개', mem:'회원', adm:'관리자' };
+  const LVL_BADGE_TEXT = { pub:'PUBLIC', mem:'USER', adm:'ADMIN' };
+  const LVL_BADGE_CLS  = { pub:'auth',   mem:'user', adm:'admin' };
+
+  // ── 로그인 상태 위젯 ─────────────────────────────────────────────────
+  function renderAuthBar() {
+    const dot     = document.getElementById('authDot');
+    const text    = document.getElementById('authText');
+    const actions = document.getElementById('authActions');
+    const token   = typeof nfGetToken === 'function' ? nfGetToken() : null;
+
+    if (token) {
+      dot.classList.add('on');
+      // 프로필 조회로 닉네임 표시 (실패 시 '회원'으로 대체)
+      fetch(location.origin + '/api/users/me')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          const name = (d && (d.nickname || d.loginId)) || '회원';
+          text.innerHTML = `<b>${name}</b><span>으로 로그인 중 · 회원 전용 화면 바로 접근 가능</span>`;
+        }).catch(() => {
+          text.innerHTML = `<b>회원</b><span>로그인 중</span>`;
+        });
+      actions.innerHTML = `
+        <button class="auth-btn logout" onclick="nfLogout('Index.html')">로그아웃</button>`;
+    } else {
+      dot.classList.remove('on');
+      text.innerHTML = `<b>비회원</b><span>로그인하면 회원 전용 화면을 바로 확인할 수 있어요.</span>`;
+      actions.innerHTML = `
+        <a class="auth-btn login" href="Login.html?next=Index.html">로그인</a>
+        <a class="auth-btn" href="Signup.html?next=Index.html">회원가입</a>`;
+    }
+  }
+  renderAuthBar();
+
+  // ── 목록 렌더링 ──────────────────────────────────────────────────────
+  const listContainer = document.getElementById('list-container');
+  const frameSlot     = document.getElementById('frame-slot');
+  const frameWrap     = document.getElementById('frame-wrap');
+  const titleEl       = document.getElementById('title');
+  const badgeEl       = document.getElementById('kind-badge');
+  const curEl         = document.getElementById('cur');
+  const curName       = document.getElementById('curname');
+  const totalEl       = document.getElementById('total');
+  const openLink      = document.getElementById('open-link');
+  const openTab       = document.getElementById('open-tab');
+  const prevBtn       = document.getElementById('prev');
+  const nextBtn       = document.getElementById('next');
+
+  totalEl.textContent = PAGES.length;
+  let idx = Number(new URLSearchParams(location.search).get('i')) || 0;
+  if (idx < 0 || idx >= PAGES.length) idx = 0;
+
+  const groups = {};
+  PAGES.forEach((p, i) => {
+    if (!groups[p.section]) groups[p.section] = [];
+    groups[p.section].push({ ...p, i });
+  });
+  Object.entries(groups).forEach(([section, items]) => {
+    const h = document.createElement('div');
+    h.className = 'group-title';
+    h.textContent = section;
+    listContainer.appendChild(h);
+    const ol = document.createElement('ol');
+    ol.className = 'page-list';
+    items.forEach(p => {
+      const li = document.createElement('li');
+      if (p.admin) li.classList.add('admin');
+      li.dataset.i = p.i;
+      li.innerHTML = `
+        <button data-i="${p.i}">
+          <span class="num">${p.i + 1}</span>
+          <span class="meta">
+            <span class="name">
+              ${p.name}
+              <span class="lvl ${p.access}">${LVL[p.access]}</span>
+            </span>
+            <small>${p.desc}</small>
+          </span>
+        </button>`;
+      ol.appendChild(li);
+    });
+    listContainer.appendChild(ol);
+  });
+
+  function renderFrame(p) {
+    frameSlot.innerHTML = '';
+    if (p.kind === 'desktop') {
+      frameWrap.classList.add('desktop');
+      const wrap = document.createElement('div');
+      wrap.className = 'desktop-frame';
+      wrap.innerHTML = `
+        <div class="chrome">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="url">neighborfood.local / ${p.file}</span>
+        </div>
+        <iframe src="${encodeURI(p.file)}" title="preview"></iframe>`;
+      frameSlot.appendChild(wrap);
+    } else {
+      frameWrap.classList.remove('desktop');
+      const wrap = document.createElement('div');
+      wrap.className = 'device';
+      wrap.innerHTML = `<iframe src="${encodeURI(p.file)}" title="preview"></iframe>`;
+      frameSlot.appendChild(wrap);
+    }
+  }
+
+  function go(i) {
+    idx = (i + PAGES.length) % PAGES.length;
+    const p = PAGES[idx];
+    renderFrame(p);
+    titleEl.firstChild.textContent = p.name + ' ';
+    badgeEl.textContent  = LVL_BADGE_TEXT[p.access];
+    badgeEl.className    = 'badge ' + LVL_BADGE_CLS[p.access];
+    curEl.textContent    = idx + 1;
+    curName.textContent  = p.name;
+    openLink.href        = encodeURI(p.file);
+    openTab.href         = encodeURI(p.file);
+    document.querySelectorAll('ol.page-list li').forEach(li => {
+      li.classList.toggle('active', Number(li.dataset.i) === idx);
+    });
+    prevBtn.disabled = idx === 0;
+    nextBtn.disabled = idx === PAGES.length - 1;
+    history.replaceState(null, '', '?i=' + idx);
+  }
+
+  document.addEventListener('click', e => {
+    const b = e.target.closest('button[data-i]');
+    if (b) go(Number(b.dataset.i));
+  });
+  prevBtn.addEventListener('click', () => go(idx - 1));
+  nextBtn.addEventListener('click', () => go(idx + 1));
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowLeft')  go(idx - 1);
+    if (e.key === 'ArrowRight') go(idx + 1);
+  });
+
+  go(idx);
+</script>
+</body>
+</html>

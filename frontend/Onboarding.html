@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<title>시작하기 - NeighborFood</title>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="shared/tokens.css" rel="stylesheet"/>
+<script src="shared/auth.js"></script>
+<script src="shared/guard.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77',
+    'on-primary-fixed-variant':'#005313','on-primary-fixed':'#002204',
+    secondary:'#8b5000','secondary-fixed':'#ffdcbe',
+    'surface-container-low':'#f3f4f5','surface-container':'#edeeef',
+    'on-surface':'#191c1d','on-surface-variant':'#3f4a3c',
+    outline:'#6f7a6b','outline-variant':'#becab9',
+    error:'#ba1a1a','error-container':'#ffdad6','on-error-container':'#93000a',
+    warm:'#faf9f5'
+  }, fontFamily:{ sans:['"Plus Jakarta Sans"','"Noto Sans KR"','system-ui'] } }}}
+</script>
+<style>
+  body { background:#faf9f5; min-height:100dvh; }
+  .slide { display:none; }
+  .slide.on { display:flex; animation: fade .35s ease both; }
+  @keyframes fade { from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none} }
+  @media (prefers-reduced-motion: reduce){ .slide.on{ animation:none } }
+  .dot { width:8px; height:8px; border-radius:99px; background:#becab9; transition:all .25s; }
+  .dot.on { width:22px; background:#006e1c; }
+  .hero-art { background:
+    radial-gradient(420px 260px at 50% 0%, rgba(148,249,144,.5), transparent 70%),
+    radial-gradient(360px 220px at 90% 90%, rgba(255,184,112,.3), transparent 65%); }
+</style>
+</head>
+<body class="text-on-surface antialiased flex flex-col max-w-md mx-auto px-6 pt-4 pb-8">
+
+  <div class="flex justify-end">
+    <button onclick="finish()" class="text-[13px] font-semibold text-on-surface-variant px-2 py-1.5">건너뛰기</button>
+  </div>
+
+  <!-- Slides -->
+  <div id="s0" class="slide on flex-1 flex-col items-center justify-center text-center">
+    <div class="hero-art w-44 h-44 rounded-[40px] flex items-center justify-center">
+      <span class="material-symbols-outlined text-primary" style="font-size:88px;font-variation-settings:'FILL' 1;">volunteer_activism</span>
+    </div>
+    <h2 class="mt-8 text-[22px] font-extrabold leading-snug">남는 식재료,<br/>이웃과 나누세요</h2>
+    <p class="mt-3 text-[14px] text-on-surface-variant leading-relaxed">나눔 · 공동구매 · 교환 게시판에서<br/>우리 동네 이웃을 만나요.</p>
+  </div>
+
+  <div id="s1" class="slide flex-1 flex-col items-center justify-center text-center">
+    <div class="hero-art w-44 h-44 rounded-[40px] flex items-center justify-center">
+      <span class="material-symbols-outlined text-secondary" style="font-size:88px;font-variation-settings:'FILL' 1;">shopping_basket</span>
+    </div>
+    <h2 class="mt-8 text-[22px] font-extrabold leading-snug">대용량은 부담될 때,<br/>같이 사요</h2>
+    <p class="mt-3 text-[14px] text-on-surface-variant leading-relaxed">목표 인원이 모이면 1인분만큼만.<br/>1인 가구에 딱 맞는 공동구매.</p>
+  </div>
+
+  <div id="s2" class="slide flex-1 flex-col items-center justify-center text-center">
+    <div class="hero-art w-44 h-44 rounded-[40px] flex items-center justify-center">
+      <span class="material-symbols-outlined text-primary" style="font-size:88px;font-variation-settings:'FILL' 1;">qr_code_scanner</span>
+    </div>
+    <h2 class="mt-8 text-[22px] font-extrabold leading-snug">QR과 영수증으로<br/>믿을 수 있는 거래</h2>
+    <p class="mt-3 text-[14px] text-on-surface-variant leading-relaxed">수령 확인 QR, 영수증 인증, 신뢰 온도로<br/>안심하고 거래하세요.</p>
+  </div>
+
+  <!-- Dots + CTA -->
+  <div class="flex justify-center gap-1.5 mb-5"><span class="dot on" id="d0"></span><span class="dot" id="d1"></span><span class="dot" id="d2"></span></div>
+  <button id="nextBtn" onclick="next()" class="w-full bg-primary text-white text-[15px] font-bold py-3.5 rounded-2xl active:scale-[.99] transition">다음</button>
+
+<script>
+  var idx = 0, LAST = 2;
+  function render() {
+    for (var i = 0; i <= LAST; i++) {
+      document.getElementById('s' + i).classList.toggle('on', i === idx);
+      document.getElementById('d' + i).classList.toggle('on', i === idx);
+    }
+    document.getElementById('nextBtn').textContent = (idx === LAST) ? '시작하기' : '다음';
+  }
+  function next() { if (idx < LAST) { idx++; render(); } else finish(); }
+  function finish() {
+    try { localStorage.setItem('nf_onboarded', '1'); } catch (e) {}
+    location.replace('Home.html');
+  }
+  render();
+</script>
+</body>
+</html>
