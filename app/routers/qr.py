@@ -3,6 +3,7 @@ from datetime         import timedelta
 from fastapi          import APIRouter, Request
 from app.core.utils   import now_utc, to_iso, from_iso, hash_token, parse_token
 from app.db           import qr_db
+from app.db.location_verify_db import mark_qr_verified_by_qr_session
 from app.models.qr    import QrIssueRequest, QrVerifyRequest
 
 router = APIRouter()
@@ -127,6 +128,14 @@ def verify_qr(body: QrVerifyRequest, request: Request):
         updated = conn.execute(
             "SELECT * FROM qr_sessions WHERE id=?", (row["id"],)
         ).fetchone()
+
+    # GPS 위치 인증 연동: 이 QR과 연결된 위치 인증 세션이 있으면 QR_VERIFIED로 갱신합니다.
+    # (2026-07-09 점검: 함수는 이미 있었으나 실제로 호출되는 곳이 없어 GPS 인증과
+    #  QR 인증이 서로 연결되지 않던 문제를 수정)
+    try:
+        mark_qr_verified_by_qr_session(row["id"])
+    except Exception:
+        pass  # 위치 인증 연동 실패가 QR 인증 자체를 막지는 않음
 
     return {
         "ok":      True,

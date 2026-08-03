@@ -11,8 +11,22 @@
 <script>nfRequireMember();</script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-<!-- 카카오 지도 SDK + services 라이브러리 (주소 검색 / 좌표→주소 변환용) -->
-<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=cdb0bdb09959d56a5d81d5f8947d9fc2&libraries=services"></script>
+<!-- 카카오 지도 SDK: 키 하드코딩 금지 — /api/config/kakao-key 에서 동적으로 받아 로드 (services 라이브러리, 주소 검색/좌표→주소 변환용) -->
+<script>
+  function loadKakaoSdk() {
+    return fetch('/api/config/kakao-key')
+      .then(res => res.json())
+      .then(({ key }) => new Promise((resolve, reject) => {
+        if (!key) { reject(new Error('KAKAO_JS_KEY 미설정')); return; }
+        const s = document.createElement('script');
+        s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&libraries=services&autoload=false`;
+        s.onload = () => { kakao.maps.load(resolve); };
+        s.onerror = () => reject(new Error('카카오맵 SDK 로드 실패'));
+        document.head.appendChild(s);
+      }))
+      .catch(err => { console.error(err); return Promise.reject(err); });
+  }
+</script>
 <script>
   tailwind.config = { theme: { extend: { colors: {
     primary:'#006e1c','primary-fixed':'#94f990','primary-fixed-dim':'#78dc77','on-primary-fixed-variant':'#005313',
@@ -172,12 +186,10 @@
   let geocoder = null;
   let selectedRegion = { name: '', lat: null, lng: null };   // 인증에 사용할 현재 동네
 
-  /* SDK 로드 가드 */
-  if (typeof kakao === 'undefined' || !kakao.maps) {
+  /* SDK 동적 로드 완료 후 초기화 */
+  loadKakaoSdk().then(boot).catch(() => {
     document.getElementById('map-error').classList.add('show');
-  } else {
-    kakao.maps.load(boot);  // services 라이브러리 포함 시 안전한 로드 콜백
-  }
+  });
 
   function boot() {
     const center = new kakao.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);

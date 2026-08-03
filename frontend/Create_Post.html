@@ -12,8 +12,22 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <link href="shared/tokens.css" rel="stylesheet"/>
-<!-- 카카오 지도 SDK + services 라이브러리 (좌표→주소 변환용) -->
-<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=cdb0bdb09959d56a5d81d5f8947d9fc2&libraries=services"></script>
+<!-- 카카오 지도 SDK: 키 하드코딩 금지 — /api/config/kakao-key 에서 동적으로 받아 로드 (services 라이브러리, 좌표→주소 변환용) -->
+<script>
+  function loadKakaoSdk() {
+    return fetch('/api/config/kakao-key')
+      .then(res => res.json())
+      .then(({ key }) => new Promise((resolve, reject) => {
+        if (!key) { reject(new Error('KAKAO_JS_KEY 미설정')); return; }
+        const s = document.createElement('script');
+        s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&libraries=services&autoload=false`;
+        s.onload = () => { kakao.maps.load(resolve); };
+        s.onerror = () => reject(new Error('카카오맵 SDK 로드 실패'));
+        document.head.appendChild(s);
+      }))
+      .catch(err => { console.error(err); return Promise.reject(err); });
+  }
+</script>
 <script>
   tailwind.config = { theme: { extend: {
     colors: {
@@ -249,7 +263,7 @@
   // ── Kakao 지도 초기화 (인터랙티브) ──
   let locationMap = null;
   let geocoder = null;
-  (function initLocationMap() {
+  function initLocationMap() {
     if (typeof kakao === 'undefined' || !kakao.maps) {
       console.warn('Kakao SDK 미로드 — 지도 기능 비활성화');
       return;
@@ -273,7 +287,10 @@
 
     // 초기 주소도 한 번 갱신
     reverseGeocode(selectedLat, selectedLng);
-  })();
+  }
+  loadKakaoSdk().then(initLocationMap).catch(() => {
+    console.warn('Kakao SDK 로드 실패 — 지도 기능 비활성화');
+  });
 
   // 좌표 → 주소 변환
   function reverseGeocode(lat, lng) {

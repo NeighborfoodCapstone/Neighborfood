@@ -3,13 +3,15 @@
 동네 식재료 나눔·공동구매·교환 플랫폼의 데이터베이스 구조 및 프로젝트 디렉토리 문서입니다.
 3개로 분리돼 있던 SQLite(`auth.db` / `qr_auth.db` / `receipt_auth.db`)를 **단일 SQLite 파일(`data/neighborfood.db`)** 로 통합하고, 회원 기능 도입에 맞춰 `users`·`sessions`·`transactions`·`groupbuy_participants`를 추가한 현행 구조를 정리합니다.
 
-> 최종 갱신: 2026-07-08
+> 최종 갱신: 2026-08-03
+> · GPS 위치 인증 보안 강화 — 전 API Bearer 인증·소유자 검증, `list_sessions(subject_id)` 필터, QR 인증 성공 시 `QR_VERIFIED` 연동 실호출 (2026-08-03)
+> · GPS 위치 인증(`location_verify_sessions`) 문서화 반영 + `neighborfood_schema.sql` 6개 테이블 동기화 (2026-07-09)
 > · 내 냉장고(`fridge_items`) · 그룹 채팅(`conversations.kind`·`conversation_members`) · 관리자 기능(`notices`·`reports`) 추가 (2026-06-13)
 > · `users` 프로필 확장(`email`·`bio`·`interests`·`dietary`) · `transactions.appointment_at` 추가 (2026-06-11)
 > · ID/비밀번호 인증 전환 + `wishlists`·`conversations`·`messages` (2026-06-10)
 
 - **DBMS**: SQLite 3 (단일 파일 `data/neighborfood.db`)
-- **테이블 수**: 15개 (`users`, `sessions`, `auth_codes`, `posts`, `transactions`, `groupbuy_participants`, `wishlists`, `conversations`, `conversation_members`, `messages`, `fridge_items`, `notices`, `reports`, `qr_sessions`, `receipts`)
+- **테이블 수**: 16개 (`users`, `sessions`, `auth_codes`, `posts`, `transactions`, `groupbuy_participants`, `qr_sessions`, `receipts`, `fridge_items`, `location_verify_sessions`, `wishlists`, `conversations`, `messages`, `conversation_members`, `notices`, `reports`)
 - **접속 계층**: `app/db/*.py` — 모든 연결이 `make_conn(DB_PATH, foreign_keys=True)`로 동일 파일을 공유
 - **스키마 원본**: `sql/neighborfood_schema.sql`
 
@@ -34,12 +36,14 @@ NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 │   │   ├── fridge_db.py              fridge_items (내 냉장고)
 │   │   ├── admin_db.py               notices · reports
 │   │   ├── qr_db.py                  qr_sessions
-│   │   └── receipt_db.py             receipts (+ OCR 유틸)
+│   │   ├── receipt_db.py             receipts (+ OCR 유틸)
+│   │   └── location_verify_db.py     location_verify_sessions (GPS 위치 인증)
 │   ├── models/                       Pydantic 모델
 │   │   ├── auth.py  user.py  post.py  qr.py  receipt.py  member.py  fridge.py
 │   └── routers/                      API 라우터
 │       ├── auth.py  users.py  posts.py  qr.py  receipt.py  wishlist.py  chat.py
 │       ├── transactions.py  fridge.py  admin.py  reports.py
+│       └── location_verify.py        GPS 위치 인증 (`/api/location-verify/*`)
 │
 ├── frontend/                       ▶ HTML 페이지 + JS 파일
 │   ├── (사용자 화면)
@@ -49,7 +53,7 @@ NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 │   │   Wishlist · My_Page · My_Activity · Edit_Profile · Withdraw ·
 │   │   Fridge · Group_Chat · Chat_List · Chat_Detail ·
 │   │   Verify · Transaction_History · Settlement · Report ·
-│   │   QR_Create · QR_Scan · Receipt_Verify ·
+│   │   QR_Create · QR_Scan · Receipt_Verify · Local_Verify_Demo ·
 │   │   Splash · Onboarding · Login · Signup · Password_Reset · Help  (.html)
 │   ├── (관리자 화면)
 │   │   Admin_Dashboard · Admin_Users · Admin_Notices ·
@@ -238,6 +242,23 @@ erDiagram
         TEXT ocr_engine
         TEXT image_path
         TEXT scanned_at
+        TEXT verified_at
+        TEXT created_at
+        TEXT updated_at
+    }
+    location_verify_sessions {
+        TEXT id PK
+        TEXT subject_id "대상 식별자(논리적)"
+        REAL target_lat "인증 목표 위도"
+        REAL target_lng "인증 목표 경도"
+        TEXT target_address
+        REAL radius_m "허용 반경(m), 기본 300"
+        TEXT status "TARGET_CREATED 등"
+        REAL current_lat
+        REAL current_lng
+        REAL current_accuracy
+        REAL distance_m "타겟과의 계산 거리(m)"
+        TEXT qr_session_id "qr_sessions.id (논리적)"
         TEXT verified_at
         TEXT created_at
         TEXT updated_at
@@ -548,6 +569,28 @@ erDiagram
 
 ---
 
+## 9-5. `location_verify_sessions` — GPS 위치 인증 세션
+
+거래 수령 장소 등 특정 좌표에 실제로 도착했는지 GPS로 인증하는 세션. Haversine 공식으로 현재 좌표와 목표 좌표 간 거리를 계산해 허용 반경(기본 300m) 이내인지 판정하며, 인증 성공 후 발급된 QR 세션(`qr_sessions.id`)을 논리적으로 연결한다. `app/db/base.py`의 `init_all_databases()`에는 포함되지 않고, `app/routers/location_verify.py`의 각 엔드포인트가 호출 시점에 `init_location_verify_db()`로 지연 초기화한다. 프런트는 `Local_Verify_Demo.html`(진입점: `Reservation.html`).
+
+**접근 제어 (2026-08-03 보안 강화)**: `subject_id`는 서버가 로그인 사용자 id(`users.id` 문자열)로 강제 기록하며, 세션 조회·조작은 소유자 본인 또는 관리자만 가능. 이력 조회(`list_sessions`)는 `subject_id` 필터로 본인 세션만 반환(관리자는 전체). QR 인증 성공 시 `qr.py`가 `mark_qr_verified_by_qr_session()`을 호출해 연결된 세션을 `QR_VERIFIED`로 전이시킨다(상태 흐름: `TARGET_CREATED` → `LOCATION_VERIFIED`/`TOO_FAR`/`LOW_ACCURACY` → `QR_ISSUED` → `QR_VERIFIED`).
+
+| 컬럼 | 타입 | 키 | 설명 |
+|------|------|----|------|
+| `id` | `TEXT` | PK | 세션 식별자(uuid) |
+| `subject_id` | `TEXT` | (논리적) | 인증 수행 식별자 |
+| `target_lat` / `target_lng` | `REAL` | NOT NULL | 인증 목표 좌표 |
+| `target_address` | `TEXT` | | 목표 주소(표시용) |
+| `radius_m` | `REAL` | 기본 300 | 허용 반경(미터) |
+| `status` | `TEXT` | 기본 `TARGET_CREATED` | 세션 진행 상태 |
+| `current_lat` / `current_lng` / `current_accuracy` | `REAL` | | 제출된 현재 좌표·정확도 |
+| `distance_m` | `REAL` | | 목표-현재 계산 거리(m) |
+| `qr_session_id` | `TEXT` | (논리적) | 인증 후 연결된 `qr_sessions.id` |
+| `verified_at` | `TEXT` | | 인증 완료 시각(ISO) |
+| `created_at` / `updated_at` | `TEXT` | 기본 `CURRENT_TIMESTAMP` | 생성·수정 일시 |
+
+---
+
 ## 10. 설계 결정 메모
 
 ### 10.1 타임스탬프를 `TEXT`(ISO-8601)로 두는 이유
@@ -585,12 +628,14 @@ erDiagram
 | `app/db/fridge_db.py` | `fridge_items` (내 냉장고) |
 | `app/db/admin_db.py` | `notices`·`reports` |
 | `app/db/qr_db.py` / `receipt_db.py` | `qr_sessions` / `receipts` |
+| `app/db/location_verify_db.py` | `location_verify_sessions` (GPS 위치 인증, 지연 초기화) |
 | `app/core/deps.py` | 세션 토큰 인증/인가 (`get_current_user`, `get_current_admin`) |
 | `app/routers/users.py` | 회원 프로필/탈퇴 API |
 | `app/routers/chat.py` | 1:1·그룹 채팅 API (`/api/chats`, `/api/chats/group/*`) |
 | `app/routers/fridge.py` | 내 냉장고 API (`/api/fridge`) |
 | `app/routers/admin.py` | 관리자 API (`/api/admin/*`) |
 | `app/routers/reports.py` | 신고 제출 API (`/api/reports`) |
+| `app/routers/location_verify.py` | GPS 위치 인증 API (`/api/location-verify/*`) |
 | `seed_admin.py` | 관리자 계정 부트스트랩(1회성 시드) |
 | `seed_posts.py` | 더미 게시글 시드(개발용) |
 | `frontend/shared/auth.js` | 토큰 저장 + fetch 자동 인증 주입 |

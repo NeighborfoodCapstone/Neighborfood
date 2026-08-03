@@ -221,10 +221,19 @@ def mark_qr_verified_by_qr_session(qr_session_id: str) -> int:
         return int(cur.rowcount or 0)
 
 
-def list_sessions(limit: int = 20) -> list[Dict[str, Any]]:
+def list_sessions(limit: int = 20, subject_id: str | None = None) -> list[Dict[str, Any]]:
+    """세션 이력을 조회합니다. subject_id가 주어지면 해당 사용자 소유 세션만 반환합니다.
+    (2026-07-09 점검: 기존에는 필터가 없어 인증 세션 이력이 전체 공개됐던 문제를 수정)"""
     limit = max(1, min(int(limit or 20), 100))
     with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM location_verify_sessions ORDER BY created_at DESC LIMIT ?", (limit,)
-        ).fetchall()
+        if subject_id:
+            rows = conn.execute(
+                "SELECT * FROM location_verify_sessions WHERE subject_id = ? "
+                "ORDER BY created_at DESC LIMIT ?",
+                (subject_id, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM location_verify_sessions ORDER BY created_at DESC LIMIT ?", (limit,)
+            ).fetchall()
         return [_row_to_dict(r) or {} for r in rows]

@@ -9,9 +9,25 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
-<!-- 기존 Location_Detail.html 계열과 동일하게 카카오 지도 SDK + services 사용 -->
-<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=cdb0bdb09959d56a5d81d5f8947d9fc2&libraries=services"></script>
+<!-- 기존 Location_Detail.html 계열과 동일하게 카카오 지도 SDK + services 사용. 키 하드코딩 금지 — /api/config/kakao-key 에서 동적으로 받아 로드 -->
+<script>
+  function loadKakaoSdk() {
+    return fetch('/api/config/kakao-key')
+      .then(res => res.json())
+      .then(({ key }) => new Promise((resolve, reject) => {
+        if (!key) { reject(new Error('KAKAO_JS_KEY 미설정')); return; }
+        const s = document.createElement('script');
+        s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&libraries=services&autoload=false`;
+        s.onload = () => { kakao.maps.load(resolve); };
+        s.onerror = () => reject(new Error('카카오맵 SDK 로드 실패'));
+        document.head.appendChild(s);
+      }))
+      .catch(err => { console.error(err); return Promise.reject(err); });
+  }
+</script>
 <script src="shared/auth.js"></script>
+<script src="shared/guard.js"></script>
+<script>nfRequireMember();</script>
 <script>
  tailwind.config = { theme: { extend: {
   colors: {
@@ -115,7 +131,7 @@ function $(id){ return document.getElementById(id); }
 function setSheetHeight(vh){ $("bottomSheet").style.setProperty("--sheet-height", `${Math.min(88, Math.max(18, Number(vh)))}dvh`); }
 function setButtonEnabled(id, enabled){ $(id).classList.toggle("btn-disabled", !enabled); }
 function escapeHtml(str){ return String(str ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-async function apiJson(url, options={}){ const res = await fetch(url,{...options, headers:{"Content-Type":"application/json", ...(options.headers||{})}}); const data = await res.json().catch(()=>({})); if(!res.ok) throw new Error(data.detail || data.message || `HTTP ${res.status}`); return data; }
+async function apiJson(url, options={}){ const res = await fetch(url,{...options, headers:{"Content-Type":"application/json", ...(options.headers||{})}}); if(window.nfHandleAuthError && nfHandleAuthError(res)) throw new Error("로그인이 필요합니다."); const data = await res.json().catch(()=>({})); if(!res.ok) throw new Error(data.detail || data.message || `HTTP ${res.status}`); return data; }
 function fmtM(v){ if(v == null || Number.isNaN(Number(v))) return "- m"; const n=Number(v); return n<1000 ? `${Math.round(n)}m` : `${(n/1000).toFixed(1)}km`; }
 function updateMessage(kind, title, body){ $("statusKicker").textContent = kind; $("placeTitle").textContent = title; $("messageText").textContent = body; }
 
@@ -244,7 +260,7 @@ function initSheetDrag(){
  handle.addEventListener("pointermove",e=>{ if(!dragging) return; setSheetHeight(startH + ((startY-e.clientY)/window.innerHeight*100)); });
  handle.addEventListener("pointerup",finish); handle.addEventListener("pointercancel",finish); handle.addEventListener("dblclick",()=>setSheetHeight(sheet.getBoundingClientRect().height/window.innerHeight*100 < 45 ? 72 : 28));
 }
-bootMap();
+loadKakaoSdk().then(bootMap).catch(() => { const el = $("map-error"); if (el) el.classList.add("show"); });
 </script>
 </body>
 </html>

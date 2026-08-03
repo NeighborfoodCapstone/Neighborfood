@@ -11,8 +11,24 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <link href="shared/tokens.css" rel="stylesheet"/>
-<!-- 카카오 지도 SDK (Map.html과 동일 키) -->
-<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=cdb0bdb09959d56a5d81d5f8947d9fc2"></script>
+<!-- 카카오 지도 SDK: 키 하드코딩 금지 — /api/config/kakao-key 에서 동적으로 받아 로드 -->
+<script>
+  function loadKakaoSdk() {
+    return fetch('/api/config/kakao-key')
+      .then(res => res.json())
+      .then(({ key }) => new Promise((resolve, reject) => {
+        if (!key) { reject(new Error('KAKAO_JS_KEY 미설정')); return; }
+        const s = document.createElement('script');
+        s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&autoload=false`;
+        s.onload = () => { kakao.maps.load(resolve); };
+        s.onerror = () => reject(new Error('카카오맵 SDK 로드 실패'));
+        document.head.appendChild(s);
+      }))
+      .catch(err => { console.error(err); return Promise.reject(err); });
+  }
+  // 페이지 진입과 동시에 로드를 시작해 post 데이터 fetch와 병렬로 진행합니다.
+  const kakaoReady = loadKakaoSdk();
+</script>
 <script>
   tailwind.config = { theme: { extend: {
     colors: {
@@ -310,7 +326,8 @@
       // 좌표가 있으면 그 위치, 없으면 구의1동 기본 좌표
       const lat = post.lat ?? 37.5452;
       const lng = post.lng ?? 127.0865;
-      initLocationMap(lat, lng, post.title);
+      kakaoReady.then(() => initLocationMap(lat, lng, post.title))
+        .catch(() => console.warn('Kakao SDK 로드 실패 — 지도 비활성화'));
 
       // Location_Detail.html로 좌표/주소/타이틀 전달
       const params = new URLSearchParams({
