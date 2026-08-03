@@ -1,8 +1,55 @@
 # NeighborFood FastAPI — 아키텍처 현황 및 확장 가이드
 
-> 최종 수정: 2026-07-08
-> 상태: **내 냉장고 · 그룹(공동구매) 채팅 · 관리자 기능 · 신고 구현 완료 + 배포 대응(상대경로 API_BASE)**
+> 최종 수정: 2026-08-03
+> 상태: **내 냉장고 · 그룹 채팅 · 관리자 · 신고 · GPS 위치 인증(보안 강화 및 실흐름 연결 완료) + Kakao 키 하드코딩 전면 제거 + 수령 장소 지정 구현 완료**
 > 서버: 단일 FastAPI / DB: 단일 SQLite 파일(`data/neighborfood.db`)
+
+---
+
+## 0-A5. 최근 완료 작업 (2026-08-03) — P0/P1 우선순위 수정
+
+우선순위 점검(P0: 보안·낭비 제거, P1: 핵심 기능 완성)에 따라 다음을 구현·수정했습니다.
+
+### P0-2. Kakao 지도 JS 키 하드코딩 전면 제거 ✅
+잔여 6개 화면(`Create_Post`·`Group_Buy_Detail`·`Local_Verify_Demo`·`Location_Detail`·`Neighborhood_Setting`·`Product_Detail`)을 모두 `Map.html`과 동일한 `/api/config/kakao-key` 동적 로드 패턴으로 전환. 이제 프런트 소스 어디에도 실키가 존재하지 않으며, `.env`의 `KAKAO_JS_KEY`가 유일한 키 보관처. 파일별 초기화 구조 차이에 맞춰 개별 처리:
+- `Create_Post`: IIFE → named function 전환 후 `loadKakaoSdk().then(init)`
+- `Group_Buy_Detail`·`Product_Detail`: 페이지 진입 시 `const kakaoReady = loadKakaoSdk()`로 선로딩 → 게시글 fetch 완료 후 `kakaoReady.then(...)` 합류 (SDK·데이터 병렬 로드)
+- `Location_Detail`·`Neighborhood_Setting`·`Local_Verify_Demo`: 기존 가드 분기 → `loadKakaoSdk().then(boot)` 교체
+
+### P0-1. GPS 위치 인증 — 보안 강화 + 실사용 흐름 연결 ✅
+기존에는 프로토타입 수준으로 인증이 전혀 없고 어느 화면과도 연결되지 않았던 것을 실사용 가능한 수준으로 정비:
+| # | 문제(기존) | 수정 |
+|---|---|---|
+| 1 | 전 엔드포인트 무인증 (누구나 호출 가능) | `Depends(get_current_user)` 추가 (health 제외 5개) |
+| 2 | `subject_id`를 클라이언트가 임의 지정 / 미지정 시 `demo_pickup_*` 자동 생성 → 세션-사용자 미연결 | 서버가 클라이언트 입력을 무시하고 로그인 사용자 id로 강제 고정 |
+| 3 | 타인 세션 조회·조작 가능 | `_assert_owner()` 신설 — 소유자 본인/관리자만 통과, 아니면 403 |
+| 4 | `/history/list` 전체 공개 (모든 사용자의 GPS 좌표 이력 열람 가능) | `list_sessions(limit, subject_id)` 필터 추가 — 일반 사용자는 본인 세션만, 관리자만 전체 |
+| 5 | `mark_qr_verified_by_qr_session()`이 정의만 되고 호출된 적 없음 (GPS↔QR 미연동) | `qr.py`의 QR 인증 성공 지점에서 실제 호출 — 연결된 위치 세션이 `QR_VERIFIED`로 전이. 연동 실패가 QR 인증 자체를 막지 않도록 try/except 방어 |
+| 6 | `Local_Verify_Demo.html`에 로그인 가드 없음 | `guard.js` + `nfRequireMember()` 추가, `apiJson`에 401/403 → 로그인 이동 처리 |
+| 7 | 어느 화면에서도 연결되지 않는 오펀 페이지 | `Reservation.html` 장소 섹션에 "만남 장소에서 GPS 위치 인증하기" 진입 링크 추가 |
+
+### P1-3. 수령 장소 지정 ✅
+`Location_Detail.html`·`Group_Buy_Detail.html`은 이미 실좌표 연동이 구현돼 있었고, `Reservation.html`만 하드코딩("한들마을 3단지 정문 앞")이 남아 있었음. `/posts/{id}` 응답의 `address`/`lat`/`lng`를 장소 카드·"지도 →" 링크(`Location_Detail.html?id&lat&lng&address&title`)·신청 요약에 반영. 주소 미등록 게시글은 "채팅으로 협의" 폴백.
+
+> ⚠️ 참고: 현재 프로젝트 동기화 폴더에는 백엔드 파일만 포함되어 프런트 HTML은 로컬에서 관리 중. 백엔드 3개 파일(`location_verify.py`·`location_verify_db.py`·`qr.py`) 반영 확인 완료.
+
+---
+
+## 0-A4. 최근 완료 작업 (2026-07-09) — 커밋 전 점검 수정 + GPS 위치 인증 문서화
+
+`Capstone_temporary → main` 병합(2026-07-08) 이후 커밋 전 최종 점검 과정에서 발견된 이슈들을 수정하고, 코드에는 이미 구현돼 있었지만 이 문서에 누락돼 있던 기능을 반영했습니다.
+
+| # | 작업 | 내용 |
+|---|------|------|
+| 1 | **공동구매 참여 레이스 컨디션 수정** | `posts.py`의 `join_groupbuy`: "읽고 계산해서 쓰기" 대신 `UPDATE posts SET gb_current = gb_current + 1 WHERE ... AND gb_current < gb_target` 원자적 UPDATE로 전환. `rowcount == 0`이면 409 응답. 중복 참여는 `(post_id, user_id)` 복합 PK의 `IntegrityError`를 잡아 409 응답 |
+| 2 | **카카오맵 키 하드코딩 제거 (부분)** | `main.py`에 `GET /api/config/kakao-key` 신설(`.env`의 `KAKAO_JS_KEY` 반환) → `Map.html`이 SDK `<script>` 하드코딩 대신 이 엔드포인트로 키를 받아 `autoload=false`로 동적 로드. ⚠️ **잔여**: `Create_Post`·`Group_Buy_Detail`·`Local_Verify_Demo`·`Location_Detail`·`Neighborhood_Setting`·`Product_Detail` 6개 화면에는 동일 키가 여전히 하드코딩돼 있어 후속 조치 필요 |
+| 3 | **`neighborfood_schema.sql` 동기화** | 실제 코드(`member_db.py`·`admin_db.py`)에는 있었지만 스키마 파일에 누락돼 있던 `wishlists`·`conversations`·`conversation_members`·`messages`·`notices`·`reports` 6개 테이블 DDL 추가. 스키마 파일과 코드가 완전히 일치하게 됨 |
+| 4 | **`tokens.css` 전체 적용** | 미적용이던 `Login`·`Signup`·`Map`·`Onboarding` 등 15개 HTML에 `<link rel="stylesheet" href="shared/tokens.css">` 추가 → 전체 39개 화면 적용 완료(기존 잔여 항목 해소) |
+| 5 | **`requirements.txt` 버전 갱신** | `fastapi 0.111.0 → 0.115.14`, `uvicorn[standard] 0.29.0 → 0.34.3` — 서버 종료(Ctrl+C) 시 발생하던 `CancelledError → KeyboardInterrupt` 트레이스백 노이즈 해소(기능 영향 없음) |
+| 6 | **`.env.example` 정리** | 실제 카카오 키 값 제거, 중복 주석 정리, 로컬(`127.0.0.1:8000`)/배포 도메인 등록 안내 추가 |
+| 7 | **GPS 위치 인증 문서화 반영** | `location_verify.py`/`location_verify_db.py`(`/api/location-verify/*`, `location_verify_sessions` 테이블) + `Local_Verify_Demo.html`이 실제로는 이미 구현돼 있었으나 이 문서(디렉토리 구조·테이블 구성·API 목록)에 반영되지 않았던 것을 확인해 아래 섹션에 추가 |
+
+> ℹ️ Git 정리(`capstone_temporary` 브랜치 삭제·diff 확인), 실제 서버 구동/수동 플로우 테스트, `.env` 실제 값 검증은 사용자가 로컬 환경에서 직접 진행.
 
 ---
 
@@ -84,13 +131,15 @@ NEIGHBORFOOD/                            ← 프로젝트 루트 (Git 저장소)
 │   │   ├── fridge_db.py                   fridge_items (내 냉장고)
 │   │   ├── admin_db.py                    notices · reports
 │   │   ├── qr_db.py                       qr_sessions
-│   │   └── receipt_db.py                  receipts (+ OCR 유틸)
+│   │   ├── receipt_db.py                  receipts (+ OCR 유틸)
+│   │   └── location_verify_db.py          location_verify_sessions (GPS 위치 인증)
 │   ├── models/                            Pydantic 모델
 │   │   ├── auth.py  user.py  post.py  qr.py  receipt.py  member.py  fridge.py
 │   └── routers/                           API 라우터
 │       ├── auth.py  users.py  posts.py  qr.py  receipt.py
 │       ├── wishlist.py  chat.py  transactions.py
 │       ├── fridge.py  admin.py  reports.py
+│       └── location_verify.py             GPS 위치 인증 (`/api/location-verify/*`)
 │
 ├── frontend/                            ▶ HTML 페이지 + JS 파일
 │   ├── (사용자 화면)
@@ -100,7 +149,7 @@ NEIGHBORFOOD/                            ← 프로젝트 루트 (Git 저장소)
 │   │   Wishlist · My_Page · My_Activity · Edit_Profile · Withdraw ·
 │   │   Fridge · Group_Chat · Chat_List · Chat_Detail ·
 │   │   Verify · Transaction_History · Settlement · Report ·
-│   │   QR_Create · QR_Scan · Receipt_Verify ·
+│   │   QR_Create · QR_Scan · Receipt_Verify · Local_Verify_Demo ·
 │   │   Splash · Onboarding · Login · Signup · Password_Reset · Help  (.html)
 │   ├── (관리자 화면)
 │   │   Admin_Dashboard · Admin_Users · Admin_Notices ·
@@ -164,9 +213,12 @@ def init_all_databases() -> None:
     init_member_db()        # ⑤ wishlists · conversations(+kind) · messages · conversation_members
     init_fridge_db()        # ⑥ fridge_items
     init_admin_db()         # ⑦ notices · reports
+    # location_verify_sessions는 init_all_databases()에 포함되지 않고,
+    # app/routers/location_verify.py의 각 엔드포인트가 호출 시점에
+    # init_location_verify_db()로 지연 초기화(lazy init)합니다.
 ```
 
-### 테이블 구성 (15개)
+### 테이블 구성 (16개)
 
 | 테이블 | 역할 | 키/FK |
 |---|---|---|
@@ -185,6 +237,7 @@ def init_all_databases() -> None:
 | `reports` | 신고 | PK `id`, FK `reporter_id → users.id`, `target_type`/`target_id`(논리적) |
 | `qr_sessions` | QR 인증 세션 | PK `id`, `subject_id`(논리적) |
 | `receipts` | 영수증 OCR | PK `id`, `subject_id`(논리적) |
+| `location_verify_sessions` | GPS 위치 인증 세션 | PK `id`(TEXT), `subject_id`(논리적), `qr_session_id`(논리적) |
 
 ---
 
@@ -298,6 +351,22 @@ def init_all_databases() -> None:
 ### 영수증 — `/api/receipt/*`
 `scan`, `verify`, `issue`, `confirm`, `token/{token}`, `{id}`, `history`.
 
+### GPS 위치 인증 (Location Verify) — `/api/location-verify/*`
+health를 제외한 전 엔드포인트가 **Bearer 세션 인증 필수**이며, 세션 소유자 본인 또는 관리자만 접근 가능(`_assert_owner`). `subject_id`는 서버가 로그인 사용자 id로 강제 고정.
+
+| Method | Path | 인증 | 설명 |
+|---|---|---|---|
+| GET | `/api/location-verify/health` | - | 상태 확인(호출 시 `location_verify_sessions` 지연 초기화) |
+| POST | `/api/location-verify/dummy-target` | 🔒 | 타겟 좌표로 인증 세션 생성 (`subject_id`=로그인 사용자 id 고정) |
+| POST | `/api/location-verify/{session_id}/gps-check` | 🔒 소유자 | 현재 GPS 좌표 제출 → Haversine 거리 계산 후 반경(기본 300m) 이내 여부 판정 |
+| POST | `/api/location-verify/{session_id}/qr-issued` | 🔒 소유자 | 위치 인증 성공 후 발급된 QR 세션 id를 연결 (상태 `QR_ISSUED`) |
+| GET | `/api/location-verify/{session_id}` | 🔒 소유자 | 세션 단건 조회 |
+| GET | `/api/location-verify/history/list?limit=` | 🔒 | 일반 사용자는 본인 세션만, 관리자는 전체 이력 조회 |
+
+QR 연동: `qr.py`의 QR 인증 성공 시 `mark_qr_verified_by_qr_session()`이 호출되어 연결된 위치 세션이 `QR_VERIFIED`로 전이.
+
+> 프런트: `Local_Verify_Demo.html`(로그인 가드 `nfRequireMember()` 적용, 카카오 지도 SDK 동적 로드). 진입점: `Reservation.html` 장소 섹션의 "만남 장소에서 GPS 위치 인증하기" 링크.
+
 ### 정적 서빙 (main.py)
 `/frontend`(전체 페이지), `/shared`(공통 자산), `/uploads`. 카메라 사용 화면은 `/QR_Scan.html` 등 루트 라우트로도 서빙.
 
@@ -318,7 +387,12 @@ def init_all_databases() -> None:
 | ✅ 완료 | 관리자 기능 + `seed_admin.py` | `notices`·`reports` | 2026-06-13 |
 | ✅ 완료 | 신고 (`POST /api/reports` → 관리자 처리) | - | 2026-06-13 |
 | ✅ 완료 | 배포 대응: 전 화면 상대경로 `API_BASE`, `tokens.css` 적용 | - | 2026-06-13 |
-| ⬜ 잔여 | 정산 요청 | `settlements` | FK `transaction_id` (+참여자 분담) |
-| ⬜ 잔여 | 상호 매너 평가 | `manner_ratings` | `trust_score` 원자적 반영 |
-| ⬜ 잔여 | 수령 장소 지정 | - | `posts.lat/lng` 프론트 활용 |
-| ⬜ 잔여 | (정리) Kakao 지도 JS 키 설정 | - | 비차단 항목 |
+| ✅ 완료 | GPS 위치 인증(더미 타겟·GPS 반경 체크·QR 연동) | `location_verify_sessions` | 코드 기존 구현, 이 문서에 최초 반영 |
+| ✅ 완료 | 커밋 전 점검 수정: 공동구매 원자적 UPDATE, Kakao 키 `.env` 전환(Map.html), schema.sql·tokens.css 동기화, `requirements.txt` 갱신 | - | 2026-07-09 |
+| ✅ 완료 | 수령 장소 지정 (`Reservation.html` 실좌표 연동) | - | 2026-08-03 |
+| ✅ 완료 | Kakao 지도 JS 키 하드코딩 전면 제거 (전 화면) | - | 2026-08-03 |
+| ✅ 완료 | GPS 위치 인증 보안 강화(인증·소유권·이력 필터) + QR 연동 + 진입점 연결 | `location_verify_sessions` | 2026-08-03 |
+| ⬜ 잔여 | 정산 요청 | `settlements` | FK `transaction_id` (+참여자 분담), `Settlement.html`은 정적 목업 상태 |
+| ⬜ 잔여 | 상호 매너 평가 | `manner_ratings` | `trust_score` 원자적 반영 (`SET trust_score = trust_score + ?`) |
+| ⬜ 잔여 | 공동구매 참여 취소 흐름 | - | `gb_current` 원자적 감소 + `groupbuy_participants` 삭제 정의 필요 |
+| ⬜ 잔여 | 배포 전 보안 점검 | - | CORS `allow_origins` 도메인 제한, 관리자 기본 비밀번호 변경 |

@@ -84,13 +84,18 @@
       <div class="flex items-center gap-2">
         <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">location_on</span>
         <div>
-          <p class="text-[13.5px] font-bold">한들마을 3단지 정문 앞</p>
-          <p class="text-[11px] text-on-surface-variant">도보 4분 · 280m</p>
+          <p id="placeAddress" class="text-[13.5px] font-bold">위치 확인 중…</p>
+          <p id="placeSub" class="text-[11px] text-on-surface-variant">게시글에 등록된 거래 희망 장소예요</p>
         </div>
       </div>
-      <a href="Location_Detail.html" class="text-[12px] font-bold text-primary">지도 →</a>
+      <a id="placeMapLink" href="Location_Detail.html" class="text-[12px] font-bold text-primary">지도 →</a>
     </div>
+    <a href="Local_Verify_Demo.html" class="flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-bold text-primary bg-primary-fixed/25 border-t border-black/[.04]">
+      <span class="material-symbols-outlined" style="font-size:16px">location_searching</span>
+      만남 장소에서 GPS 위치 인증하기
+    </a>
   </section>
+
 
   <!-- Message -->
   <section class="mt-4">
@@ -113,7 +118,7 @@
     <ul class="text-[12.5px] space-y-1.5">
       <li class="flex justify-between"><span class="text-on-surface-variant">상품</span><b><span id="sumName">상품</span> <span id="sumQty">1</span>개</b></li>
       <li class="flex justify-between"><span class="text-on-surface-variant">일시</span><b><span id="sumDate">오늘</span> <span id="sumTime">18:00</span></b></li>
-      <li class="flex justify-between"><span class="text-on-surface-variant">장소</span><b>한들마을 3단지 정문</b></li>
+      <li class="flex justify-between"><span class="text-on-surface-variant">장소</span><b id="sumPlace">한들마을 3단지 정문</b></li>
     </ul>
   </section>
 </main>
@@ -192,6 +197,20 @@
           if (p.images && p.images.length) {
             const t = document.getElementById('cardThumb');
             if (t) { t.style.backgroundImage = "url('" + API_BASE + '/uploads/' + p.images[0] + "')"; t.classList.remove('ph'); }
+          }
+
+          // ── 거래 희망 장소: 게시글의 실제 address/lat/lng 반영 ──
+          const addr = (p.address || '').trim();
+          set('placeAddress', addr || '거래 희망 장소 미등록');
+          set('placeSub', addr ? '게시글에 등록된 거래 희망 장소예요' : '정확한 만남 장소는 채팅으로 상의해 주세요');
+          set('sumPlace', addr || '채팅으로 협의');
+          const mapLink = document.getElementById('placeMapLink');
+          if (mapLink) {
+            const q = new URLSearchParams({ id: id, title: p.title || '' });
+            if (typeof p.lat === 'number') q.set('lat', p.lat);
+            if (typeof p.lng === 'number') q.set('lng', p.lng);
+            if (addr) q.set('address', addr);
+            mapLink.href = 'Location_Detail.html?' + q.toString();
           }
         }).catch(function () {});
     }
