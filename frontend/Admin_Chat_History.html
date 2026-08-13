@@ -61,7 +61,7 @@
     <div class="mt-auto bg-white/5 rounded-xl p-2.5 flex gap-2.5 items-center mt-6">
       <div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[11px] font-bold">박</div>
       <div class="text-[11.5px] min-w-0 flex-1"><p class="font-semibold truncate">박운영</p><p class="text-white/50 text-[10px]">슈퍼 관리자</p></div>
-      <span class="material-symbols-outlined text-white/60" style="font-size:18px">logout</span>
+      <span class="material-symbols-outlined text-white/60 cursor-pointer hover:text-white" style="font-size:18px" onclick="nfLogout('Login.html')">logout</span>
     </div>
   </aside>
 
@@ -92,101 +92,17 @@
             <button class="shrink-0 text-[10.5px] font-semibold bg-surface-container-low text-on-surface px-2 py-1 rounded-full">⏱ 24h</button>
           </div>
         </div>
-        <ul class="divide-y divide-black/[.04] text-[12.5px]">
-          <li class="conv on cursor-pointer px-3 py-2.5">
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] font-mono text-on-surface-variant">#C-9821</span>
-              <span class="text-[9.5px] font-bold bg-error text-white px-1.5 py-0.5 rounded">신고됨</span>
-              <span class="ml-auto text-[10px] text-on-surface-variant">14:08</span>
-            </div>
-            <p class="font-semibold truncate mt-1">이○○ ↔ 김지연</p>
-            <p class="text-on-surface-variant truncate text-[11.5px]">"<mark>우유</mark> 며칠 안 지났어요 ㅎㅎ 괜찮아요"</p>
-          </li>
-          <li class="conv cursor-pointer px-3 py-2.5">
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] font-mono text-on-surface-variant">#C-9815</span>
-              <span class="text-[9.5px] font-bold bg-secondary-fixed text-on-secondary-fixed-variant px-1.5 py-0.5 rounded">키워드</span>
-              <span class="ml-auto text-[10px] text-on-surface-variant">12:42</span>
-            </div>
-            <p class="font-semibold truncate mt-1">김다은 ↔ 한○○</p>
-            <p class="text-on-surface-variant truncate text-[11.5px]">"<mark>우유</mark> 1팩 더 필요하시면..."</p>
-          </li>
-          <li class="conv cursor-pointer px-3 py-2.5">
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] font-mono text-on-surface-variant">#C-9803</span>
-              <span class="ml-auto text-[10px] text-on-surface-variant">11:18</span>
-            </div>
-            <p class="font-semibold truncate mt-1">민지 이웃 ↔ 빵굽는이웃</p>
-            <p class="text-on-surface-variant truncate text-[11.5px]">"우유 빼고 다른 재료만 받아도..."</p>
-          </li>
-          <li class="conv cursor-pointer px-3 py-2.5">
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] font-mono text-on-surface-variant">#C-9787</span>
-              <span class="text-[9.5px] font-bold bg-secondary-fixed text-on-secondary-fixed-variant px-1.5 py-0.5 rounded">키워드</span>
-              <span class="ml-auto text-[10px] text-on-surface-variant">어제</span>
-            </div>
-            <p class="font-semibold truncate mt-1">광고○○ ↔ 외 4명</p>
-            <p class="text-on-surface-variant truncate text-[11.5px]">"개인 통장으로 입금..."</p>
-          </li>
-          <li class="conv cursor-pointer px-3 py-2.5">
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] font-mono text-on-surface-variant">#C-9770</span>
-              <span class="ml-auto text-[10px] text-on-surface-variant">어제</span>
-            </div>
-            <p class="font-semibold truncate mt-1">건강한이웃 ↔ 따뜻한아랫집</p>
-            <p class="text-on-surface-variant truncate text-[11.5px]">"내일 6시 로비에서 뵐게요"</p>
-          </li>
-        </ul>
+        <div id="convListEl" class="divide-y divide-black/[.04] text-[12.5px] overflow-y-auto max-h-[calc(100dvh-140px)]"><p class="p-4 text-[12px] text-on-surface-variant">불러오는 중…</p></div>
       </section>
 
       <!-- Transcript -->
       <section class="bg-surface-container-low">
         <!-- Conv header -->
         <div class="bg-white border-b border-black/[.05] px-5 py-3 flex items-center gap-3">
-          <span class="font-mono text-[11px] text-on-surface-variant">#C-9821</span>
-          <div class="flex items-center gap-1.5">
-            <div class="w-7 h-7 rounded-full bg-secondary-fixed-dim flex items-center justify-center text-on-secondary-fixed-variant text-[11px] font-bold">이</div>
-            <p class="text-[12.5px] font-bold">이○○</p>
-            <span class="material-symbols-outlined text-on-surface-variant" style="font-size:14px">arrow_right_alt</span>
-            <div class="w-7 h-7 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[11px] font-bold">김</div>
-            <p class="text-[12.5px] font-bold">김지연</p>
-          </div>
-          <span class="text-[11px] text-on-surface-variant ml-2">2026.05.13 12:08~14:22 · 메시지 28건</span>
-          <div class="ml-auto flex items-center gap-1">
-            <button class="text-[11.5px] font-bold bg-surface-container-low px-2.5 py-1.5 rounded-lg flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">download</span> 내보내기</button>
-            <button class="text-[11.5px] font-bold bg-error text-white px-2.5 py-1.5 rounded-lg flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">flag</span> 케이스 만들기</button>
-          </div>
+          <span class="text-[12.5px] font-bold text-on-surface-variant">선택한 대화의 메시지</span>
         </div>
 
-        <div class="px-5 py-4 space-y-1.5 overflow-y-auto max-h-[calc(100dvh-160px)]">
-          <p class="text-[10.5px] text-on-surface-variant text-center my-2">2026.05.13 12:08</p>
-
-          <div class="flex justify-start"><div class="bubble bg-white ring-1 ring-black/[.05]"><b class="text-[10px] text-secondary block mb-0.5">이○○ · 12:08</b>안녕하세요~ 글 보고 연락드려요!</div></div>
-          <div class="flex justify-start"><div class="bubble bg-white ring-1 ring-black/[.05]"><b class="text-[10px] text-secondary block mb-0.5">이○○ · 12:09</b>오늘 안에만 가져가시면 돼요</div></div>
-          <div class="flex justify-end"><div class="bubble bg-primary-fixed text-on-primary-fixed-variant"><b class="text-[10px] block mb-0.5">김지연 · 12:14</b>네 안녕하세요! 혹시 <mark>우유</mark> 유통기한 언제까지인가요?</div></div>
-          <div class="flex justify-start"><div class="bubble bg-white ring-1 ring-black/[.05]"><b class="text-[10px] text-secondary block mb-0.5">이○○ · 12:15</b>며칠 안 지났어요 ㅎㅎ 괜찮아요</div></div>
-          <div class="flex justify-end"><div class="bubble bg-primary-fixed text-on-primary-fixed-variant"><b class="text-[10px] block mb-0.5">김지연 · 12:17</b>정확한 날짜 알 수 있을까요? 아이가 먹을 거라 신경 쓰여서요</div></div>
-
-          <!-- Image evidence -->
-          <div class="flex justify-start">
-            <div class="bubble bg-white ring-1 ring-black/[.05] !p-1.5">
-              <b class="text-[10px] text-secondary block mb-0.5 px-1.5 pt-0.5">이○○ · 12:21</b>
-              <div class="w-44 aspect-[4/3] ph rounded-lg"></div>
-            </div>
-          </div>
-          <div class="flex justify-end"><div class="bubble bg-primary-fixed text-on-primary-fixed-variant"><b class="text-[10px] block mb-0.5">김지연 · 12:24</b>이거 사진으로는 2일 지났는데요...</div></div>
-          <div class="flex justify-start"><div class="bubble bg-white ring-1 ring-black/[.05]"><b class="text-[10px] text-secondary block mb-0.5">이○○ · 12:30</b>괜찮으니까 빨리 결정해주세요</div></div>
-
-          <!-- System -->
-          <div class="flex justify-center my-3">
-            <span class="text-[10.5px] bg-secondary-fixed text-on-secondary-fixed-variant font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
-              <span class="material-symbols-outlined" style="font-size:13px;font-variation-settings:'FILL' 1;">warning</span>
-              AI 위험 키워드 감지: "유통기한 지난", "괜찮다고 우김"
-            </span>
-          </div>
-
-          <p class="text-[10.5px] text-on-surface-variant text-center my-2">14:22 · 김지연님이 이 대화를 신고했어요</p>
-        </div>
+        <div id="msgPanelEl" class="px-5 py-4 flex flex-col gap-2 overflow-y-auto max-h-[calc(100dvh-160px)]"><p class="text-[12px] text-on-surface-variant p-2">왼쪽에서 대화를 선택하세요.</p></div>
       </section>
 
       <!-- Right detail panel -->
@@ -230,5 +146,62 @@
     </div>
   </main>
 </div>
+
+<script>
+(function(){
+  const API = window.location.origin;
+  function esc(s){ const d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+  function fmt(iso){ if(!iso) return ''; const d=new Date(iso.endsWith('Z')||iso.includes('+')?iso:iso+'Z'); return isNaN(d)?'':d.toLocaleString('ko-KR'); }
+
+  (async function guard(){
+    let me=null;
+    try{ me = await fetch(API+'/api/users/me').then(r=>r.ok?r.json():null); }catch(e){}
+    if(!me){ location.replace('Login.html?next='+encodeURIComponent('Admin_Chat_History.html')); return; }
+    if(me.role!=='admin'){ alert('관리자만 접근할 수 있어요.'); location.replace('Home.html'); return; }
+    loadConvs();
+  })();
+
+  async function loadConvs(){
+    const box = document.getElementById('convListEl');
+    if(!box) return;
+    const d = await fetch(API+'/api/admin/chats').then(r=>r.ok?r.json():null).catch(()=>null);
+    if(!d){ box.innerHTML='<p class="p-4 text-[12px] text-on-surface-variant">불러오지 못했어요.</p>'; return; }
+    box.innerHTML = d.items.length
+      ? d.items.map(c =>
+          '<button data-cid="'+c.id+'" class="conv-row w-full text-left px-3 py-2.5 hover:bg-surface-container-low block">'
+          + '<div class="flex items-center gap-2">'
+          + '<span class="text-[10px] font-mono text-on-surface-variant">#C-'+c.id+'</span>'
+          + '<span class="text-[9.5px] font-bold px-1.5 py-0.5 rounded '+(c.kind==='group'?'bg-tertiary-fixed-dim text-on-tertiary-container':'bg-surface-container-high text-on-surface-variant')+'">'+(c.kind==='group'?'그룹':'1:1')+'</span>'
+          + '<span class="ml-auto text-[10px] text-on-surface-variant">'+fmt(c.last_at)+'</span></div>'
+          + '<p class="font-semibold truncate mt-1 text-[12.5px]">'+esc(c.post_title||'(삭제된 게시글)')+'</p>'
+          + '<p class="text-on-surface-variant text-[11.5px]">메시지 '+(c.message_count||0)+'건</p>'
+          + '</button>')
+        .join('')
+      : '<p class="p-4 text-[12px] text-on-surface-variant">채팅방이 없습니다.</p>';
+
+    box.querySelectorAll('.conv-row').forEach(b=>b.addEventListener('click', ()=>{
+      box.querySelectorAll('.conv-row').forEach(x=>x.classList.remove('bg-primary-fixed/20'));
+      b.classList.add('bg-primary-fixed/20');
+      loadMessages(b.dataset.cid);
+    }));
+  }
+
+  async function loadMessages(convId){
+    const panel = document.getElementById('msgPanelEl');
+    if(!panel) return;
+    panel.innerHTML = '<p class="text-[12px] text-on-surface-variant p-2">불러오는 중…</p>';
+    const d = await fetch(API+'/api/admin/chats/'+convId+'/messages').then(r=>r.ok?r.json():null).catch(()=>null);
+    if(!d){ panel.innerHTML='<p class="text-[12px] text-error p-2">불러오지 못했어요.</p>'; return; }
+    panel.innerHTML = d.items.length
+      ? d.items.map(m =>
+          '<div class="max-w-[80%] bg-white ring-1 ring-black/[.05] rounded-xl px-3 py-2">'
+          + '<b class="text-[10px] text-primary block mb-0.5">'+esc(m.sender_nickname)+' · '+fmt(m.created_at)+'</b>'
+          + '<span class="text-[12.5px]">'+esc(m.content)+'</span></div>')
+        .join('')
+      : '<p class="text-[12px] text-on-surface-variant p-2">메시지가 없습니다.</p>';
+    panel.scrollTop = panel.scrollHeight;
+  }
+})();
+</script>
 </body>
 </html>

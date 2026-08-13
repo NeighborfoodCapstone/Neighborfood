@@ -39,7 +39,7 @@
       <button class="p-2 rounded-full hover:bg-black/5"><span class="material-symbols-outlined">search</span></button>
       <button class="p-2 rounded-full hover:bg-black/5 relative">
         <span class="material-symbols-outlined">notifications</span>
-        <span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-secondary-container"></span>
+        <span id="notiBadge" class="hidden absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-error text-white text-[9px] font-bold flex items-center justify-center"></span>
       </button>
     </div>
   </div>
@@ -109,6 +109,46 @@
   <div class="h-6"></div>
 </main>
 
+<!-- 매너 평가 모달 -->
+<div id="ratingModal" class="fixed inset-0 z-[70] hidden">
+  <div class="absolute inset-0 bg-black/40" onclick="nfCloseRating()"></div>
+  <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-white rounded-3xl p-5 shadow-xl">
+    <p class="text-[15px] font-bold">매너 평가하기</p>
+    <p id="ratingTarget" class="text-[12px] text-on-surface-variant mt-1 mb-4"></p>
+
+    <!-- 평가 이미 완료된 경우 -->
+    <div id="ratingDone" class="hidden text-center py-4">
+      <span class="material-symbols-outlined text-primary" style="font-size:36px;font-variation-settings:'FILL' 1">verified</span>
+      <p class="text-[14px] font-bold mt-2">이미 평가를 완료했어요</p>
+      <p id="ratingDoneScore" class="text-[12px] text-on-surface-variant mt-1"></p>
+    </div>
+
+    <!-- 평가 입력 폼 -->
+    <div id="ratingForm">
+      <div class="flex gap-3 mb-4">
+        <button id="btnGood" onclick="nfSelectScore(1)"
+          class="flex-1 flex flex-col items-center gap-1.5 py-4 rounded-2xl ring-1 ring-outline-variant text-on-surface-variant transition-all">
+          <span class="material-symbols-outlined" style="font-size:28px;font-variation-settings:'FILL' 1;color:#FF6B00">thumb_up</span>
+          <span class="text-[13px] font-bold">좋았어요</span>
+        </button>
+        <button id="btnBad" onclick="nfSelectScore(-1)"
+          class="flex-1 flex flex-col items-center gap-1.5 py-4 rounded-2xl ring-1 ring-outline-variant text-on-surface-variant transition-all">
+          <span class="material-symbols-outlined" style="font-size:28px;font-variation-settings:'FILL' 1;color:#6f7a6b">thumb_down</span>
+          <span class="text-[13px] font-bold">아쉬웠어요</span>
+        </button>
+      </div>
+      <textarea id="ratingComment" rows="2" placeholder="한 줄 코멘트 (선택)"
+        class="w-full rounded-xl ring-1 ring-outline-variant px-3 py-2.5 text-[13px] outline-none resize-none"></textarea>
+      <div class="flex gap-2 mt-4">
+        <button onclick="nfCloseRating()"
+          class="flex-1 rounded-2xl py-3 text-[13px] font-bold bg-surface-container text-on-surface">취소</button>
+        <button id="ratingSubmitBtn" onclick="nfSubmitRating()"
+          class="flex-1 rounded-2xl py-3 text-[13px] font-bold bg-primary text-white disabled:opacity-40" disabled>평가 남기기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Bottom Nav -->
 <nav class="fixed bottom-0 left-0 w-full bg-white border-t border-black/[.06] z-50 flex justify-around items-center pt-2 pb-5 px-2">
   <a class="flex flex-col items-center text-on-surface-variant" href="Home.html"><span class="material-symbols-outlined" style="font-size:24px">home</span><span class="text-[10px] mt-0.5">홈</span></a>
@@ -142,22 +182,36 @@
       if(m<1) return '방금'; if(m<60) return m+'분 전'; var h=Math.floor(m/60); if(h<24) return h+'시간 전'; return Math.floor(h/24)+'일 전'; }
     function authFail(r){ return window.nfHandleAuthError && nfHandleAuthError(r); }
 
-    // ---- 채팅 ----
-    fetch(API+'/api/chats').then(function(r){ if(authFail(r)) return null; return r.ok?r.json():null; }).then(function(d){
-      if(!d) return; var ul=document.getElementById('chatList'); var items=d.items||[];
-      setText('tabChat', items.length); setText('sumChat', items.filter(function(x){return (x.unread_count||0)>0;}).length || items.length);
-      if(items.length===0){ ul.innerHTML='<li class="p-6 text-center text-[12px] text-on-surface-variant">아직 채팅이 없어요.</li>'; return; }
-      ul.innerHTML = items.map(function(c){
-        var partner=c.partnerNickname||'이웃'; var ini=esc(partner.charAt(0)||'?');
-        var unread=(c.unread_count||0)>0 ? '<span class="self-center w-5 h-5 rounded-full bg-primary text-white text-[10.5px] font-bold flex items-center justify-center shrink-0">'+c.unread_count+'</span>' : '';
-        return '<li><a href="'+(c.kind==="group"?"Group_Chat.html":"Chat_Detail.html")+'?id='+c.id+'" class="flex gap-3 p-3 hover:bg-black/[.02]">'
-          + '<div class="w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant font-bold shrink-0">'+ini+'</div>'
-          + '<div class="flex-1 min-w-0"><div class="flex items-baseline justify-between gap-2">'
-          + '<p class="text-[14.5px] font-semibold truncate">'+esc(partner)+' <span class="text-[11px] text-on-surface-variant font-normal">· '+esc(c.post_title||'')+'</span></p>'
-          + '<span class="text-[11px] text-on-surface-variant shrink-0">'+timeAgo(c.last_message_at)+'</span></div>'
-          + '<p class="text-[13px] text-on-surface-variant truncate mt-0.5">'+esc(c.last_message||'대화를 시작해 보세요')+'</p></div>'+unread+'</a></li>';
-      }).join('');
-    }).catch(function(){});
+    // ---- 채팅 (30초 폴링으로 알림·안 읽음 뱃지 자동 갱신) ----
+    function loadChats(){
+      fetch(API+'/api/chats').then(function(r){ if(authFail(r)) return null; return r.ok?r.json():null; }).then(function(d){
+        if(!d) return; var ul=document.getElementById('chatList'); var items=d.items||[];
+        setText('tabChat', items.length); setText('sumChat', items.filter(function(x){return (x.unread_count||0)>0;}).length || items.length);
+        // 헤더 알림 뱃지: 안 읽은 채팅 총합
+        var totalUnread = items.reduce(function(a,x){ return a + (x.unread_count||0); }, 0);
+        var nb = document.getElementById('notiBadge');
+        if (nb) { if (totalUnread>0){ nb.textContent = totalUnread>99?'99+':totalUnread; nb.classList.remove('hidden'); } else { nb.classList.add('hidden'); } }
+        if(items.length===0){ ul.innerHTML='<li class="p-6 text-center text-[12px] text-on-surface-variant">아직 채팅이 없어요.</li>'; return; }
+        ul.innerHTML = items.map(function(c){
+          var partner=c.partnerNickname||'이웃'; var ini=esc(partner.charAt(0)||'?');
+          var unread=(c.unread_count||0)>0 ? '<span class="self-center w-5 h-5 rounded-full bg-primary text-white text-[10.5px] font-bold flex items-center justify-center shrink-0">'+c.unread_count+'</span>' : '';
+          return '<li><a href="'+(c.kind==="group"?"Group_Chat.html":"Chat_Detail.html")+'?id='+c.id+'" class="flex gap-3 p-3 hover:bg-black/[.02]">'
+            + '<div class="w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant font-bold shrink-0">'+ini+'</div>'
+            + '<div class="flex-1 min-w-0"><div class="flex items-baseline justify-between gap-2">'
+            + '<p class="text-[14.5px] font-semibold truncate">'+esc(partner)+' <span class="text-[11px] text-on-surface-variant font-normal">· '+esc(c.post_title||'')+'</span></p>'
+            + '<span class="text-[11px] text-on-surface-variant shrink-0">'+timeAgo(c.last_message_at)+'</span></div>'
+            + '<p class="text-[13px] text-on-surface-variant truncate mt-0.5">'+esc(c.last_message||'대화를 시작해 보세요')+'</p></div>'+unread+'</a></li>';
+        }).join('');
+      }).catch(function(){});
+    }
+    loadChats();
+    // 탭이 보일 때만 폴링 (백그라운드 시 중단)
+    var _chatPoll = setInterval(function(){
+      if (!document.hidden) loadChats();
+    }, 30000);
+    document.addEventListener('visibilitychange', function(){
+      if (!document.hidden) loadChats();  // 다시 포커스되면 즉시 갱신
+    });
 
     // ---- 내 글 (author_id === 내 id 로 필터) ----
     var STATUS_LABEL={active:'진행중',completed:'완료',expired:'만료'};
@@ -177,7 +231,8 @@
           + '<a href="'+detail+'" class="w-20 h-20 rounded-xl shrink-0" '+thumb+'></a>'
           + '<div class="flex-1 min-w-0"><div class="flex items-center gap-1.5">'+badge
           + '<span class="text-[10.5px] text-on-surface-variant">'+typeKo+' · '+timeAgo(p.created_at)+'</span></div>'
-          + '<p class="text-[14px] font-semibold leading-snug mt-1 line-clamp-2"><a href="'+detail+'" class="hover:underline">'+esc(p.title)+'</a></p>'
+          + '<p class="text-[14px] font-semibold leading-snug mt-1 line-clamp-2"><a href="'+detail+'" class="hover:underline">'+esc(p.title)+'</a>'
+          + ' <a href="Create_Post.html?edit='+p.id+'" class="text-[11px] font-bold text-primary ml-1 align-middle">수정</a></p>'
           + '<p class="text-[11px] text-on-surface-variant mt-1">'+sub+'</p></div></li>';
       }).join('');
     }
@@ -208,13 +263,86 @@
       ul.innerHTML=items.slice(0,10).map(function(t){
         var stat=t.status||'pending'; var badge='<span class="px-2 py-0.5 rounded-full text-[10px] font-bold '+(TX_BADGE[stat]||TX_BADGE.pending)+'">'+(TX_LABEL[stat]||stat)+'</span>';
         var roleKo=t.myRole==='provider'?'제공':'받음'; var when=t.appointmentAt?('약속 '+timeAgo(t.appointmentAt)):timeAgo(t.createdAt);
+        // 완료된 거래에만 매너 평가 버튼 노출
+        var ratingBtn = stat==='completed'
+          ? '<button onclick="nfOpenRating('+t.id+',\''+esc(t.partner||'상대방')+'\')" class="mt-1.5 text-[11.5px] font-bold text-primary underline underline-offset-2">매너 평가하기</button>'
+          : '';
         return '<li class="bg-white rounded-2xl ring-soft p-3 flex gap-3">'
           + '<div class="w-16 h-16 rounded-xl shrink-0" style="background:linear-gradient(135deg,#d6e7d0,#bfd9b8)"></div>'
           + '<div class="flex-1 min-w-0"><div class="flex items-center gap-1.5">'+badge+'<span class="text-[10.5px] text-on-surface-variant">'+roleKo+' · '+when+'</span></div>'
           + '<p class="text-[14px] font-semibold leading-snug mt-1 line-clamp-1">'+esc(t.postTitle||'(삭제된 게시글)')+'</p>'
-          + '<p class="text-[11.5px] text-on-surface-variant mt-0.5">상대 · '+esc(t.partner||'-')+'</p></div></li>';
+          + '<p class="text-[11.5px] text-on-surface-variant mt-0.5">상대 · '+esc(t.partner||'-')+'</p>'
+          + ratingBtn+'</div></li>';
       }).join('');
     }).catch(function(){});
+
+    // ── 매너 평가 모달 ──
+    var _ratingTxId = null, _ratingScore = null;
+
+    window.nfOpenRating = function(txId, partnerName){
+      _ratingTxId = txId; _ratingScore = null;
+      document.getElementById('ratingTarget').textContent = '상대: ' + partnerName;
+      document.getElementById('ratingDone').classList.add('hidden');
+      document.getElementById('ratingForm').classList.remove('hidden');
+      document.getElementById('ratingComment').value = '';
+      document.getElementById('ratingSubmitBtn').disabled = true;
+      ['btnGood','btnBad'].forEach(function(id){ document.getElementById(id).classList.remove('ring-primary','ring-2','bg-primary/5'); });
+      document.getElementById('ratingModal').classList.remove('hidden');
+
+      // 이미 평가했는지 서버 확인
+      fetch(API+'/api/ratings/transaction/'+txId+'/me')
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if(d.rated){
+            var scoreLabel = d.score > 0 ? '👍 좋았어요' : '👎 아쉬웠어요';
+            document.getElementById('ratingDoneScore').textContent = scoreLabel + (d.comment ? '  "' + d.comment + '"' : '');
+            document.getElementById('ratingDone').classList.remove('hidden');
+            document.getElementById('ratingForm').classList.add('hidden');
+          }
+        }).catch(function(){});
+    };
+
+    window.nfCloseRating = function(){
+      document.getElementById('ratingModal').classList.add('hidden');
+      _ratingTxId = null; _ratingScore = null;
+    };
+
+    window.nfSelectScore = function(score){
+      _ratingScore = score;
+      document.getElementById('btnGood').classList.toggle('ring-primary',  score===1);
+      document.getElementById('btnGood').classList.toggle('ring-2',         score===1);
+      document.getElementById('btnGood').classList.toggle('bg-primary/5',  score===1);
+      document.getElementById('btnBad').classList.toggle('ring-primary',   score===-1);
+      document.getElementById('btnBad').classList.toggle('ring-2',          score===-1);
+      document.getElementById('btnBad').classList.toggle('bg-primary/5',   score===-1);
+      document.getElementById('ratingSubmitBtn').disabled = false;
+    };
+
+    window.nfSubmitRating = function(){
+      if(!_ratingTxId || !_ratingScore) return;
+      var comment = document.getElementById('ratingComment').value.trim();
+      var submitBtn = document.getElementById('ratingSubmitBtn');
+      submitBtn.disabled = true;
+      fetch(API+'/api/ratings', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({transaction_id:_ratingTxId, score:_ratingScore, comment:comment||null})
+      })
+      .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, d:d}; }); })
+      .then(function(res){
+        if(res.ok){
+          var trustAfter = res.d.rateeTrustScore != null ? res.d.rateeTrustScore : '';
+          var msg = _ratingScore > 0 ? '👍 좋은 평가를 남겼어요!' : '👎 아쉬운 평가를 남겼어요.';
+          if(trustAfter) msg += '\n상대방 신뢰 온도: ' + trustAfter + '°';
+          alert(msg);
+          nfCloseRating();
+        } else {
+          alert(res.d.detail || '평가에 실패했어요.');
+          submitBtn.disabled = false;
+        }
+      })
+      .catch(function(){ alert('서버에 연결할 수 없어요.'); submitBtn.disabled = false; });
+    };
   })();
 </script>
 </body>

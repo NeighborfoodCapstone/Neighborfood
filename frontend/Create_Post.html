@@ -251,6 +251,9 @@
   // 백엔드 주소 - 같은 호스트면 빈 문자열로 두면 되고, 다른 포트면 절대 주소
   const API_BASE = window.location.origin;
 
+  // ── 편집 모드 판별: ?edit={postId} 이면 기존 글 수정 ──
+  const _editId = new URLSearchParams(location.search).get('edit');
+
   // 현재 선택된 거래 유형 ('share' | 'exchange' | 'groupbuy')
   let currentType = 'share';
   // 업로드 완료된 이미지 파일명 (서버가 돌려준 uuid 파일명)
@@ -496,6 +499,36 @@
     submitBtn.textContent = '게시 중…';
 
     try {
+      const isEdit = !!_editId;
+
+      if (isEdit) {
+        // ── 수정: 안전 필드만 PATCH (백엔드 field_map 허용 범위) ──
+        const editablePayload = {
+          title, description, category, address,
+          lat: selectedLat, lng: selectedLng,
+        };
+        if (currentType === 'exchange' && payload.exchange_want != null) {
+          editablePayload.exchange_want = payload.exchange_want;
+        }
+        // 공동구매 인원/가격: 참여자가 없을 때(gb_current==0)만 전송 — 정합성 보호
+        if (currentType === 'groupbuy' && _editGbEditable) {
+          if (payload.gb_target != null) editablePayload.gb_target = payload.gb_target;
+          if (payload.gb_price  != null) editablePayload.gb_price  = payload.gb_price;
+        }
+        const res = await fetch(`${API_BASE}/posts/${_editId}`, {
+          method:'PATCH',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(editablePayload),
+        });
+        if (window.nfHandleAuthError && nfHandleAuthError(res)) return;
+        if (!res.ok) throw new Error((await res.json()).detail || '수정 실패');
+        alert('게시글이 수정되었습니다.');
+        const detailPage = currentType === 'groupbuy' ? 'Group_Buy_Detail.html' : 'Product_Detail.html';
+        location.href = `${detailPage}?id=${_editId}`;
+        return;
+      }
+
+      // ── 신규 등록: 기존 POST 흐름 유지 ──
       const res = await fetch(`${API_BASE}/posts`, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -508,12 +541,62 @@
       const detailPage = currentType === 'groupbuy' ? 'Group_Buy_Detail.html' : 'Product_Detail.html';
       location.href = `${detailPage}?id=${data.id}`;
     } catch (err) {
-      alert('게시 실패: ' + err.message);
+      alert((_editId ? '수정' : '게시') + ' 실패: ' + err.message);
       submitBtn.disabled = false;
-      submitBtn.textContent = currentType === 'groupbuy' ? '공동구매 모집하기'
+      submitBtn.textContent = _editId ? '수정 완료'
+                            : currentType === 'groupbuy' ? '공동구매 모집하기'
                             : currentType === 'exchange' ? '교환 게시하기' : '나눔 게시하기';
     }
   });
+
+  // ── 편집 모드 프리필: ?edit={postId} 이면 기존 데이터 로드 ──
+  // gb_current > 0 이면 인원/가격 잠금 (정합성 보호)
+  let _editGbEditable = true;
+  if (_editId) {
+    (async function prefillForEdit(){
+      let p = null;
+      try { p = await fetch(`${API_BASE}/posts/${_editId}`).then(r => r.ok ? r.json() : null); }
+      catch(e){ p = null; }
+      if (!p) { alert('수정할 글을 불러오지 못했어요.'); return; }
+
+      // 거래 유형 세그먼트를 실제 타입으로 전환 (기존 토글 로직 재사용)
+      const typeBtn = typeSeg.querySelector('button[data-type="' + p.type + '"]');
+      if (typeBtn) typeBtn.click(); else currentType = p.type;
+
+      // 안전 필드 채우기
+      document.getElementById('titleInput').value = p.title || '';
+      descInput.value = p.description || '';
+      if (descCount) descCount.textContent = (p.description || '').length;
+      const cat = document.getElementById('categoryInput'); if (cat && p.category) cat.value = p.category;
+      const addr = document.getElementById('addressInput'); if (addr && p.address) addr.textContent = p.address;
+      if (typeof p.lat === 'number') selectedLat = p.lat;
+      if (typeof p.lng === 'number') selectedLng = p.lng;
+
+      if (p.type === 'exchange') {
+        const w = document.getElementById('exchangeWantInput'); if (w) w.value = p.exchange_want || '';
+      }
+      if (p.type === 'groupbuy') {
+        const t = document.getElementById('gbTargetInput'); if (t && p.gb_target != null) t.value = p.gb_target;
+        const pr = document.getElementById('gbPriceInput');  if (pr && p.gb_price  != null) pr.value = p.gb_price;
+        // 참여자가 있으면(gb_current>0) 인원/가격 잠금
+        if ((p.gb_current || 0) > 0) {
+          _editGbEditable = false;
+          [t, pr].forEach(el => { if (el){ el.disabled = true; el.classList.add('opacity-50','cursor-not-allowed'); } });
+          const gs = document.getElementById('groupbuySection');
+          if (gs) {
+            const note = document.createElement('p');
+            note.className = 'text-[11px] text-secondary mt-2';
+            note.textContent = '이미 참여자가 있어 인원·가격은 수정할 수 없어요.';
+            gs.appendChild(note);
+          }
+        }
+      }
+
+      // 상단 타이틀·버튼 라벨 편집 모드로
+      pageTitle.textContent = '게시글 수정';
+      submitBtn.textContent = '수정 완료';
+    })();
+  }
 </script>
 
 </body>

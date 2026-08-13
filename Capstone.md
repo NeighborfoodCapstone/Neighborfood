@@ -1,7 +1,7 @@
 # Role: Senior Full-stack Engineer Assistant
 당신은 '1인 가구 지역 식재료 공동구매 플랫폼(NeighborFood)' 프로젝트의 전담 개발자입니다. 아래의 컨텍스트와 제약 사항을 완벽히 숙지하고 개발을 수행하십시오.
 
-> 최종 갱신: 2026-08-03 · GPS 위치 인증 보안 강화·실흐름 연결 + Kakao 키 하드코딩 전면 제거 + 수령 장소 지정 완료
+> 최종 갱신: 2026-08-12 · UX 갭 감사·해소 완료 (관리자 연동·참여 취소·게시글 수정·공지 표시·매너 평가 리다이렉트)
 
 현재 완료:
 - 게시판 (나눔/공동구매/교환 통합)
@@ -25,11 +25,35 @@
 - **카카오맵 키 하드코딩 전면 제거** — 전 화면(`Map` + 잔여 6개 화면)이 `/api/config/kakao-key` 동적 로드로 전환, 소스 내 실키 완전 소거 (2026-08-03)
 - **GPS 위치 인증 보안 강화 + 실흐름 연결** — 전 API Bearer 인증 필수, `subject_id` 서버 강제 고정, 소유자 검증(`_assert_owner`), 이력 본인 필터, QR 인증 성공 시 `QR_VERIFIED` 연동 실호출, `Local_Verify_Demo.html` 로그인 가드, `Reservation.html` 진입점 연결 (2026-08-03)
 - **수령 장소 지정** — `Reservation.html`이 게시글의 실제 `address`/`lat`/`lng`를 장소 카드·지도 링크·신청 요약에 반영, 주소 미등록 시 "채팅으로 협의" 폴백 (2026-08-03)
+- **정산 시스템** — `settlements` + `settlement_shares` 테이블, `/api/settlements/*` API 9종(노쇼 취소 `DELETE` 포함), `Settlement.html` 실데이터 연동, `Group_Buy_Detail.html`·`Transaction_History.html` 진입점 추가 (2026-08-04)
+- **전체 흐름 완성(채팅→정산→매너평가)** (2026-08-07):
+  - `posts` 테이블에 `appointment_place/at/lat/lng` 4개 컬럼 추가 (`auth_db.py` 멱등 마이그레이션 포함)
+  - `POST /posts/{id}/appointment` 신규 — 정산 없이 채팅 단계에서 약속 확정 가능, 정산 생성 시 자동 승계
+  - GPS 반경 300m → **100m** 통일 (`location_verify_db.py`, `location_verify.py`, `Local_Verify_Demo.html`)
+  - GPS self-referencing 버그 수정 — 약속 좌표를 target으로 사용, 서버 Haversine 재검증 (`verify_participant_gps`)
+  - `Group_Chat.html`: "정산 시작하기" 버튼, 약속 모달 GPS 좌표 캡처·프리필, PWA `isSecureContext` 체크
+  - `Settlement.html`: "QR 스캔" 안내, "매너 평가 남기기" 완료 버튼, `/api/posts/`→`/posts/` 경로 버그 수정
+  - `Local_Verify_Demo.html`: 약속 좌표 자동 로드(`nfLoadAppointmentTarget`), PWA 체크
+  - `My_Activity.html`: 완료 거래 "매너 평가하기" + 평가 모달 + `trust_score` 반영
+- **UX 갭 감사·해소 + 버그 수정** (2026-08-12):
+  - `Admin_Notices.html`: 공지 목록·작성·삭제 API 실연동, 예약·푸시는 "준비 중" 안내, 사이드바 로그아웃
+  - `Admin_Chat_History.html`: 대화방 목록·메시지 실연동, 정적 더미 제거
+  - `Group_Buy_Detail.html`: 참여/취소 버튼 토글 (`GET /posts/{id}/my-status`), 취소 시 `DELETE .../join` 연동, 작성자 3-dot 드롭다운 메뉴 (수정·삭제), 취소 버튼 스타일 수정 (Tailwind `error` 색 미정의 → `style.cssText` 인라인 직접 지정)
+  - `Settlement.html`: 완료 후 "매너 평가 남기기" → `My_Activity.html?tab=history` 리다이렉트
+  - `Help.html`: `GET /api/notices?limit=10` 공개 공지 아코디언 표시 (비회원 포함)
+  - `Create_Post.html` + `My_Activity.html`: 게시글 수정 흐름 (`?edit={id}` 프리필, `PATCH /posts/{id}`, 참여자 있는 공구 인원·가격 잠금)
+  - `posts.py`: `list_posts()` 진입 시 만료 글 일괄 `expired` 전환, `cancel_join_groupbuy`에 그룹챗 퇴장 + `messages.is_system` 시스템 메시지 삽입 추가
+  - `neighborfood_schema.sql` · `neighborfood_ERD.md`: `messages.is_system` 컬럼 동기화
 
 미완료(잔여):
-- 정산(`settlements` 테이블 + API + `Settlement.html` 연동 — 현재 fetch 0건 정적 목업)
-- 상호 매너 평가(`manner_ratings` 테이블 + API — `trust_score` 갱신 로직 자체가 부재)
-- 공동구매 참여 취소 흐름 (`gb_current` 원자적 감소 + 참여자 삭제)
+- `posts.py` `join_groupbuy` **미납 정산 참여 차단** — `settlement_db.has_unpaid_settlement(uid)` 호출 로직을 `join_groupbuy` 내에 수동 적용 필요. 함수 자체는 `settlement_db.py`에 구현 완료. (`Settlement_Implementation_Plan.md` 섹션 3 참조)
+- `Admin_Staff_Invite.html` 운영진 관리 연동 — 운영진 목록 하드코딩 → 실데이터 교체, 기존 계정 검색 후 `PATCH /api/admin/users/{id}` 역할 승격 UI 구현 필요 (백엔드 API 완비)
+- 작성자 매너 평가 표시 — `Product_Detail.html`·`Group_Buy_Detail.html` 작성자 카드에 `GET /api/ratings/received?user_id={authorId}` 연동 (API 완비)
+- 관리자 사이드바 신고 배지 동적화 — `Admin_Report_Detail.html`·`Admin_Staff_Invite.html` 등 일부 페이지의 배지가 `"24"` 하드코딩
+
+완료로 전환된 기존 잔여 항목:
+- ~~상호 매너 평가~~ → ✅ `ratings.py` + `manner_ratings` 테이블 + `trust_score` 원자적 UPDATE 구현 완료 (2026-08 이전)
+- ~~공동구매 참여 취소 흐름~~ → ✅ `DELETE /posts/{id}/join` (백엔드), 프론트 토글·시스템 메시지 모두 완료 (2026-08-12)
 
 주의:
 - 기존 구조 유지
@@ -38,12 +62,13 @@
 
 잠재 이슈 (알려진 위험):
 - (해결됨) **공동구매 인원 정합성**: `posts.py`의 `join_groupbuy`가 `SET gb_current = gb_current + 1 WHERE ... AND gb_current < gb_target` 원자적 UPDATE로 전환 완료(2026-07-09). 단, 참여 취소(cancel) 흐름은 아직 미정의.
-- **trust_score 레이스**: 매너 평가 시 `SET trust_score = trust_score + ?` 형태의 원자적 UPDATE 필수(매너 평가 기능 자체는 아직 미구현).
+- (해결됨) **trust_score 레이스**: `ratings.py`에서 `SET trust_score = MIN(99, MAX(0, trust_score + ?))` 원자적 UPDATE 적용 완료. 매너 평가 기능 자체도 구현 완료.
 - **SQLite 동시성**: 채팅 폴링(4초) + 정산·평가 쓰기 경합 시 `database is locked` 드물게 발생 가능. WAL + `busy_timeout`으로 완화 중.
 - **배포 보안**: 도메인 제한·토큰 취급 정책은 시연/개발 수준. 실제 배포 시 점검 필요. CORS `allow_origins=["*"]`, `seed_admin.py` 기본 비밀번호는 배포 도메인 확정 전까지 의도적으로 보류.
 - **OCR 환경 의존**: 실제 OCR 구동을 위해 서버에 `tesseract` 설치 필요. 미설치 시 데모 폴백.
 - (해결됨) **Kakao 키 하드코딩**: 전 화면 `/api/config/kakao-key` 동적 로드로 전환 완료(2026-08-03). 단, 이미 노출된 이력이 있는 키라면 GitHub 공개 전 카카오 개발자 콘솔에서 키 재발급 권장.
-- (해결됨) **GPS 위치 인증 무인증 공개**: 전 API 인증 필수 + 소유자 검증 + 이력 본인 필터로 전환 완료(2026-08-03). 단, 타겟 좌표를 클라이언트가 지정하는 구조(`dummy-target`)는 유지 중 — 실 거래 연동 시 `posts.lat/lng` 기반 서버 지정으로 전환 필요.
+- (해결됨) **GPS 위치 인증 무인증 공개**: 전 API 인증 필수 + 소유자 검증 + 이력 본인 필터로 전환 완료(2026-08-03).
+- (해결됨) **GPS self-referencing 버그**: 기존엔 참여자가 자신의 현재 위치를 target으로 만들어 항상 통과됐으나, 2026-08-07 수정으로 주최자 약속 좌표를 target으로 고정하고 서버 Haversine 재검증(≤100m)으로 전환 완료.
 - (해결됨) 관리자 계정 생성 → `seed_admin.py`: `python seed_admin.py`(admin 생성) / `python seed_admin.py <login_id>`(기존 계정 승격). 전화번호 충돌 자동 회피, 멱등.
 
 # Response Rules
@@ -114,7 +139,8 @@ NEIGHBORFOOD/
 │   ├── db/                        DB 접속 계층 (모두 neighborfood.db 공유)
 │   │   ├── base.py                make_conn()(WAL+busy_timeout), init_all_databases()
 │   │   ├── auth_db.py             users·sessions·auth_codes·posts
-│   │   ├── transaction_db.py      transactions·groupbuy_participants
+│   │   ├── transaction_db.py      transactions·groupbuy_participants·settlements·settlement_shares
+│   │   ├── settlement_db.py       settlements·settlement_shares CRUD (신규 2026-08-04)
 │   │   ├── member_db.py           wishlists·conversations(+kind)·messages·conversation_members
 │   │   ├── fridge_db.py           fridge_items (내 냉장고)
 │   │   ├── admin_db.py            notices·reports
@@ -126,6 +152,7 @@ NEIGHBORFOOD/
 │   └── routers/                   API 라우터
 │       └── auth.py  users.py  posts.py  qr.py  receipt.py  wishlist.py  chat.py
 │                    transactions.py  fridge.py  admin.py  reports.py  location_verify.py
+│                    ratings.py  settlements.py  (신규 2026-08-04)
 ├── frontend/                    ▶ HTML 페이지 + JS 파일
 │   ├── *.html                     사용자/관리자 화면 (Home·Verify·Create_Post·QR_Scan·Local_Verify_Demo·Admin_* 등)
 │   │   (인증 흐름) Splash · Onboarding · Login · Signup · Password_Reset (.html)
@@ -152,10 +179,10 @@ NEIGHBORFOOD/
 **핵심 파일 (변경 주의)**
 * **엔트리포인트:** `main.py` (앱 생성·미들웨어·정적 마운트·라우터 등록 전담)
 * **설정/공통:** `app/config.py`, `app/core/utils.py`, `app/core/deps.py`
-* **DB 레이어:** `app/db/base.py`, `auth_db.py`, `transaction_db.py`, `member_db.py`, `fridge_db.py`, `admin_db.py`, `qr_db.py`, `receipt_db.py`, `location_verify_db.py`
+* **DB 레이어:** `app/db/base.py`, `auth_db.py`, `transaction_db.py`, `settlement_db.py`, `member_db.py`, `fridge_db.py`, `admin_db.py`, `qr_db.py`, `receipt_db.py`, `location_verify_db.py`
 * **스키마 정의:** `sql/neighborfood_schema.sql` (단일 진실 소스), 산출물 `data/neighborfood.db`
 * **모델:** `app/models/auth.py`, `user.py`, `post.py`, `qr.py`, `receipt.py`, `member.py`, `fridge.py`
-* **라우터:** `app/routers/auth.py`, `users.py`, `posts.py`, `qr.py`, `receipt.py`, `wishlist.py`, `chat.py`, `transactions.py`, `fridge.py`, `admin.py`, `reports.py`, `location_verify.py`
+* **라우터:** `app/routers/auth.py`, `users.py`, `posts.py`, `qr.py`, `receipt.py`, `wishlist.py`, `chat.py`, `transactions.py`, `fridge.py`, `admin.py`, `reports.py`, `location_verify.py`, `ratings.py`, `settlements.py`
 * **프런트 공통:** `frontend/shared/auth.js`, `frontend/shared/guard.js`, `frontend/shared/profile.js`, `frontend/shared/tokens.css`
 
 ---
@@ -182,9 +209,12 @@ NEIGHBORFOOD/
 - GPS 위치 인증(`location_verify_sessions` + `/api/location-verify/*`) 구현 완료 — `Local_Verify_Demo.html`
 - 공동구매 참여 원자적 UPDATE, Kakao 키 `.env` 전환(Map.html), `neighborfood_schema.sql`·`tokens.css` 동기화, `requirements.txt` 갱신 완료 (2026-07-09 커밋 전 점검)
 - Kakao 키 하드코딩 전면 제거(전 화면), GPS 위치 인증 보안 강화(인증·소유권·이력 필터·QR 연동 실호출·진입점 연결), 수령 장소 지정(`Reservation.html` 실좌표 연동) 완료 (2026-08-03)
+- **정산 시스템** 구현 완료 — `settlements`+`settlement_shares` 테이블, `/api/settlements/*` API 9종(노쇼 취소 `DELETE .../noshow` 포함), `Settlement.html` 실데이터 연동, `Group_Buy_Detail.html`·`Transaction_History.html` 진입점 추가 (2026-08-04)
+- **전체 흐름 완성** — GPS 100m 실검증·약속 좌표 저장·`POST /posts/{id}/appointment`·채팅 UX 갭 해소·매너 평가 버튼 완료 (2026-08-07)
 
 ## Included (구현 대상 — 잔여)
-- 정산 요청(`settlements` 테이블 + API + `Settlement.html` 연동)
+- `posts.py` `join_groupbuy` 미납 정산 참여 차단 로직 — 로컬 수동 적용 필요 (`Settlement_Implementation_Plan.md` 섹션 3 참조)
+- ~~`qr.py` QR 인증 성공 시 `quality_agreed` 연동~~ — **불필요** (2026-08-07): `POST /api/settlements/{id}/shares/me/qr-done`으로 대체 완료
 - 상호 매너 평가(`manner_ratings` 테이블 + `trust_score` 반영)
 - 공동구매 참여 취소 흐름
 

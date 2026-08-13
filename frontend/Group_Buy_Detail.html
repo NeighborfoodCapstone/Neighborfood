@@ -63,9 +63,30 @@
     <div class="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black/30 to-transparent"></div>
     <div class="absolute top-3 left-2 right-2 flex items-center justify-between">
       <button onclick="history.back()" class="w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center"><span class="material-symbols-outlined">arrow_back</span></button>
-      <div class="flex gap-1.5">
+      <div class="flex gap-1.5 relative">
         <button class="w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center"><span class="material-symbols-outlined">share</span></button>
-        <button class="w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center"><span class="material-symbols-outlined">more_vert</span></button>
+        <!-- 3-dot 메뉴: 작성자에게만 표시 (refreshJoinState에서 display:flex로 전환) -->
+        <div class="relative" id="authorMenuWrap" style="display:none">
+          <button id="authorMenuBtn"
+            class="w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center"
+            onclick="toggleAuthorMenu(event)"
+            aria-label="게시글 관리">
+            <span class="material-symbols-outlined">more_vert</span>
+          </button>
+          <div id="authorMenuPanel"
+            class="hidden absolute right-0 top-12 bg-white rounded-2xl shadow-lg ring-1 ring-black/[.06] overflow-hidden z-50 w-36">
+            <button onclick="goEditPost()"
+              class="w-full flex items-center gap-2 px-4 py-3 text-[13px] font-semibold hover:bg-surface-container-low"
+              style="color:#191c1d">
+              <span class="material-symbols-outlined" style="font-size:18px">edit</span>수정하기
+            </button>
+            <button onclick="doDeletePost()"
+              class="w-full flex items-center gap-2 px-4 py-3 text-[13px] font-semibold hover:bg-red-50"
+              style="color:#ba1a1a">
+              <span class="material-symbols-outlined" style="font-size:18px">delete</span>삭제하기
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     <!-- Badges on image -->
@@ -254,6 +275,9 @@
     <button id="groupChatBtn" onclick="openGroupChat()" class="w-12 h-12 rounded-2xl bg-surface-container-low flex items-center justify-center" title="참여자 채팅" aria-label="참여자 채팅">
       <span class="material-symbols-outlined text-primary">forum</span>
     </button>
+    <button id="settleBtn" onclick="goSettlement()" class="w-12 h-12 rounded-2xl bg-surface-container-low flex items-center justify-center hidden" title="정산" aria-label="정산">
+      <span class="material-symbols-outlined text-primary">savings</span>
+    </button>
     <a id="joinBtn" href="#" class="flex-1 bg-primary text-white rounded-2xl h-12 flex items-center justify-center text-[14px] font-bold gap-1">
       참여 신청하기
       <span class="material-symbols-outlined" style="font-size:18px">arrow_forward</span>
@@ -299,6 +323,34 @@
       document.getElementById('hostSub').textContent  =
         (post.address || '동네 미설정') + ' · 호스트';
 
+      // 정산 진입점: 작성자에게 항상, 참여자에게는 정산이 존재할 때 표시
+      window._gbPostAuthorId = post.author_id;
+      try {
+        var meRes = await fetch(API_BASE + '/api/users/me');
+        if (meRes.ok) {
+          var meData = await meRes.json();
+          var isAuthor = meData && String(meData.id) === String(post.author_id);
+          var showSettle = isAuthor;
+
+          if (!isAuthor && meData) {
+            // 참여자 여부: 정산 조회가 200이면 관련자(분담 대상)로 확정
+            var partRes = await fetch(API_BASE + '/api/settlements/post/' + id);
+            if (partRes.ok) {
+              showSettle = true;   // 이미 정산에 분담이 걸려 있음 → 현황 확인 가능
+            }
+            // 404(정산 없음) / 403(무관자)이면 버튼 미표시
+          }
+
+          if (showSettle) {
+            var sb = document.getElementById('settleBtn');
+            if (sb) {
+              sb.classList.remove('hidden');
+              sb.title = isAuthor ? '정산 관리' : '정산 현황 확인';
+            }
+          }
+        }
+      } catch (_) {}
+
       document.getElementById('metaText').textContent =
         `${formatRelative(post.created_at)} 등록 · 상태: ${post.status}`;
 
@@ -341,6 +393,9 @@
         btn.classList.add('bg-outline-variant', 'pointer-events-none');
         btn.firstChild.textContent = '모집 완료';
       }
+
+      // 참여 여부에 따라 하단 버튼을 "참여 취소"로 전환 (백엔드 my-status 조회)
+      refreshJoinState(id);
 
       // ── 지도 (Kakao Maps) ──
       const lat = post.lat ?? 37.5452;
@@ -495,6 +550,108 @@
       const d = await r.json();
       location.href = 'Group_Chat.html?id=' + d.conversationId;
     }catch(e){ alert('서버에 연결할 수 없어요.'); }
+  }
+
+  // 정산 화면으로 이동 (작성자 전용 버튼)
+  function goSettlement(){
+    const id = new URLSearchParams(location.search).get('id');
+    if (id) location.href = 'Settlement.html?postId=' + id;
+  }
+
+  // 현재 사용자의 참여 상태를 확인해 하단 버튼 및 작성자 메뉴를 토글
+  async function refreshJoinState(id){
+    const API_BASE = window.location.origin;
+    const jb = document.getElementById('joinBtn');
+    if (!jb) return;
+    let st = null;
+    try {
+      const r = await fetch(API_BASE + '/posts/' + id + '/my-status');
+      if (r.status === 401 || r.status === 403) return; // 비회원 → 기본(참여 신청) 유지
+      if (r.ok) st = await r.json();
+    } catch(e){ return; }
+    if (!st) return;
+
+    if (st.isAuthor){
+      // 작성자: 참여 버튼 숨기고 정산 버튼 노출 + 3-dot 메뉴 활성화
+      jb.classList.add('hidden');
+      const sb = document.getElementById('settleBtn'); if (sb) sb.classList.remove('hidden');
+      const mw = document.getElementById('authorMenuWrap');
+      if (mw) mw.style.display = 'block';
+      return;
+    }
+    if (st.isParticipant){
+      // 참여자: 버튼을 "참여 취소하기"로 전환
+      // bg-error가 이 페이지 tailwind config에 없고 동적 클래스는 JIT 스캔 대상 외이므로
+      // Tailwind 의존 없이 인라인 style로 직접 지정합니다.
+      jb.removeAttribute('href');
+      jb.removeAttribute('class');
+      jb.style.cssText = [
+        'flex:1',
+        'background:#ba1a1a',
+        'color:#fff',
+        'font-weight:700',
+        'font-size:14px',
+        'border-radius:12px',
+        'padding:14px 0',
+        'text-align:center',
+        'cursor:pointer',
+        'display:flex',
+        'align-items:center',
+        'justify-content:center',
+        'box-shadow:0 1px 3px rgba(0,0,0,.18)',
+        'min-width:0',
+      ].join(';');
+      jb.innerHTML = '참여 취소하기';
+      jb.onclick = function(ev){ ev.preventDefault(); cancelJoinGroupBuy(id); };
+    }
+  }
+
+  // 3-dot 드롭다운 토글 (외부 클릭 시 닫힘)
+  function toggleAuthorMenu(ev){
+    ev.stopPropagation();
+    const panel = document.getElementById('authorMenuPanel');
+    if (!panel) return;
+    const isHidden = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', !isHidden);
+    if (isHidden){
+      // 외부 클릭 시 닫힘 (1회용 핸들러)
+      const close = function(){ panel.classList.add('hidden'); document.removeEventListener('click', close); };
+      setTimeout(function(){ document.addEventListener('click', close); }, 0);
+    }
+  }
+
+  // 게시글 수정 (Edit)
+  function goEditPost(){
+    const id = new URLSearchParams(location.search).get('id');
+    if (id) location.href = 'Create_Post.html?edit=' + id;
+  }
+
+  // 게시글 삭제 (Delete)
+  async function doDeletePost(){
+    const API_BASE = window.location.origin;
+    const id = new URLSearchParams(location.search).get('id');
+    if (!id) return;
+    if (!confirm('이 게시글을 삭제할까요? 삭제 후에는 복구할 수 없습니다.')) return;
+    try {
+      const r = await fetch(API_BASE + '/posts/' + id, { method: 'DELETE' });
+      if (window.nfHandleAuthError && nfHandleAuthError(r)) return;
+      if (!r.ok){ const e = await r.json().catch(()=>({})); alert(e.detail || '삭제에 실패했어요.'); return; }
+      alert('게시글이 삭제되었어요.');
+      location.href = 'Home.html';
+    } catch(e){ alert('서버에 연결할 수 없어요.'); }
+  }
+
+  // 참여 취소: DELETE /posts/{id}/join (정산 시작 후에는 서버가 400으로 차단)
+  async function cancelJoinGroupBuy(id){
+    const API_BASE = window.location.origin;
+    if (!confirm('이 공동구매 참여를 취소할까요?')) return;
+    try {
+      const r = await fetch(API_BASE + '/posts/' + id + '/join', { method:'DELETE' });
+      if (window.nfHandleAuthError && nfHandleAuthError(r)) return;
+      if (!r.ok){ const e = await r.json().catch(()=>({})); alert(e.detail || '취소할 수 없어요.'); return; }
+      alert('참여가 취소되었어요.');
+      location.reload();
+    } catch(e){ alert('서버에 연결할 수 없어요.'); }
   }
 </script>
 </body>

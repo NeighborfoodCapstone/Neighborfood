@@ -38,119 +38,366 @@
 </header>
 
 <main class="max-w-2xl mx-auto px-4 pt-4">
-
-  <!-- Top hero card -->
-  <section class="rounded-3xl overflow-hidden relative bg-gradient-to-br from-primary via-primary to-[#004510] text-white p-5 ring-1 ring-primary/30">
-    <div class="absolute -right-6 -bottom-6 opacity-10">
-      <span class="material-symbols-outlined" style="font-size:160px;font-variation-settings:'FILL' 1;">savings</span>
-    </div>
-    <p class="text-[11px] font-bold text-primary-fixed-dim tracking-wide">제주 노지귤 공동구매</p>
-    <p class="text-[11.5px] text-white/80 mt-0.5">분배·픽업 5월 22일 완료</p>
-    <p class="text-[12px] text-white/80 mt-5 font-semibold uppercase tracking-wide">정산 받을 금액</p>
-    <p class="text-[36px] font-bold mt-1 leading-none">128,400<span class="text-[16px] font-medium ml-1">원</span></p>
-    <div class="flex items-center gap-1.5 mt-3 text-[11.5px]">
-      <span class="material-symbols-outlined" style="font-size:16px;font-variation-settings:'FILL' 1;">check_circle</span>
-      <span>참여자 4명 전원 결제 완료</span>
-    </div>
-  </section>
-
-  <!-- Breakdown -->
-  <section class="mt-4 bg-white rounded-2xl ring-soft p-4">
-    <p class="text-[13.5px] font-bold mb-3">정산 내역</p>
-    <ul class="text-[13px] space-y-2.5">
-      <li class="flex justify-between"><span class="text-on-surface-variant">총 결제 금액 (4명 × 12,000원)</span><span class="font-semibold">48,000원</span></li>
-      <li class="flex justify-between"><span class="text-on-surface-variant">상품 원가 환급분</span><span class="font-semibold">128,000원</span></li>
-      <li class="flex justify-between"><span class="text-on-surface-variant">호스트 운영비 (-3%)</span><span class="font-semibold text-secondary">−1,440원</span></li>
-      <li class="flex justify-between"><span class="text-on-surface-variant">픽업 인센티브</span><span class="font-semibold text-primary">+1,840원</span></li>
-    </ul>
-    <div class="flex justify-between border-t border-black/[.06] pt-3 mt-3">
-      <p class="text-[13.5px] font-bold">정산 금액</p>
-      <p class="text-[16px] font-bold text-primary">128,400원</p>
-    </div>
-  </section>
-
-  <!-- Participants -->
-  <section class="mt-3 bg-white rounded-2xl ring-soft overflow-hidden">
-    <div class="p-4 border-b border-black/[.04]">
-      <p class="text-[13.5px] font-bold">참여자 결제 현황</p>
-    </div>
-    <ul class="divide-y divide-black/[.04]">
-      <li class="flex items-center gap-3 px-4 py-3">
-        <div class="w-9 h-9 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[12px] font-bold">민</div>
-        <div class="flex-1 min-w-0">
-          <p class="text-[13px] font-semibold truncate">민지 이웃</p>
-          <p class="text-[10.5px] text-on-surface-variant">5월 16일 11:24</p>
-        </div>
-        <span class="text-[11px] font-bold text-primary bg-primary-fixed/40 px-2 py-1 rounded-full">완료</span>
-      </li>
-      <li class="flex items-center gap-3 px-4 py-3">
-        <div class="w-9 h-9 rounded-full bg-secondary-fixed-dim flex items-center justify-center text-on-secondary-fixed-variant text-[12px] font-bold">건</div>
-        <div class="flex-1 min-w-0">
-          <p class="text-[13px] font-semibold truncate">건강한이웃</p>
-          <p class="text-[10.5px] text-on-surface-variant">5월 16일 09:02</p>
-        </div>
-        <span class="text-[11px] font-bold text-primary bg-primary-fixed/40 px-2 py-1 rounded-full">완료</span>
-      </li>
-      <li class="flex items-center gap-3 px-4 py-3">
-        <div class="w-9 h-9 rounded-full bg-tertiary-fixed-dim flex items-center justify-center text-on-tertiary-container text-[12px] font-bold">빵</div>
-        <div class="flex-1 min-w-0">
-          <p class="text-[13px] font-semibold truncate">빵굽는이웃</p>
-          <p class="text-[10.5px] text-on-surface-variant">5월 16일 08:45</p>
-        </div>
-        <span class="text-[11px] font-bold text-primary bg-primary-fixed/40 px-2 py-1 rounded-full">완료</span>
-      </li>
-      <li class="flex items-center gap-3 px-4 py-3">
-        <div class="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant text-[12px] font-bold">요</div>
-        <div class="flex-1 min-w-0">
-          <p class="text-[13px] font-semibold truncate">요리초보</p>
-          <p class="text-[10.5px] text-on-surface-variant">5월 15일 21:13</p>
-        </div>
-        <span class="text-[11px] font-bold text-primary bg-primary-fixed/40 px-2 py-1 rounded-full">완료</span>
-      </li>
-    </ul>
-  </section>
-
-  <!-- Account -->
-  <section class="mt-3 bg-white rounded-2xl ring-soft p-4">
-    <div class="flex items-center justify-between mb-3">
-      <p class="text-[13.5px] font-bold">정산 받을 계좌</p>
-      <button class="text-[12px] font-bold text-primary">변경</button>
-    </div>
-    <div class="bg-surface-container-low rounded-xl p-3 flex items-center gap-3">
-      <div class="w-9 h-9 rounded-lg bg-white flex items-center justify-center font-bold text-[12px] text-on-surface-variant">국민</div>
-      <div class="flex-1 min-w-0">
-        <p class="text-[12.5px] font-semibold truncate">KB국민은행 · 123456-**-****12</p>
-        <p class="text-[10.5px] text-on-surface-variant mt-0.5">예금주: 이지수</p>
-      </div>
-      <span class="material-symbols-outlined text-primary" style="font-size:18px;font-variation-settings:'FILL' 1;">verified</span>
-    </div>
-  </section>
-
-  <!-- Schedule note -->
-  <section class="mt-3 bg-tertiary-fixed/40 ring-1 ring-tertiary-fixed-dim/40 rounded-2xl p-3.5 flex gap-2">
-    <span class="material-symbols-outlined text-tertiary shrink-0" style="font-size:18px;font-variation-settings:'FILL' 1;">schedule</span>
-    <p class="text-[11.5px] text-on-tertiary-container leading-relaxed">정산은 영업일 기준 <b>1~2일</b> 안에 입금돼요. 토·일·공휴일은 다음 영업일로 이월됩니다.</p>
-  </section>
-
-  <!-- Agreement -->
-  <section class="mt-3 bg-white rounded-2xl ring-soft p-4">
-    <label class="flex items-center gap-2.5">
-      <span class="w-5 h-5 rounded-md bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-white" style="font-size:13px">check</span></span>
-      <span class="text-[12.5px]">표시된 내용을 모두 확인했으며 정산을 신청합니다.</span>
-    </label>
-  </section>
-
+  <div id="stlRoot">
+    <div class="py-20 text-center text-on-surface-variant text-[13px]">불러오는 중…</div>
+  </div>
 </main>
 
-<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-black/[.06] z-40">
-  <div class="max-w-2xl mx-auto px-4 py-3 pb-6 flex gap-2">
-    <button class="px-4 rounded-2xl ring-1 ring-outline-variant bg-white text-[13px] font-semibold">내역 다운로드</button>
-    <button class="flex-1 bg-primary text-white rounded-2xl py-3.5 text-[14px] font-bold flex items-center justify-center gap-1.5">
-      <span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:'FILL' 1;">account_balance</span>
-      128,400원 정산 받기
-    </button>
+<div id="bottomBar" class="fixed bottom-0 left-0 right-0 bg-white border-t border-black/[.06] z-40 hidden">
+  <div class="max-w-2xl mx-auto px-4 py-3 pb-6 flex flex-col gap-2">
+    <button id="qrBtn" class="w-full bg-primary text-white rounded-2xl py-3.5 text-[14px] font-bold flex items-center justify-center gap-1.5 hidden"></button>
+    <button id="primaryBtn" class="w-full bg-primary text-white rounded-2xl py-3.5 text-[14px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40"></button>
   </div>
 </div>
 
+<script>
+(function(){
+  var API = window.location.origin;
+  var qs = new URLSearchParams(location.search);
+  var postId = qs.get('postId');
+  var settlementId = qs.get('settlementId');
+  var me = null, data = null;
+
+  function won(n){ return (n||0).toLocaleString('ko-KR') + '원'; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function el(id){ return document.getElementById(id); }
+
+  async function api(path, opts){
+    var r = await fetch(API + path, Object.assign({headers:{'Content-Type':'application/json'}}, opts||{}));
+    if (window.nfHandleAuthError && nfHandleAuthError(r)) throw new Error('auth');
+    var d = await r.json().catch(function(){return {};});
+    if (!r.ok) throw Object.assign(new Error(d.detail||('HTTP '+r.status)), {status:r.status, detail:d.detail});
+    return d;
+  }
+
+  var statusBadge = {
+    unpaid: '<span class="text-[11px] font-bold text-on-surface-variant bg-surface-container-high px-2 py-1 rounded-full">미납</span>',
+    paid:   '<span class="text-[11px] font-bold text-primary bg-primary-fixed/40 px-2 py-1 rounded-full">완료</span>',
+    noshow: '<span class="text-[11px] font-bold text-[#ba1a1a] bg-error-container px-2 py-1 rounded-full">노쇼</span>'
+  };
+
+  // ── 주최자용 GPS 인증 현황 폴링 (5초 간격) ──
+  var _gpsPollTimer = null;
+  function fmtVerifiedTime(iso){
+    if (!iso) return '';
+    var d = new Date(iso.endsWith('Z')||iso.includes('+') ? iso : iso+'Z');
+    if (isNaN(d)) return '';
+    var hh = String(d.getHours()).padStart(2,'0'), mm = String(d.getMinutes()).padStart(2,'0');
+    return hh + ':' + mm;
+  }
+  async function fetchGpsStatus(settlementId){
+    try {
+      var d = await api('/api/settlements/'+settlementId+'/participants/gps-status');
+      var summary = el('gpsSummary');
+      if (summary) summary.textContent = 'GPS 인증 ' + d.verifiedCount + '/' + d.participantCount;
+      (d.participants||[]).forEach(function(p){
+        var line = el('gpsDetail-'+p.userId);
+        if (!line) return;
+        if (p.gpsVerified){
+          var parts = [];
+          if (p.distanceM != null){
+            // 결정 1: '약속 장소 100m 이내 인증' 벤치마크
+            var within100 = p.distanceM <= 100;
+            parts.push(within100
+              ? '약속 장소 100m 이내 인증 (' + Math.round(p.distanceM) + 'm)'
+              : '약속 장소에서 ' + Math.round(p.distanceM) + 'm');
+          } else {
+            parts.push('GPS 인증 완료');
+          }
+          var t = fmtVerifiedTime(p.verifiedAt);
+          if (t) parts.push(t + ' 인증');
+          line.innerHTML = '<span class="text-primary font-semibold">✓ ' + parts.join(' · ') + '</span>';
+        } else {
+          line.innerHTML = '<span class="text-on-surface-variant">GPS 인증 대기 중</span>';
+        }
+      });
+    } catch(e){ /* 폴링 실패는 조용히 무시 */ }
+  }
+  function startGpsStatusPolling(settlementId){
+    stopGpsStatusPolling();
+    fetchGpsStatus(settlementId);                        // 즉시 1회
+    _gpsPollTimer = setInterval(function(){
+      if (!document.hidden) fetchGpsStatus(settlementId);
+    }, 5000);
+  }
+  function stopGpsStatusPolling(){
+    if (_gpsPollTimer){ clearInterval(_gpsPollTimer); _gpsPollTimer = null; }
+  }
+
+  // ── 정산이 없을 때: 주최자에게 생성 폼, 참여자에게 안내 ──
+  function renderCreateForm(isAuthor){
+    if (!isAuthor){
+      el('stlRoot').innerHTML = '<div class="py-20 text-center text-on-surface-variant text-[13px]">아직 주최자가 정산을 시작하지 않았어요.</div>';
+      el('bottomBar').classList.add('hidden');
+      return;
+    }
+    el('stlRoot').innerHTML =
+      '<section class="bg-white rounded-2xl ring-soft p-4">'
+      + '<p class="text-[14px] font-bold mb-1">정산 시작하기</p>'
+      + '<p class="text-[12px] text-on-surface-variant mb-4">총 금액을 입력하면 참여자 수로 나눠 1인당 금액이 계산돼요.</p>'
+      + '<label class="text-[12px] font-semibold text-on-surface-variant">총 정산 금액</label>'
+      + '<div class="mt-1.5 flex items-center rounded-xl ring-1 ring-outline-variant px-3 py-2.5">'
+      +   '<input id="inpTotal" type="number" inputmode="numeric" placeholder="48000" class="flex-1 outline-none text-[15px] bg-transparent"/>'
+      +   '<span class="text-[13px] text-on-surface-variant">원</span>'
+      + '</div>'
+      + '<label class="text-[12px] font-semibold text-on-surface-variant mt-4 block">정산 받을 계좌 (선택)</label>'
+      + '<input id="inpAccount" type="text" placeholder="KB국민 123456-**-**** 홍길동" class="mt-1.5 w-full rounded-xl ring-1 ring-outline-variant px-3 py-2.5 outline-none text-[13px]"/>'
+      + '</section>';
+    var bar = el('bottomBar'); bar.classList.remove('hidden');
+    var btn = el('primaryBtn');
+    btn.textContent = '정산 시작하기';
+    btn.onclick = async function(){
+      var total = parseInt(el('inpTotal').value, 10);
+      if (!total || total <= 0){ alert('총 금액을 입력해 주세요.'); return; }
+      btn.disabled = true;
+      try {
+        await api('/api/settlements', {method:'POST', body: JSON.stringify({
+          post_id: Number(postId), total_amount: total,
+          account_info: el('inpAccount').value.trim() || null
+        })});
+        load();
+      } catch(e){ alert(e.detail||'정산 생성에 실패했어요.'); btn.disabled=false; }
+    };
+  }
+
+  // ── 정산 상세 렌더 ──
+  function renderDetail(s){
+    var isAuthor = me && s.requesterId === me.id;
+    var myShare = s.shares.find(function(x){ return me && x.userId === me.id; });
+    var perAmount = myShare ? myShare.amount : (s.shares[0] ? s.shares[0].amount : 0);
+
+    var html = '';
+    // 히어로 카드
+    html += '<section class="rounded-3xl overflow-hidden relative bg-gradient-to-br from-primary via-primary to-[#004510] text-white p-5 ring-1 ring-primary/30">'
+      + '<div class="absolute -right-6 -bottom-6 opacity-10"><span class="material-symbols-outlined" style="font-size:160px;font-variation-settings:\'FILL\' 1;">savings</span></div>'
+      + '<p class="text-[11px] font-bold text-primary-fixed-dim tracking-wide">' + (s.status==='completed'?'정산 완료':'정산 진행 중') + '</p>'
+      + '<p class="text-[12px] text-white/80 mt-5 font-semibold uppercase tracking-wide">' + (isAuthor?'정산 총 금액':'내가 낼 금액') + '</p>'
+      + '<p class="text-[34px] font-bold mt-1 leading-none">' + won(isAuthor ? s.totalAmount : perAmount) + '</p>'
+      + '<div class="flex items-center gap-1.5 mt-3 text-[11.5px]"><span class="material-symbols-outlined" style="font-size:16px;font-variation-settings:\'FILL\' 1;">groups</span>'
+      + '<span>참여자 ' + s.participantCount + '명 · 납부 ' + s.paidCount + '명</span></div>'
+      + '</section>';
+
+    // 약속 장소·시간 카드
+    var apptText = '';
+    if (s.appointmentPlace) apptText += esc(s.appointmentPlace);
+    if (s.appointmentAt){
+      var d = new Date(s.appointmentAt.endsWith('Z')||s.appointmentAt.includes('+') ? s.appointmentAt : s.appointmentAt+'Z');
+      if (!isNaN(d)) apptText += (apptText?' · ':'') + (d.getMonth()+1)+'월 '+d.getDate()+'일 '
+        + (d.getHours()<12?'오전 ':'오후 ') + ((d.getHours()%12)||12) + ':' + String(d.getMinutes()).padStart(2,'0');
+    }
+    if (apptText){
+      html += '<section class="mt-3 bg-white rounded-2xl ring-soft p-4 flex items-center gap-2.5">'
+        + '<span class="material-symbols-outlined text-primary" style="font-size:20px;font-variation-settings:\'FILL\' 1">event_available</span>'
+        + '<div class="min-w-0"><p class="text-[11px] text-on-surface-variant font-semibold">거래 약속</p>'
+        + '<p class="text-[13px] font-bold truncate">'+apptText+'</p></div></section>';
+    }
+
+    // 참여자 현황
+    var headerNote = isAuthor
+      ? '<span id="gpsSummary" class="text-[10.5px] font-semibold text-on-surface-variant">GPS 인증 현황 확인 중…</span>'
+      : '';
+    html += '<section class="mt-4 bg-white rounded-2xl ring-soft overflow-hidden">'
+      + '<div class="p-4 border-b border-black/[.04] flex items-center justify-between gap-2">'
+      + '<p class="text-[13.5px] font-bold">참여자 납부 현황</p>' + headerNote + '</div>'
+      + '<ul class="divide-y divide-black/[.04]">';
+    s.shares.forEach(function(sh){
+      // 노쇼 신고 버튼 — 주최자·pending 정산·미납 상태에서만 표시
+      var noshowBtn = (isAuthor && s.status==='pending' && sh.status==='unpaid')
+        ? '<button onclick="doNoshow('+s.id+','+sh.userId+')"'
+          + ' class="text-[10.5px] font-bold text-[#ba1a1a] ml-2 underline underline-offset-2 shrink-0">노쇼 신고</button>'
+        : '';
+      // 노쇼 취소 버튼 — 주최자·pending 정산·노쇼 상태에서만 표시
+      var cancelNoshowBtn = (isAuthor && s.status==='pending' && sh.status==='noshow')
+        ? '<button onclick="doCancelNoshow('+s.id+','+sh.userId+')"'
+          + ' class="text-[10.5px] font-bold text-on-surface-variant ml-2 underline underline-offset-2 shrink-0">취소</button>'
+        : '';
+      var extra = (sh.status === 'paid' || sh.status === 'noshow') ? ''
+                 : (!sh.gpsVerified ? '<span class="text-[10px] text-secondary ml-1">· GPS 미인증</span>'
+                 : (!sh.qualityAgreed ? '<span class="text-[10px] text-secondary ml-1">· QR 미인증</span>'
+                 : '<span class="text-[10px] text-primary ml-1">· 납부 대기</span>'));
+      // 주최자 뷰: 참여자별 GPS 상세(거리·시각) 라인 — 폴링으로 채워짐
+      var gpsLine = isAuthor
+        ? '<p id="gpsDetail-'+sh.userId+'" class="text-[10.5px] text-on-surface-variant mt-0.5">GPS 인증 대기 중</p>'
+        : '';
+      html += '<li class="flex items-center gap-3 px-4 py-3">'
+        + '<div class="w-9 h-9 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[12px] font-bold">'+esc((sh.nickname||'?').charAt(0))+'</div>'
+        + '<div class="flex-1 min-w-0"><p class="text-[13px] font-semibold truncate">'+esc(sh.nickname)+extra+'</p>'
+        + '<p class="text-[10.5px] text-on-surface-variant">'+won(sh.amount)+'</p>'+gpsLine+'</div>'
+        + statusBadge[sh.status] + noshowBtn + cancelNoshowBtn + '</li>';
+    });
+    html += '</ul></section>';
+
+    // 계좌 정보
+    if (s.accountInfo){
+      html += '<section class="mt-3 bg-white rounded-2xl ring-soft p-4">'
+        + '<p class="text-[13.5px] font-bold mb-2">정산 받을 계좌</p>'
+        + '<div class="bg-surface-container-low rounded-xl p-3 text-[12.5px] font-semibold">'+esc(s.accountInfo)+'</div>'
+        + '<p class="text-[11px] text-on-surface-variant mt-2">위 계좌로 직접 송금 후 아래 버튼을 눌러주세요. (앱은 실제 송금을 대행하지 않아요)</p>'
+        + '</section>';
+    }
+
+    el('stlRoot').innerHTML = html;
+
+    // ── 노쇼 신고 / 취소: window에 노출해 인라인 onclick에서 접근 가능하게 함 ──
+    window.doNoshow = async function(sid, uid){
+      if (!confirm('노쇼 처리하시겠어요?\n상대방의 신뢰 점수가 낮아지고 신고가 자동으로 기록됩니다.')) return;
+      try {
+        await api('/api/settlements/'+sid+'/shares/'+uid+'/noshow', {method:'POST'});
+        load();
+      } catch(e){ alert(e.detail||'노쇼 처리에 실패했어요.'); }
+    };
+    window.doCancelNoshow = async function(sid, uid){
+      if (!confirm('노쇼 신고를 취소하시겠어요?\n미납 상태로 돌아가고 자동 기록된 신고가 삭제됩니다.')) return;
+      try {
+        await api('/api/settlements/'+sid+'/shares/'+uid+'/noshow', {method:'DELETE'});
+        load();
+      } catch(e){ alert(e.detail||'노쇼 취소에 실패했어요.'); }
+    };
+
+    // 주최자 뷰: 참여자 GPS 현황 5초 폴링 시작 (pending 상태에서만)
+    if (isAuthor && s.status === 'pending'){
+      startGpsStatusPolling(s.id);
+    } else {
+      stopGpsStatusPolling();
+    }
+
+    // 하단 버튼: 역할별 분기
+    var bar = el('bottomBar'), btn = el('primaryBtn'), qrBtn = el('qrBtn');
+    // qrBtn 초기화 (모든 분기 진입 전 숨김)
+    qrBtn.classList.add('hidden');
+    qrBtn.onclick = null;
+
+    if (s.status === 'completed'){
+      // 정산 완료 — 매너 평가로 안내
+      bar.classList.remove('hidden');
+      btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:\'FILL\' 1">thumb_up</span>매너 평가 남기기';
+      btn.disabled = false;
+      btn.onclick = function(){ location.href = 'My_Activity.html?tab=history'; };
+      qrBtn.classList.add('hidden');
+      return;
+    }
+    if (s.status !== 'pending'){
+      bar.classList.add('hidden'); return;
+    }
+    bar.classList.remove('hidden');
+    if (isAuthor){
+      // QR 대기 참여자가 있으면 주최자에게 스캔 안내 버튼 표시
+      var needsQrScan = s.shares.some(function(sh){
+        return sh.gpsVerified && !sh.qualityAgreed && sh.status === 'unpaid';
+      });
+      if (needsQrScan){
+        qrBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:\'FILL\' 1">qr_code_scanner</span>참여자 QR 스캔하기';
+        qrBtn.classList.remove('hidden');
+        qrBtn.onclick = function(){ location.href = 'QR_Scan.html'; };
+      }
+      btn.textContent = s.canComplete ? '정산 완료 처리' : ('납부 완료 대기 (' + s.paidCount + '/' + s.participantCount + ')');
+      btn.disabled = !s.canComplete;
+      btn.onclick = async function(){
+        try { await api('/api/settlements/'+s.id+'/complete', {method:'POST'}); load(); }
+        catch(e){ alert(e.detail||'완료 처리에 실패했어요.'); };
+      };
+    } else if (myShare){
+      var hasAppt = !!(s.appointmentAt || s.appointmentPlace);
+      if (myShare.status === 'paid'){
+        btn.textContent = '납부 완료됨'; btn.disabled = true;
+      } else if (myShare.status === 'noshow'){
+        btn.textContent = '노쇼 처리됨'; btn.disabled = true;
+      } else if (!hasAppt){
+        // 주최자가 아직 약속을 안 정함
+        btn.textContent = '거래 장소·시간 확정 대기 중'; btn.disabled = true;
+      } else if (!myShare.gpsVerified){
+        // Step 1: GPS 인증 필요
+        btn.textContent = 'GPS 인증 후 진행 가능'; btn.disabled = true;
+        qrBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:\'FILL\' 1">my_location</span>1단계 · GPS 인증하러 가기';
+        qrBtn.classList.remove('hidden');
+        qrBtn.onclick = function(){
+          location.href = 'Local_Verify_Demo.html?settlementId=' + s.id + '&subjectId=' + me.id;
+        };
+      } else if (!myShare.qualityAgreed){
+        // Step 2: QR 인증 필요 (기존 라벨 유지)
+        btn.textContent = 'QR 인증 후 납부 가능'; btn.disabled = true;
+        qrBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:\'FILL\' 1">qr_code_scanner</span>2단계 · QR 인증하러 가기';
+        qrBtn.classList.remove('hidden');
+        qrBtn.onclick = function(){
+          location.href = 'QR_Scan.html?mode=issue&subjectId=user_' + me.id
+            + '&purpose=pickup_confirm&ttlSeconds=300&settlementId=' + s.id;
+        };
+      } else {
+        // 두 단계 완료 → 납부 활성
+        btn.textContent = won(myShare.amount) + ' 납부했어요';
+        btn.disabled = false;
+        btn.onclick = async function(){
+          btn.disabled = true;
+          try { await api('/api/settlements/'+s.id+'/shares/me/pay', {method:'POST'}); load(); }
+          catch(e){ alert(e.detail||'처리에 실패했어요.'); btn.disabled=false; };
+        };
+      }
+    } else {
+      bar.classList.add('hidden');
+    }
+  }
+
+  async function load(){
+    try {
+      me = await api('/api/users/me');
+    } catch(e){ return; }
+    try {
+      if (settlementId){
+        data = (await api('/api/settlements/' + settlementId)).settlement;
+        renderDetail(data);
+      } else if (postId){
+        try {
+          data = (await api('/api/settlements/post/' + postId)).settlement;
+          renderDetail(data);
+        } catch(e){
+          if (e.status === 404){
+            // 정산 없음 → 게시글 작성자 여부 확인
+            var post = await api('/posts/' + postId).catch(function(){return null;});
+            var isAuthor = post && (post.authorId === me.id || post.author_id === me.id);
+            renderCreateForm(isAuthor);
+          } else { throw e; }
+        }
+      } else {
+        el('stlRoot').innerHTML = '<div class="py-20 text-center text-on-surface-variant text-[13px]">잘못된 접근이에요. (postId 없음)</div>';
+      }
+    } catch(e){
+      el('stlRoot').innerHTML = '<div class="py-20 text-center text-on-surface-variant text-[13px]">'+esc(e.detail||'불러오지 못했어요.')+'</div>';
+    }
+  }
+
+  // GPS/QR 인증 페이지에서 돌아왔을 때 서버에 완료 보고 후 새로고침
+  async function reportVerification(){
+    var sidForReport = settlementId || (data && data.id);
+    // gps=1 또는 qr=1 파라미터가 있으면 해당 단계 완료 보고
+    var gpsDone = qs.get('gps') === '1' || qs.get('gpsDone') === '1';
+    var qrDone  = qs.get('qr')  === '1' || qs.get('qrDone')  === '1';
+    if (!gpsDone && !qrDone) return false;
+
+    // settlementId를 알아야 보고 가능 (postId만 있으면 먼저 조회)
+    if (!sidForReport && postId){
+      try { sidForReport = (await api('/api/settlements/post/' + postId)).settlement.id; }
+      catch(e){ return false; }
+    }
+    if (!sidForReport) return false;
+
+    try {
+      if (gpsDone) await api('/api/settlements/'+sidForReport+'/shares/me/gps-done', {method:'POST'});
+      if (qrDone)  await api('/api/settlements/'+sidForReport+'/shares/me/qr-done',  {method:'POST'});
+    } catch(e){ alert(e.detail || '인증 반영에 실패했어요.'); }
+
+    // 파라미터 제거(중복 보고 방지) 후 정리된 URL로 교체
+    qs.delete('gps'); qs.delete('gpsDone'); qs.delete('qr'); qs.delete('qrDone');
+    var clean = location.pathname + '?' + qs.toString();
+    history.replaceState(null, '', clean);
+    return true;
+  }
+
+  (async function init(){
+    try { me = await api('/api/users/me'); } catch(e){ load(); return; }
+    await reportVerification();
+    load();
+  })();
+})();
+</script>
 </body>
 </html>

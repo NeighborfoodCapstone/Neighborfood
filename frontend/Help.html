@@ -44,6 +44,17 @@
     <input class="w-full pl-11 pr-4 py-3.5 rounded-2xl ring-1 ring-outline-variant bg-white text-[14px] outline-none focus:ring-2 focus:ring-primary" placeholder="궁금한 점을 검색해 보세요"/>
   </div>
 
+  <!-- 공지사항 (공개 API — 비회원 포함 열람) -->
+  <section class="mt-5">
+    <div class="flex items-center gap-1.5 mb-2">
+      <span class="material-symbols-outlined text-primary" style="font-size:18px;font-variation-settings:'FILL' 1;">campaign</span>
+      <h2 class="text-[14px] font-bold">공지사항</h2>
+    </div>
+    <div id="noticeBox" class="flex flex-col gap-2">
+      <p class="text-[12px] text-on-surface-variant">불러오는 중…</p>
+    </div>
+  </section>
+
   <!-- Quick actions -->
   <section class="grid grid-cols-2 gap-2 mt-4">
     <a class="bg-gradient-to-br from-primary to-[#004510] text-white rounded-2xl p-4 flex flex-col gap-1">
@@ -163,5 +174,33 @@
     </div>
   </section>
 </main>
+
+<script>
+(function(){
+  const API = window.location.origin;
+  const box = document.getElementById('noticeBox');
+  function esc(s){ const d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+  // 공지 로드 — Tailwind CDN JIT 스캔 타이밍 문제를 방지하기 위해
+  // 동적으로 생성하는 요소는 인라인 style로 색상을 명시합니다.
+  fetch(API+'/api/notices?limit=10').then(r=>r.ok?r.json():null).then(d=>{
+    if(!box) return;
+    if(!d || !d.items.length){
+      box.innerHTML='<p style="font-size:12px;color:#3f4a3c">등록된 공지가 없어요.</p>';
+      return;
+    }
+    box.innerHTML = d.items.map(n =>
+      '<details style="background:#fff;border-radius:12px;box-shadow:0 0 0 1px rgba(0,0,0,.05);padding:12px">'
+      + '<summary style="font-size:13px;font-weight:600;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;color:#191c1d">'
+      + '<span>'+esc(n.title)+'</span>'
+      + '<span class="material-symbols-outlined" style="font-size:18px;color:#3f4a3c">expand_more</span>'
+      + '</summary>'
+      + '<p style="font-size:12.5px;color:#3f4a3c;margin-top:8px;white-space:pre-wrap">'+esc(n.content)+'</p>'
+      + '</details>'
+    ).join('');
+  }).catch(()=>{
+    if(box) box.innerHTML='<p style="font-size:12px;color:#ba1a1a">공지를 불러오지 못했어요.</p>';
+  });
+})();
+</script>
 </body>
 </html>
