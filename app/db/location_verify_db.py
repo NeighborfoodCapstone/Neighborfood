@@ -12,8 +12,8 @@ from app.config      import DB_PATH
 from app.core.utils  import now_utc, to_iso
 from app.db.base     import make_conn
 
-DEFAULT_RADIUS_M        = 300.0
-DEFAULT_ACCURACY_LIMIT_M = 1500.0
+DEFAULT_RADIUS_M        = 100.0   # 거래 지점 반경 (프론트 UI와 동기화: '약속 장소 100m 이내')
+DEFAULT_ACCURACY_LIMIT_M = 1500.0  # 시연용 GPS 정확도 허용치 (거리 반경과 별개)
 
 
 def _now() -> str:
@@ -75,7 +75,7 @@ def init_location_verify_db() -> None:
                 target_lat       REAL NOT NULL,
                 target_lng       REAL NOT NULL,
                 target_address   TEXT,
-                radius_m         REAL DEFAULT 300,
+                radius_m         REAL DEFAULT 100,
                 status           TEXT DEFAULT 'TARGET_CREATED',
                 current_lat      REAL,
                 current_lng      REAL,
@@ -92,7 +92,7 @@ def init_location_verify_db() -> None:
             "PRAGMA table_info(location_verify_sessions)").fetchall()]
         migrations = {
             "target_address":   "ALTER TABLE location_verify_sessions ADD COLUMN target_address TEXT",
-            "radius_m":         "ALTER TABLE location_verify_sessions ADD COLUMN radius_m REAL DEFAULT 300",
+            "radius_m":         "ALTER TABLE location_verify_sessions ADD COLUMN radius_m REAL DEFAULT 100",
             "current_lat":      "ALTER TABLE location_verify_sessions ADD COLUMN current_lat REAL",
             "current_lng":      "ALTER TABLE location_verify_sessions ADD COLUMN current_lng REAL",
             "current_accuracy": "ALTER TABLE location_verify_sessions ADD COLUMN current_accuracy REAL",

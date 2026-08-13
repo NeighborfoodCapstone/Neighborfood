@@ -1,4 +1,4 @@
-# 마지막 수정 : 2026.07.08  (Capstone_temporary ← main 병합)
+# 마지막 수정 : 2026.08.03
 # 깃헙 저장소  : https://github.com/NeighborfoodCapstone/Neighborfood.git
 # API 문서    : http://127.0.0.1:8000/docs
 #
@@ -16,7 +16,7 @@ from fastapi.responses       import FileResponse, HTMLResponse
 from app.config              import UPLOAD_DIR, PAGE_DIR, NO_CACHE
 from app.db.base             import init_all_databases
 from app.routers             import auth, posts, qr, receipt, users, wishlist, chat, transactions, fridge, admin, reports
-from app.routers             import location_verify
+from app.routers             import location_verify, ratings, settlements
 
 
 # ── .env 로더 (receipt_db.py의 _load_local_env_once와 동일한 방식, 의존성 추가 없음) ──
@@ -88,6 +88,8 @@ app.include_router(fridge.router,           prefix="/api/fridge",       tags=["�
 app.include_router(admin.router,            prefix="/api/admin",        tags=["관리자"])
 app.include_router(reports.router,          prefix="/api/reports",      tags=["신고"])
 app.include_router(location_verify.router,  prefix="/api/location-verify", tags=["GPS 위치 인증"])
+app.include_router(ratings.router,          prefix="/api/ratings",      tags=["매너 평가"])
+app.include_router(settlements.router,      prefix="/api/settlements",  tags=["정산"])
 
 # ── 인증 HTML 페이지 직접 서빙 (카메라 사용 화면 — localhost 보안 컨텍스트 필요) ─
 @app.get("/", response_class=HTMLResponse)

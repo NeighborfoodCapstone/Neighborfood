@@ -96,10 +96,25 @@ def init_auth_db() -> None:
                 gb_target     INTEGER,
                 gb_current    INTEGER DEFAULT 0,
                 gb_price      INTEGER,
-                exchange_want TEXT
+                exchange_want TEXT,
+                appointment_place TEXT,
+                appointment_at    TEXT,
+                appointment_lat   REAL,
+                appointment_lng   REAL
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_posts_type_created ON posts (type, created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_posts_author       ON posts (author_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_users_login        ON users (login_id)")
+
+        # 멱등 마이그레이션: 구버전 posts에 약속 컬럼이 없으면 추가
+        p_cols = [r[1] for r in conn.execute("PRAGMA table_info(posts)").fetchall()]
+        for col, ddl in {
+            "appointment_place": "ALTER TABLE posts ADD COLUMN appointment_place TEXT",
+            "appointment_at":    "ALTER TABLE posts ADD COLUMN appointment_at TEXT",
+            "appointment_lat":   "ALTER TABLE posts ADD COLUMN appointment_lat REAL",
+            "appointment_lng":   "ALTER TABLE posts ADD COLUMN appointment_lng REAL",
+        }.items():
+            if col not in p_cols:
+                conn.execute(ddl)
         conn.commit()
