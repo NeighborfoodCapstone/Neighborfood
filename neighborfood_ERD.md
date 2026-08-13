@@ -3,7 +3,9 @@
 동네 식재료 나눔·공동구매·교환 플랫폼의 데이터베이스 구조 및 프로젝트 디렉토리 문서입니다.
 3개로 분리돼 있던 SQLite(`auth.db` / `qr_auth.db` / `receipt_auth.db`)를 **단일 SQLite 파일(`data/neighborfood.db`)** 로 통합하고, 회원 기능 도입에 맞춰 `users`·`sessions`·`transactions`·`groupbuy_participants`를 추가한 현행 구조를 정리합니다.
 
-> 최종 갱신: 2026-08-03
+> 최종 갱신: 2026-08-07
+> · `posts` 테이블에 약속 좌표(`appointment_lat/lng`) 4개 컬럼 추가, `POST /posts/{id}/appointment` 신규 (2026-08-07)
+> · **정산 시스템** 구현 완료 — `settlements` + `settlement_shares` 2개 테이블 추가, `settlement_db.py` 신규 (2026-08-04)
 > · GPS 위치 인증 보안 강화 — 전 API Bearer 인증·소유자 검증, `list_sessions(subject_id)` 필터, QR 인증 성공 시 `QR_VERIFIED` 연동 실호출 (2026-08-03)
 > · GPS 위치 인증(`location_verify_sessions`) 문서화 반영 + `neighborfood_schema.sql` 6개 테이블 동기화 (2026-07-09)
 > · 내 냉장고(`fridge_items`) · 그룹 채팅(`conversations.kind`·`conversation_members`) · 관리자 기능(`notices`·`reports`) 추가 (2026-06-13)
@@ -11,9 +13,9 @@
 > · ID/비밀번호 인증 전환 + `wishlists`·`conversations`·`messages` (2026-06-10)
 
 - **DBMS**: SQLite 3 (단일 파일 `data/neighborfood.db`)
-- **테이블 수**: 16개 (`users`, `sessions`, `auth_codes`, `posts`, `transactions`, `groupbuy_participants`, `qr_sessions`, `receipts`, `fridge_items`, `location_verify_sessions`, `wishlists`, `conversations`, `messages`, `conversation_members`, `notices`, `reports`)
-- **접속 계층**: `app/db/*.py` — 모든 연결이 `make_conn(DB_PATH, foreign_keys=True)`로 동일 파일을 공유
-- **스키마 원본**: `sql/neighborfood_schema.sql`
+- **테이블 수**: 18개 (`users`, `sessions`, `auth_codes`, `posts`, `transactions`, `groupbuy_participants`, `settlements`, `settlement_shares`, `qr_sessions`, `receipts`, `fridge_items`, `location_verify_sessions`, `wishlists`, `conversations`, `messages`, `conversation_members`, `notices`, `reports`)
+- **접속 계층**: `db/*.py` — 모든 연결이 `make_conn(DB_PATH, foreign_keys=True)`로 동일 파일을 공유
+- **스키마 원본**: `neighborfood_schema.sql`
 
 ---
 
@@ -31,7 +33,8 @@ NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 │   ├── db/                           DB 접속 계층 (모두 neighborfood.db 공유)
 │   │   ├── base.py                   make_conn()(WAL+busy_timeout), init_all_databases()
 │   │   ├── auth_db.py                users · sessions · auth_codes · posts
-│   │   ├── transaction_db.py         transactions · groupbuy_participants
+│   │   ├── transaction_db.py         transactions · groupbuy_participants · settlements · settlement_shares
+│   │   ├── settlement_db.py          settlements · settlement_shares CRUD (신규 2026-08-04)
 │   │   ├── member_db.py              wishlists · conversations(+kind) · messages · conversation_members
 │   │   ├── fridge_db.py              fridge_items (내 냉장고)
 │   │   ├── admin_db.py               notices · reports
@@ -43,7 +46,12 @@ NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 │   └── routers/                      API 라우터
 │       ├── auth.py  users.py  posts.py  qr.py  receipt.py  wishlist.py  chat.py
 │       ├── transactions.py  fridge.py  admin.py  reports.py
-│       └── location_verify.py        GPS 위치 인증 (`/api/location-verify/*`)
+│       ├── location_verify.py            GPS 위치 인증 (`/api/location-verify/*`, radius=100m)
+│       ├── ratings.py                    매너 평가 (`/api/ratings/*`)
+│       └── settlements.py                정산 API (`/api/settlements/*`, 신규 2026-08-04)
+│
+│   posts.py 주요 추가 엔드포인트 (prefix 없음):
+│       POST /posts/{id}/appointment      거래 약속 장소·시간·좌표 저장 (정산 전 채팅 단계 가능, 신규 2026-08-07)
 │
 ├── frontend/                       ▶ HTML 페이지 + JS 파일
 │   ├── (사용자 화면)
@@ -132,6 +140,7 @@ erDiagram
         TEXT content
         TEXT created_at
         TEXT read_at
+        INTEGER is_system "0=일반, 1=시스템 알림"
     }
     conversation_members {
         INTEGER conversation_id PK "conversations.id (CASCADE)"
@@ -196,6 +205,10 @@ erDiagram
         INTEGER gb_current "공구 현재 인원"
         INTEGER gb_price "공구 1인 분담금"
         TEXT exchange_want "교환 희망 물품"
+        TEXT appointment_place "거래 약속 장소 (채팅→정산 승계)"
+        TEXT appointment_at "거래 약속 일시 (채팅→정산 승계)"
+        REAL appointment_lat "약속 위도 — 참여자 GPS 100m 검증 기준"
+        REAL appointment_lng "약속 경도 — 참여자 GPS 100m 검증 기준"
     }
     transactions {
         INTEGER id PK
@@ -213,6 +226,26 @@ erDiagram
         INTEGER post_id PK "posts.id"
         INTEGER user_id PK "users.id"
         TEXT joined_at
+    }
+    settlements {
+        INTEGER id PK "자동 증가"
+        INTEGER post_id FK "posts.id"
+        INTEGER requester_id FK "users.id (주최자)"
+        INTEGER total_amount "정산 총 금액(원)"
+        TEXT account_info "주최자 계좌(평문, 선택)"
+        TEXT status "pending / completed / canceled"
+        TEXT created_at
+        TEXT completed_at
+    }
+    settlement_shares {
+        INTEGER settlement_id PK,FK "settlements.id"
+        INTEGER user_id PK,FK "users.id (참여자)"
+        INTEGER amount "1인 분담 금액"
+        TEXT status "unpaid / paid / noshow"
+        INTEGER quality_agreed "1=QR 스캔(품질 동의) 완료"
+        INTEGER auto_confirmed "1=GPS+24h 자동 납부 확인"
+        TEXT paid_at "납부 완료 시각(ISO)"
+        TEXT created_at
     }
     qr_sessions {
         TEXT id PK
@@ -280,9 +313,13 @@ erDiagram
     users ||--o{ fridge_items : "내 냉장고 (1:N)"
     users ||--o{ notices : "공지 작성 (1:N)"
     users ||--o{ reports : "신고 (1:N)"
+    posts ||--o{ settlements : "게시글 기준 정산 (1:N)"
+    users ||--o{ settlements : "정산 주최자 (1:N)"
+    settlements ||--o{ settlement_shares : "참여자별 분담 (1:N)"
+    users ||--o{ settlement_shares : "정산 참여자 (1:N)"
 ```
 
-> `posts.author_id`·`transactions`·`groupbuy_participants`의 FK는 **물리 FK로 적용 완료**입니다(단일 파일 통합으로 활성화).
+> `posts.author_id`·`transactions`·`groupbuy_participants`·`settlements`·`settlement_shares`의 FK는 **물리 FK로 적용 완료**입니다(단일 파일 통합으로 활성화).
 > `qr_sessions.subject_id` / `receipts.subject_id`는 기존 흐름 보존을 위해 **논리적 참조(TEXT)** 로 유지하며, 거래 정합성은 `transactions.qr_session_id` / `receipt_id`를 통해 연결합니다.
 
 ---
@@ -296,6 +333,10 @@ erDiagram
 | `users` | `transactions` | `provider_id` / `receiver_id` | 1 : N | ✅ | 회원이 제공/수령한 거래 |
 | `posts` | `transactions` | `post_id` | 1 : N | ✅ (이력 보존) | 한 게시글에서 발생한 거래 |
 | `posts` / `users` | `groupbuy_participants` | `post_id` / `user_id` | 1 : N | ✅ | 공동구매 참여자(복합 PK) |
+| `posts` | `settlements` | `post_id` | 1 : N | ✅ | 게시글의 정산 헤더 |
+| `users` | `settlements` | `requester_id` | 1 : N | ✅ | 주최자의 정산 |
+| `settlements` | `settlement_shares` | `settlement_id` | 1 : N | ✅ | 참여자별 분담(복합 PK) |
+| `users` | `settlement_shares` | `user_id` | 1 : N | ✅ | 참여자의 분담 기록 |
 | `posts` | `qr_sessions` | `subject_id` | 1 : N | 논리적 | 게시글 대상 QR 세션 |
 | `users` | `receipts` | `subject_id` | 1 : N | 논리적 | 회원의 영수증 인증 |
 | `transactions` | `qr_sessions` | `qr_session_id` | 1 : 1 | 논리적 | 거래에 연계된 QR |
@@ -375,8 +416,15 @@ erDiagram
 | `expires_at` | `TEXT` | | 마감 일시. NULL이면 무기한 |
 | `gb_target` / `gb_current` / `gb_price` | `INTEGER` | | [공구] 목표·현재 인원·1인 분담금 |
 | `exchange_want` | `TEXT` | | [교환] 희망 물품 설명 |
+| `appointment_place` | `TEXT` | | 거래 약속 장소(채팅 확정 → 정산 생성 시 자동 승계) |
+| `appointment_at` | `TEXT` | | 거래 약속 일시(ISO, 채팅 확정 → 정산 승계) |
+| `appointment_lat` | `REAL` | | 약속 위도 — 참여자 GPS 100m 검증 기준 |
+| `appointment_lng` | `REAL` | | 약속 경도 — 참여자 GPS 100m 검증 기준 |
 
 **인덱스**: `(type, created_at)`, `(author_id)`
+
+> `appointment_place/at/lat/lng`는 2026-08-07 멱등 `ALTER TABLE`로 추가되었습니다 (`auth_db.py` `init_auth_db()` 마이그레이션 블록).
+> `POST /posts/{id}/appointment` API를 통해 채팅방에서 정산 생성 전에도 약속을 확정할 수 있으며, 이후 정산 생성 시 `settlements`로 자동 승계됩니다.
 
 ---
 
@@ -455,6 +503,7 @@ erDiagram
 | `content` | `TEXT` | NOT NULL | 본문(최대 1000자) |
 | `created_at` | `TEXT` | | 전송 시각(ISO) |
 | `read_at` | `TEXT` | | 상대가 읽은 시각(미독이면 NULL) |
+| `is_system` | `INTEGER` | DEFAULT 0 | 0=일반 메시지, 1=시스템 알림. 공동구매 참여 취소 시 `"OOO님이 참여를 취소하셨습니다."` 자동 삽입. `posts.py`의 `cancel_join_groupbuy`에서 멱등 ALTER 후 사용 (2026-08-12) |
 
 ---
 
@@ -591,6 +640,51 @@ erDiagram
 
 ---
 
+## 9-6. `settlements` / `settlement_shares` — 공동구매 정산 (2026-08-04 신규)
+
+앱이 실제 자금을 보관하거나 이동시키지 않는다. 참여자는 카카오페이·계좌이체 등 외부 수단으로 직접 송금하고, 앱은 상태만 추적한다. 기존 GPS·QR·trust_score 인프라와 연결해 신뢰 모델을 보강한다.
+
+**납부 3단계 자동화 흐름**
+```
+QR 스캔 성공  → quality_agreed = 1  → "납부했어요" 버튼 활성화
+납부 버튼 클릭 → paid_at 기록       → 납부 완료 처리
+GPS 인증 + 24h → auto_confirmed = 1  → GET 조회 시점에 서버가 자동 납부 확인
+```
+
+### `settlements` — 정산 헤더
+
+| 컬럼 | 타입 | 키 | 설명 |
+|------|------|----|------|
+| `id` | `INTEGER` | PK (AUTOINCREMENT) | 정산 번호 |
+| `post_id` | `INTEGER` | FK → `posts.id`, NOT NULL | 공동구매 게시글 |
+| `requester_id` | `INTEGER` | FK → `users.id`, NOT NULL | 정산 주최자(글 작성자) |
+| `total_amount` | `INTEGER` | NOT NULL | 주최자가 입력한 총 정산 금액(원) |
+| `account_info` | `TEXT` | | 주최자 계좌 정보(평문, 선택) |
+| `status` | `TEXT` | NOT NULL, 기본 `pending` (CHECK) | `pending` / `completed` / `canceled` |
+| `created_at` | `TEXT` | NOT NULL | 정산 생성 시각(ISO) |
+| `completed_at` | `TEXT` | | 완료 처리 시각(ISO) |
+
+**인덱스**: `(post_id)`, `(requester_id, created_at)`
+
+### `settlement_shares` — 참여자별 분담
+
+| 컬럼 | 타입 | 키 | 설명 |
+|------|------|----|------|
+| `settlement_id` | `INTEGER` | PK, FK → `settlements.id` | 정산 헤더 |
+| `user_id` | `INTEGER` | PK, FK → `users.id` | 분담 참여자 |
+| `amount` | `INTEGER` | NOT NULL | 1인 분담 금액 (`total_amount // N`, 나머지는 주최자 흡수) |
+| `status` | `TEXT` | NOT NULL, 기본 `unpaid` (CHECK) | `unpaid` / `paid` / `noshow` |
+| `quality_agreed` | `INTEGER` | NOT NULL, 기본 0 | 1 = QR 스캔 완료(품질 동의) |
+| `auto_confirmed` | `INTEGER` | NOT NULL, 기본 0 | 1 = GPS+24h 조건 자동 납부 확인 |
+| `paid_at` | `TEXT` | | 납부 완료 시각(ISO). NULL = 미납 |
+| `created_at` | `TEXT` | NOT NULL | 분담 생성 시각(ISO) |
+
+**인덱스**: `(user_id, status)`
+
+**노쇼 취소 정책**: `DELETE /api/settlements/{id}/shares/{uid}/noshow` 호출 시 `status → unpaid`, `paid_at → NULL`, `trust_score +1.0` 원자적 복원, `status='pending'`인 자동 신고 삭제(관리자 처리 완료 신고는 보존).
+
+---
+
 ## 10. 설계 결정 메모
 
 ### 10.1 타임스탬프를 `TEXT`(ISO-8601)로 두는 이유
@@ -629,6 +723,8 @@ erDiagram
 | `app/db/admin_db.py` | `notices`·`reports` |
 | `app/db/qr_db.py` / `receipt_db.py` | `qr_sessions` / `receipts` |
 | `app/db/location_verify_db.py` | `location_verify_sessions` (GPS 위치 인증, 지연 초기화) |
+| `app/db/settlement_db.py` | `settlements` · `settlement_shares` CRUD, GPS 자동확인, QR 품질동의 연동 |
+| `app/routers/settlements.py` | 정산 API (`/api/settlements/*`) — 노쇼 취소 `DELETE` 포함 9종 |
 | `app/core/deps.py` | 세션 토큰 인증/인가 (`get_current_user`, `get_current_admin`) |
 | `app/routers/users.py` | 회원 프로필/탈퇴 API |
 | `app/routers/chat.py` | 1:1·그룹 채팅 API (`/api/chats`, `/api/chats/group/*`) |

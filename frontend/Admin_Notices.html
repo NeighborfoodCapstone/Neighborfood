@@ -55,8 +55,8 @@
     </nav>
     <div class="mt-auto bg-white/5 rounded-xl p-2.5 flex gap-2.5 items-center mt-6">
       <div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[11px] font-bold">박</div>
-      <div class="text-[11.5px] min-w-0 flex-1"><p class="font-semibold truncate">박운영</p><p class="text-white/50 text-[10px]">슈퍼 관리자</p></div>
-      <span class="material-symbols-outlined text-white/60" style="font-size:18px">logout</span>
+      <div class="text-[11.5px] min-w-0 flex-1"><p id="adminName" class="font-semibold truncate">박운영</p><p class="text-white/50 text-[10px]">슈퍼 관리자</p></div>
+      <span class="material-symbols-outlined text-white/60 cursor-pointer hover:text-white" style="font-size:18px" onclick="nfLogout('Login.html')">logout</span>
     </div>
   </aside>
 
@@ -86,9 +86,9 @@
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
 
         <!-- List column (spans 2) -->
-        <div class="lg:col-span-2 flex flex-col gap-3">
+        <div class="lg:col-span-2 flex flex-col gap-3" id="noticeList">
           <!-- Pinned -->
-          <article class="bg-white rounded-2xl ring-soft p-4 relative overflow-hidden">
+          <article class="bg-white rounded-2xl ring-soft p-4 relative overflow-hidden hidden-placeholder">
             <span class="absolute right-3 top-3 text-[10px] font-bold bg-secondary-fixed text-on-secondary-fixed-variant px-2 py-0.5 rounded-full flex items-center gap-1">
               <span class="material-symbols-outlined" style="font-size:12px;font-variation-settings:'FILL' 1;">push_pin</span> 고정
             </span>
@@ -158,24 +158,24 @@
         <aside class="flex flex-col gap-3">
           <section class="bg-white rounded-2xl ring-soft p-4">
             <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">새 공지 작성</p>
-            <input class="w-full px-3 py-2.5 rounded-xl ring-1 ring-outline-variant bg-white text-[14px] outline-none focus:ring-primary" placeholder="제목"/>
+            <input id="ntTitle" class="w-full px-3 py-2.5 rounded-xl ring-1 ring-outline-variant bg-white text-[14px] outline-none focus:ring-primary" placeholder="제목"/>
             <div class="flex gap-1 my-2 flex-wrap">
               <button class="text-[10.5px] font-bold bg-error text-white px-2 py-1 rounded">긴급</button>
               <button class="text-[10.5px] font-bold bg-surface-container-low text-on-surface-variant px-2 py-1 rounded">공지</button>
               <button class="text-[10.5px] font-bold bg-surface-container-low text-on-surface-variant px-2 py-1 rounded">이벤트</button>
               <button class="text-[10.5px] font-bold bg-surface-container-low text-on-surface-variant px-2 py-1 rounded">업데이트</button>
             </div>
-            <textarea rows="6" class="w-full px-3 py-2.5 rounded-xl ring-1 ring-outline-variant bg-white text-[13px] outline-none focus:ring-primary resize-none" placeholder="내용을 작성하세요. 마크다운 지원."></textarea>
+            <textarea id="ntContent" rows="6" class="w-full px-3 py-2.5 rounded-xl ring-1 ring-outline-variant bg-white text-[13px] outline-none focus:ring-primary resize-none" placeholder="내용을 작성하세요."></textarea>
             <div class="flex items-center justify-between mt-3 text-[11.5px]">
               <label class="flex items-center gap-1.5 text-on-surface-variant">
-                <input type="checkbox" class="rounded text-primary"/> 푸시 알림 발송
+                <input id="ntPush" type="checkbox" class="rounded text-primary"/> 푸시 알림 발송
               </label>
               <span class="text-on-surface-variant">0 / 2,000</span>
             </div>
             <div class="grid grid-cols-3 gap-2 mt-3">
-              <button class="text-[11.5px] font-semibold bg-surface-container-low text-on-surface py-2 rounded-lg">임시저장</button>
-              <button class="text-[11.5px] font-semibold bg-surface-container-low text-on-surface py-2 rounded-lg">예약</button>
-              <button class="text-[11.5px] font-bold bg-ink text-white py-2 rounded-lg">게시</button>
+              <button id="ntDraft" class="text-[11.5px] font-semibold bg-surface-container-low text-on-surface py-2 rounded-lg">임시저장</button>
+              <button id="ntSchedule" class="text-[11.5px] font-semibold bg-surface-container-low text-on-surface py-2 rounded-lg">예약</button>
+              <button id="ntPublish" class="text-[11.5px] font-bold bg-ink text-white py-2 rounded-lg">게시</button>
             </div>
           </section>
 
@@ -193,5 +193,77 @@
     </div>
   </main>
 </div>
+
+<script>
+(function(){
+  const API = window.location.origin;
+  function esc(s){ const d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+  function fmtDate(iso){ if(!iso) return ''; const d=new Date(iso.endsWith('Z')||iso.includes('+')?iso:iso+'Z'); return isNaN(d)?'':d.toLocaleString('ko-KR'); }
+
+  // 관리자 가드 + 이름 표시
+  (async function guard(){
+    let me=null;
+    try{ me = await fetch(API+'/api/users/me').then(r=>r.ok?r.json():null); }catch(e){}
+    if(!me){ location.replace('Login.html?next='+encodeURIComponent('Admin_Notices.html')); return; }
+    if(me.role!=='admin'){ alert('관리자만 접근할 수 있어요.'); location.replace('Home.html'); return; }
+    const nm=document.getElementById('adminName'); if(nm) nm.textContent = me.nickname||'관리자';
+    loadNotices();
+  })();
+
+  // 공지 목록 로드 (하드코딩 카드 대체)
+  async function loadNotices(){
+    const list = document.getElementById('noticeList');
+    if(!list) return;
+    try{
+      const d = await fetch(API+'/api/admin/notices').then(r=>r.ok?r.json():null);
+      if(!d){ list.innerHTML='<div class="bg-white rounded-2xl ring-soft p-8 text-center text-[13px] text-on-surface-variant">불러오지 못했어요.</div>'; return; }
+      list.innerHTML = d.items.length
+        ? d.items.map(n =>
+            '<article class="bg-white rounded-2xl ring-soft p-4">'
+            + '<div class="flex items-start justify-between gap-2">'
+            + '<h3 class="text-[15.5px] font-bold">'+esc(n.title)+'</h3>'
+            + '<button data-del="'+n.id+'" class="nt-del text-[11px] font-bold text-error px-2 py-1 rounded hover:bg-error/10 shrink-0">삭제</button>'
+            + '</div>'
+            + '<p class="text-[13px] text-on-surface-variant mt-1.5 whitespace-pre-wrap">'+esc(n.content)+'</p>'
+            + '<div class="mt-3 text-[11px] text-on-surface-variant">'+esc(n.author_nickname||'관리자')+' · '+fmtDate(n.created_at)+'</div>'
+            + '</article>')
+          .join('')
+        : '<div class="bg-white rounded-2xl ring-soft p-8 text-center text-[13px] text-on-surface-variant">등록된 공지가 없습니다.</div>';
+
+      list.querySelectorAll('.nt-del').forEach(b=>b.addEventListener('click', async ()=>{
+        if(!confirm('이 공지를 삭제할까요?')) return;
+        const r = await fetch(API+'/api/admin/notices/'+b.dataset.del, {method:'DELETE'});
+        if(r.ok) loadNotices(); else alert('삭제에 실패했어요.');
+      }));
+    }catch(e){ console.error(e); }
+  }
+
+  // 즉시 게시 (POST)
+  const pub = document.getElementById('ntPublish');
+  if(pub) pub.addEventListener('click', async ()=>{
+    const title = (document.getElementById('ntTitle').value||'').trim();
+    const content = (document.getElementById('ntContent').value||'').trim();
+    if(!title || !content) return alert('제목과 내용을 모두 입력해 주세요.');
+    pub.disabled = true;
+    try{
+      const r = await fetch(API+'/api/admin/notices', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({title, content})
+      });
+      if(!r.ok){ const e=await r.json().catch(()=>({})); alert(e.detail||'게시에 실패했어요.'); return; }
+      document.getElementById('ntTitle').value='';
+      document.getElementById('ntContent').value='';
+      const push=document.getElementById('ntPush'); if(push) push.checked=false;
+      loadNotices();
+    } finally { pub.disabled = false; }
+  });
+
+  // 미지원 스텁 기능 안내 (예약 발행 / 임시저장 / 푸시)
+  function underDev(){ alert('준비 중인 기능이에요. 현재는 즉시 게시만 지원합니다.'); }
+  ['ntDraft','ntSchedule'].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('click', underDev); });
+  const pushBox=document.getElementById('ntPush');
+  if(pushBox) pushBox.addEventListener('change', function(){ if(this.checked){ underDev(); this.checked=false; } });
+})();
+</script>
 </body>
 </html>
