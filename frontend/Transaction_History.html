@@ -26,9 +26,52 @@
   .ph { background: linear-gradient(135deg,#e9e7df,#dcdacf); }
   .seg-on { background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.08); color:#191c1d; }
   .star { color:#f5b056; }
+  /* 매너 평가 모달 */
+  #ratingModal { transition: opacity .15s; }
+  .score-btn { transition: all .12s; }
+  .score-btn.selected-pos { background:#94f990; border-color:#006e1c; color:#005313; }
+  .score-btn.selected-neg { background:#ffd6d3; border-color:#ba1a1a; color:#93000a; }
 </style>
 </head>
 <body class="text-on-surface antialiased pb-12">
+
+<!-- ── 매너 평가 모달 ───────────────────────────────────────────── -->
+<div id="ratingModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="background:rgba(0,0,0,.45)">
+  <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl">
+    <p class="text-[11px] font-bold text-primary tracking-wide text-center">매너 평가</p>
+    <p id="ratingPartner" class="text-[17px] font-bold text-center mt-1 mb-5"></p>
+
+    <!-- +1 / -1 선택 버튼 -->
+    <div class="flex gap-3 mb-5">
+      <button id="scorePosBtn"
+        class="score-btn flex-1 flex flex-col items-center gap-2 py-4 rounded-2xl ring-2 ring-outline-variant bg-white">
+        <span class="material-symbols-outlined text-[32px]" style="color:#006e1c">thumb_up</span>
+        <span class="text-[13px] font-bold">좋았어요</span>
+        <span class="text-[11px] text-on-surface-variant">+0.5°</span>
+      </button>
+      <button id="scoreNegBtn"
+        class="score-btn flex-1 flex flex-col items-center gap-2 py-4 rounded-2xl ring-2 ring-outline-variant bg-white">
+        <span class="material-symbols-outlined text-[32px]" style="color:#ba1a1a">thumb_down</span>
+        <span class="text-[13px] font-bold">아쉬웠어요</span>
+        <span class="text-[11px] text-on-surface-variant">-0.5°</span>
+      </button>
+    </div>
+
+    <!-- 코멘트 입력 -->
+    <textarea id="ratingComment" rows="2"
+      class="w-full rounded-2xl ring-1 ring-outline-variant px-4 py-3 text-[13px] outline-none focus:ring-2 focus:ring-primary resize-none mb-4"
+      placeholder="한마디 남기기 (선택)"></textarea>
+
+    <!-- 버튼 -->
+    <div class="flex gap-2">
+      <button id="ratingCancelBtn"
+        class="flex-1 py-3 rounded-2xl ring-1 ring-outline-variant text-[13px] font-semibold text-on-surface-variant">취소</button>
+      <button id="ratingSubmitBtn"
+        class="flex-1 py-3 rounded-2xl bg-primary text-white text-[13px] font-bold disabled:opacity-40"
+        disabled>평가하기</button>
+    </div>
+  </div>
+</div>
 
 <header class="sticky top-0 z-40 bg-white/85 backdrop-blur border-b border-black/[.05]">
   <div class="max-w-2xl mx-auto px-2 h-14 flex items-center">
@@ -157,10 +200,31 @@
           + '<a href="Product_Detail.html?id=' + postIdVal + '" class="text-[11px] font-semibold text-on-surface-variant px-2.5 py-1 rounded-md ring-1 ring-outline-variant">게시글</a>'
           + '</div>';
       } else if (tx.status === 'completed') {
-        actions = '<div class="mt-2">'
-          + '<button class="text-[11px] font-bold text-primary px-2.5 py-1 rounded-md ring-1 ring-primary/30 flex items-center gap-1">'
-          + '<span class="material-symbols-outlined" style="font-size:14px">edit</span>후기 남기기</button>'
-          + '</div>';
+        const txId = tx.id || tx.transactionId;
+        if (tx._rated) {
+          actions = '<div class="mt-2 flex items-center gap-2">'
+            + '<span class="text-[11px] font-bold text-primary px-2 py-1 rounded-md bg-primary-fixed/40 flex items-center gap-1">'
+            + '<span class="material-symbols-outlined" style="font-size:14px">' + (tx._ratingScore > 0 ? 'thumb_up' : 'thumb_down') + '</span>'
+            + (tx._ratingScore > 0 ? '좋았어요' : '아쉬웠어요') + '</span>'
+            + '<button class="rate-edit-btn text-[11px] font-semibold text-on-surface-variant px-2 py-1 rounded-md ring-1 ring-outline-variant"'
+            + ' data-txid="' + txId + '" data-partner="' + esc(partner) + '">수정</button>'
+            + '<button class="rate-del-btn text-[11px] font-semibold text-[#ba1a1a] px-2 py-1 rounded-md ring-1 ring-[#ba1a1a]/30"'
+            + ' data-ratingid="' + (tx._ratingId || '') + '">삭제</button>'
+            + '</div>';
+        } else {
+          actions = '<div class="mt-2">'
+            + '<button class="rate-btn text-[11px] font-bold text-primary px-2.5 py-1 rounded-md ring-1 ring-primary/30 flex items-center gap-1"'
+            + ' data-txid="' + txId + '" data-partner="' + esc(partner) + '">'
+            + '<span class="material-symbols-outlined" style="font-size:14px">edit</span>후기 남기기</button>'
+            + '</div>';
+        }
+        // 공동구매 완료 거래에는 정산 보기 링크 추가
+        if ((tx.postType || tx.post_type) === 'groupbuy' && postIdVal) {
+          actions += '<div class="mt-1.5">'
+            + '<a href="Settlement.html?postId=' + postIdVal + '" class="text-[11px] font-semibold text-primary px-2.5 py-1 rounded-md ring-1 ring-primary/30 inline-flex items-center gap-1">'
+            + '<span class="material-symbols-outlined" style="font-size:14px">savings</span>정산 보기</a>'
+            + '</div>';
+        }
       }
 
       const titleCls = 'text-[14px] font-semibold leading-snug truncate' + (isCanceled ? ' line-through decoration-on-surface-variant/40' : '');
@@ -253,9 +317,195 @@
           row.classList.add('flex');
         }
 
+        // 완료 거래에 대해 내 평가 여부를 병렬로 조회해 _rated 플래그 세팅
+        const completed = allItems.filter(t => t.status === 'completed');
+        await Promise.all(completed.map(async tx => {
+          try {
+            const txId = tx.id || tx.transactionId;
+            const r = await fetch(API_BASE + '/api/ratings/transaction/' + txId + '/me');
+            if (r.ok) {
+              const d = await r.json();
+              tx._rated = d.rated === true;
+              if (tx._rated) {
+                tx._ratingId      = d.ratingId;
+                tx._ratingScore   = d.score;
+                tx._ratingComment = d.comment || '';
+              }
+            }
+          } catch (_) {}
+        }));
+
         render('');
       }catch(e){}
     })();
+
+    // ── 매너 평가 모달 (작성/수정 겸용) ─────────────────────────────
+    const modal       = document.getElementById('ratingModal');
+    const partnerEl   = document.getElementById('ratingPartner');
+    const posBtn      = document.getElementById('scorePosBtn');
+    const negBtn      = document.getElementById('scoreNegBtn');
+    const commentEl   = document.getElementById('ratingComment');
+    const submitBtn   = document.getElementById('ratingSubmitBtn');
+    const cancelBtn   = document.getElementById('ratingCancelBtn');
+    let   _txId = null, _score = null, _mode = 'create', _ratingId = null;
+
+    function setScoreUI(score) {
+      _score = score;
+      posBtn.classList.toggle('selected-pos', score === 1);
+      negBtn.classList.toggle('selected-neg', score === -1);
+      submitBtn.disabled = (score === null);
+    }
+
+    function openRatingModal(txId, partner) {
+      _mode = 'create'; _txId = txId; _ratingId = null;
+      partnerEl.textContent = partner + ' 이웃';
+      commentEl.value = '';
+      setScoreUI(null);
+      submitBtn.textContent = '평가하기';
+      modal.classList.remove('hidden'); modal.classList.add('flex');
+    }
+
+    function openEditModal(txId, partner, ratingId, score, comment) {
+      _mode = 'edit'; _txId = txId; _ratingId = ratingId;
+      partnerEl.textContent = partner + ' 이웃';
+      commentEl.value = comment || '';
+      setScoreUI(score);
+      submitBtn.textContent = '수정하기';
+      modal.classList.remove('hidden'); modal.classList.add('flex');
+    }
+
+    // FastAPI 에러 detail은 문자열 또는 검증 에러 배열(객체)일 수 있으므로 안전하게 문자열화
+    function detailMsg(d) {
+      if (!d) return '';
+      const det = d.detail;
+      if (typeof det === 'string') return det;
+      if (Array.isArray(det)) return det.map(function(e){ return e && e.msg ? e.msg : ''; }).filter(Boolean).join(', ');
+      if (det && typeof det === 'object') return det.msg || JSON.stringify(det);
+      return '';
+    }
+
+    // 수정하려는 거래의 ratingId가 없으면 서버에서 다시 조회해 확보
+    async function ensureRatingId(tx) {
+      if (tx._ratingId) return tx._ratingId;
+      try {
+        const txId = tx.id || tx.transactionId;
+        const r = await fetch(API_BASE + '/api/ratings/transaction/' + txId + '/me');
+        if (r.ok) {
+          const d = await r.json();
+          if (d.rated && d.ratingId) {
+            tx._ratingId = d.ratingId;
+            tx._ratingScore = d.score;
+            tx._ratingComment = d.comment || '';
+          }
+        }
+      } catch (_) {}
+      return tx._ratingId;
+    }
+
+    function closeModal() {
+      modal.classList.add('hidden'); modal.classList.remove('flex');
+    }
+
+    posBtn.addEventListener('click', () => setScoreUI(1));
+    negBtn.addEventListener('click', () => setScoreUI(-1));
+    cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+    function rerender() {
+      const activeFilter = document.querySelector('#segBar button.seg-on')?.dataset.status || '';
+      render(activeFilter);
+    }
+
+    submitBtn.addEventListener('click', async () => {
+      if (_score === null) return;
+      submitBtn.disabled = true;
+      const comment = commentEl.value.trim() || null;
+      try {
+        let r;
+        if (_mode === 'create') {
+          r = await fetch(API_BASE + '/api/ratings', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transaction_id: Number(_txId), score: _score, comment })
+          });
+        } else {
+          r = await fetch(API_BASE + '/api/ratings/' + _ratingId, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ score: _score, comment })
+          });
+        }
+        if (window.nfHandleAuthError && nfHandleAuthError(r)) { closeModal(); return; }
+        const d = await r.json();
+        if (r.ok && d.ok !== false) {
+          const tx = allItems.find(t => String(t.id || t.transactionId) === String(_txId));
+          if (tx) {
+            tx._rated = true;
+            tx._ratingScore   = _score;
+            tx._ratingComment = comment || '';
+            // 작성/수정 응답의 ratingId를 저장해 이후 수정·삭제가 정상 동작하도록 함
+            if (d.ratingId) tx._ratingId = d.ratingId;
+          }
+          rerender();
+          closeModal();
+        } else {
+          alert(detailMsg(d) || '처리에 실패했습니다.');
+          submitBtn.disabled = false;
+        }
+      } catch (_) {
+        alert('서버에 연결할 수 없어요.');
+        submitBtn.disabled = false;
+      }
+    });
+
+    async function deleteRating(ratingId) {
+      if (!ratingId) return;
+      if (!confirm('이 평가를 삭제할까요? 상대방에게 반영된 신뢰 온도도 함께 되돌아갑니다.')) return;
+      try {
+        const r = await fetch(API_BASE + '/api/ratings/' + ratingId, { method: 'DELETE' });
+        if (window.nfHandleAuthError && nfHandleAuthError(r)) return;
+        const d = await r.json();
+        if (r.ok && d.ok !== false) {
+          const tx = allItems.find(t => String(t._ratingId) === String(ratingId));
+          if (tx) { tx._rated = false; tx._ratingId = tx._ratingScore = tx._ratingComment = undefined; }
+          rerender();
+        } else {
+          alert(detailMsg(d) || '삭제에 실패했습니다.');
+        }
+      } catch (_) {
+        alert('서버에 연결할 수 없어요.');
+      }
+    }
+
+    // 이벤트 위임: 작성 / 수정 / 삭제 버튼 처리
+    listEl.addEventListener('click', e => {
+      const rateBtn = e.target.closest('.rate-btn');
+      if (rateBtn) { openRatingModal(rateBtn.dataset.txid, rateBtn.dataset.partner); return; }
+
+      const editBtn = e.target.closest('.rate-edit-btn');
+      if (editBtn) {
+        const tx = allItems.find(t => String(t.id || t.transactionId) === String(editBtn.dataset.txid));
+        if (tx) {
+          ensureRatingId(tx).then(function(rid){
+            if (!rid) { alert('평가 정보를 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.'); return; }
+            openEditModal(editBtn.dataset.txid, editBtn.dataset.partner,
+                          rid, tx._ratingScore, tx._ratingComment);
+          });
+        }
+        return;
+      }
+
+      const delBtn = e.target.closest('.rate-del-btn');
+      if (delBtn) {
+        let rid = delBtn.dataset.ratingid;
+        if (!rid || rid === 'undefined' || rid === '') {
+          // ratingId 누락 시 해당 거래로 재조회
+          const tx = allItems.find(t => String(t._ratingId) === String(rid));
+          const anyTx = tx || null;
+          if (anyTx) { ensureRatingId(anyTx).then(function(r){ if (r) deleteRating(r); }); return; }
+        }
+        deleteRating(rid);
+        return;
+      }
+    });
   })();
 </script>
 </body>

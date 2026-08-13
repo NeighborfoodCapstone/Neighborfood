@@ -101,13 +101,13 @@
 
    <div class="grid grid-cols-3 gap-2 mt-4">
     <div class="bg-surface-container-low rounded-xl p-2.5 text-center"><p class="text-[10px] text-on-surface-variant">거리</p><p id="statDistance" class="text-[14px] font-bold mt-0.5">- m</p></div>
-    <div class="bg-surface-container-low rounded-xl p-2.5 text-center"><p class="text-[10px] text-on-surface-variant">허용 반경</p><p id="statRadius" class="text-[14px] font-bold mt-0.5">300m</p></div>
+    <div class="bg-surface-container-low rounded-xl p-2.5 text-center"><p class="text-[10px] text-on-surface-variant">허용 반경</p><p id="statRadius" class="text-[14px] font-bold mt-0.5">100m</p></div>
     <div class="bg-surface-container-low rounded-xl p-2.5 text-center"><p class="text-[10px] text-on-surface-variant">GPS 정확도</p><p id="statAccuracy" class="text-[14px] font-bold mt-0.5">- m</p></div>
    </div>
 
    <div id="messageBox" class="mt-3 bg-tertiary-fixed/40 rounded-2xl p-3 flex gap-2 ring-1 ring-tertiary-fixed-dim/40">
     <span class="material-symbols-outlined text-tertiary shrink-0" style="font-size:18px;font-variation-settings:'FILL' 1;">tips_and_updates</span>
-    <div><p class="text-[12.5px] font-bold text-on-tertiary-container">시연용 완화 조건</p><p id="messageText" class="text-[11.5px] text-on-tertiary-container/80 mt-0.5">허용 반경 300m, GPS 정확도 ±1500m까지 허용합니다.</p></div>
+    <div><p class="text-[12.5px] font-bold text-on-tertiary-container">시연용 완화 조건</p><p id="messageText" class="text-[11.5px] text-on-tertiary-container/80 mt-0.5">허용 반경 100m, GPS 정확도 ±1500m까지 허용합니다.</p></div>
    </div>
 
    <div class="grid grid-cols-2 gap-2 mt-4">
@@ -121,10 +121,16 @@
 </section>
 
 <script>
-const RADIUS_M = 300;
+const RADIUS_M = 100;
 const ACCURACY_LIMIT_M = 1500;
 const DEFAULT_CENTER = { lat: 37.5452, lng: 127.0865 };
 const API = { create:"/api/location-verify/dummy-target", gpsCheck:(id)=>`/api/location-verify/${encodeURIComponent(id)}/gps-check` };
+// 정산 흐름 연동 파라미터: Settlement.html에서 넘어온 경우 인증 성공 후 정산으로 복귀
+const NF_QS = new URLSearchParams(location.search);
+const NF_SETTLEMENT_ID = NF_QS.get("settlementId");
+const NF_SUBJECT_ID = NF_QS.get("subjectId");   // 참여자 user_id
+// 정산 모드: 약속 좌표 (API에서 로드)
+let NF_APPT_LAT = null, NF_APPT_LNG = null, NF_APPT_PLACE = '';
 let map, geocoder, targetOverlay, myOverlay, circle, targetLatLng, myLatLng, currentPos, currentSession;
 
 function $(id){ return document.getElementById(id); }
@@ -141,7 +147,14 @@ function bootMap(){
  map = new kakao.maps.Map($("map"), { center: targetLatLng, level: 3 });
  geocoder = kakao.maps.services ? new kakao.maps.services.Geocoder() : null;
  bindControls();
- updateMessage("대기 중", "더미 거래 지점을 생성하세요", "현재 위치를 더미 거래 지점으로 저장한 뒤 GPS 인증을 진행합니다.");
+ if (NF_SETTLEMENT_ID){
+   // 정산 모드: 약속 좌표를 API에서 자동 로드해 target 설정
+   $("btnCreateDummy").style.display = "none";  // 수동 더미 생성 버튼 숨김
+   updateMessage("불러오는 중", "약속 장소 확인 중", "주최자가 설정한 거래 장소를 불러오고 있어요.");
+   nfLoadAppointmentTarget();
+ } else {
+   updateMessage("대기 중", "더미 거래 지점을 생성하세요", "현재 위치를 더미 거래 지점으로 저장한 뒤 GPS 인증을 진행합니다.");
+ }
 }
 
 function reverseGeocode(lat, lng){
@@ -157,19 +170,34 @@ function reverseGeocode(lat, lng){
 }
 function getCurrentPosition(){
  return new Promise((resolve, reject) => {
+  // PWA / 모바일: Geolocation은 HTTPS 또는 localhost에서만 허용됨
+  if (!window.isSecureContext) {
+   return reject(new Error(
+    "GPS 인증은 HTTPS 또는 localhost 환경에서만 작동합니다.\n" +
+    "📱 모바일 테스트: 서버에 HTTPS를 적용하거나,\n" +
+    "PC에서 localhost:8000으로 접속해 USB/WiFi 디버깅을 사용해 주세요."
+   ));
+  }
   if(!navigator.geolocation) return reject(new Error("이 브라우저는 GPS를 지원하지 않습니다."));
   navigator.geolocation.getCurrentPosition(
    pos => resolve({ lat:pos.coords.latitude, lng:pos.coords.longitude, accuracy:pos.coords.accuracy, capturedAt:new Date().toISOString() }),
-   err => reject(new Error(err.message || "GPS 권한이 필요합니다.")),
-   { enableHighAccuracy:true, timeout:8000, maximumAge:0 }
+   err => {
+    var msg;
+    if (err.code === 1) msg = "위치 권한이 거부됐어요. 브라우저 설정 → 사이트 설정 → 위치 → 허용 후 다시 시도해 주세요.";
+    else if (err.code === 2) msg = "위치를 확인할 수 없어요. 실외나 창가로 이동 후 다시 시도해 주세요.";
+    else if (err.code === 3) msg = "GPS 응답 시간이 초과됐어요. 위치 신호가 좋은 곳에서 다시 시도해 주세요.";
+    else msg = err.message || "GPS 권한이 필요합니다.";
+    reject(new Error(msg));
+   },
+   { enableHighAccuracy:true, timeout:12000, maximumAge:0 }
   );
  });
 }
-function drawTarget(lat, lng, address=""){
+function drawTarget(lat, lng, address="", label="더미 거래 지점"){
  targetLatLng = new kakao.maps.LatLng(lat, lng);
  if(targetOverlay) targetOverlay.setMap(null);
  const wrap = document.createElement("div");
- wrap.innerHTML = `<div class="flex flex-col items-center" style="transform:translateY(-50%);"><div class="bg-white rounded-lg shadow-md px-2.5 py-1.5 ring-1 ring-black/5 mb-1"><p class="text-[11px] font-bold whitespace-nowrap">더미 거래 지점</p></div><div class="relative"><span class="absolute inset-0 -m-1 rounded-full bg-danger/30" style="animation: ping-anim 1.8s ease-out infinite;"></span><span class="block w-10 h-10 rounded-full bg-danger flex items-center justify-center shadow-lg ring-4 ring-white"><span class="material-symbols-outlined text-white" style="font-variation-settings:'FILL' 1;">location_on</span></span></div></div>`;
+ wrap.innerHTML = `<div class="flex flex-col items-center" style="transform:translateY(-50%);"><div class="bg-white rounded-lg shadow-md px-2.5 py-1.5 ring-1 ring-black/5 mb-1"><p class="text-[11px] font-bold whitespace-nowrap">${escapeHtml(label)}</p></div><div class="relative"><span class="absolute inset-0 -m-1 rounded-full bg-danger/30" style="animation: ping-anim 1.8s ease-out infinite;"></span><span class="block w-10 h-10 rounded-full bg-danger flex items-center justify-center shadow-lg ring-4 ring-white"><span class="material-symbols-outlined text-white" style="font-variation-settings:'FILL' 1;">location_on</span></span></div></div>`;
  targetOverlay = new kakao.maps.CustomOverlay({ position:targetLatLng, content:wrap, yAnchor:1, xAnchor:.5, zIndex:10 });
  targetOverlay.setMap(map);
  if(circle) circle.setMap(null);
@@ -201,7 +229,9 @@ async function createDummy(){
   const pos = await getCurrentPosition();
   currentPos = pos;
   const address = await reverseGeocode(pos.lat, pos.lng);
-  const data = await apiJson(API.create, { method:"POST", body:JSON.stringify({ lat:pos.lat, lng:pos.lng, accuracy:pos.accuracy, address, radiusM:RADIUS_M }) });
+  const payload = { lat:pos.lat, lng:pos.lng, accuracy:pos.accuracy, address, radiusM:RADIUS_M };
+  if (NF_SUBJECT_ID) payload.subjectId = NF_SUBJECT_ID;   // 참여자 바인딩(정산 흐름)
+  const data = await apiJson(API.create, { method:"POST", body:JSON.stringify(payload) });
   currentSession = data.session;
   drawTarget(pos.lat, pos.lng, address);
   drawMe(pos.lat, pos.lng, pos.accuracy);
@@ -228,7 +258,11 @@ async function verifyGps(){
   currentSession = data.session;
   if(data.ok){
    setButtonEnabled("btnGoQr", true);
-   updateMessage("1차 인증 완료", "GPS 위치 인증 성공", "QR 인증하기 버튼이 활성화되었습니다. 다음 단계로 이동하세요.");
+   if(NF_SETTLEMENT_ID){
+     updateMessage("1차 인증 완료", "GPS 위치 인증 성공", "정산 화면으로 돌아가면 2단계(QR 인증)를 진행할 수 있어요.");
+   }else{
+     updateMessage("1차 인증 완료", "GPS 위치 인증 성공", "QR 인증하기 버튼이 활성화되었습니다. 다음 단계로 이동하세요.");
+   }
   }else{
    setButtonEnabled("btnGoQr", false);
    updateMessage("1차 인증 실패", "GPS 위치 인증 실패", data.message || "조건을 만족하지 못했습니다.");
@@ -239,10 +273,76 @@ async function verifyGps(){
 }
 function goQr(){
  if(!currentSession || currentSession.status !== "LOCATION_VERIFIED") return;
+ // 정산 흐름: GPS 완료를 정산에 보고하러 Settlement.html 로 복귀 (거기서 2단계 QR로 이어짐)
+ if(NF_SETTLEMENT_ID){
+   location.href = `./Settlement.html?settlementId=${encodeURIComponent(NF_SETTLEMENT_ID)}&gps=1`;
+   return;
+ }
+ // 데모 단독 흐름(기존 동작 유지)
  const subjectId = currentSession.subject_id || currentSession.id;
  const url = `./QR_Scan.html?mode=issue&subjectId=${encodeURIComponent(subjectId)}&purpose=pickup_confirm&ttlSeconds=300&locationSessionId=${encodeURIComponent(currentSession.id)}`;
  location.href = url;
 }
+// ── 정산 모드: 약속 좌표를 API에서 로드해 target 자동 생성 ──────────────────
+async function nfLoadAppointmentTarget(){
+ try {
+  const token = localStorage.getItem('nf_token') || sessionStorage.getItem('nf_token') || '';
+  const r = await fetch('/api/settlements/' + NF_SETTLEMENT_ID,
+    { headers: token ? { 'Authorization': 'Bearer ' + token } : {} });
+  if (!r.ok) throw new Error('정산 정보를 불러올 수 없어요. (HTTP ' + r.status + ')');
+  const d = await r.json();
+  const stl = d.settlement;
+
+  if (!stl.appointmentLat || !stl.appointmentLng){
+   // 약속 좌표 미저장 → fallback: 기존 수동 더미 생성 모드
+   $("btnCreateDummy").style.display = "";
+   updateMessage("좌표 미설정", "주최자 약속 좌표 없음",
+     "주최자가 GPS 좌표 없이 약속을 설정했어요. 더미 지점을 직접 생성하거나 주최자에게 좌표 재설정을 요청하세요.");
+   return;
+  }
+
+  NF_APPT_LAT   = stl.appointmentLat;
+  NF_APPT_LNG   = stl.appointmentLng;
+  NF_APPT_PLACE = stl.appointmentPlace || '약속 거래 장소';
+
+  // 약속 좌표로 location_verify 세션 자동 생성 (target = 약속 장소)
+  const payload = { lat: NF_APPT_LAT, lng: NF_APPT_LNG,
+                    address: NF_APPT_PLACE, radiusM: RADIUS_M };
+  if (NF_SUBJECT_ID) payload.subjectId = NF_SUBJECT_ID;
+  const data = await apiJson(API.create, { method: "POST",
+    body: JSON.stringify(payload),
+    headers: token ? { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' } : {} });
+  currentSession = data.session;
+
+  // 지도에 약속 장소 표시 (label: '약속 거래 장소')
+  drawTarget(NF_APPT_LAT, NF_APPT_LNG, NF_APPT_PLACE, '약속 거래 장소');
+  $("statRadius").textContent = fmtM(RADIUS_M);
+  setButtonEnabled("btnVerifyGps", true);
+  setButtonEnabled("btnGoQr", false);
+  updateMessage(
+   "약속 장소 설정됨",
+   NF_APPT_PLACE,
+   '이 장소에서 ' + RADIUS_M + 'm 이내에 있을 때 GPS 인증하기를 누르세요. N명이 각자 독립적으로 인증합니다.'
+  );
+
+  // 현재 위치도 즉시 표시 (오류 무시 — HTTPS 아닌 경우 등)
+  try {
+   const pos = await getCurrentPosition();
+   currentPos = pos;
+   drawMe(pos.lat, pos.lng, pos.accuracy);
+  } catch(gpsErr) {
+   // GPS 미지원·권한 거부·HTTPS 필요 등 → 조용히 넘어감
+   // 지도에는 약속 장소만 표시되고, 거리는 gps-check 시점에 계산됨
+   $("statDistance").textContent = "-";
+  }
+
+ } catch(e) {
+  updateMessage("오류", "약속 장소 불러오기 실패", e.message);
+  // fallback: 수동 더미 생성 버튼 복원
+  $("btnCreateDummy").style.display = "";
+ }
+}
+
 function bindControls(){
  $("btnZoomIn").addEventListener("click",()=>map.setLevel(map.getLevel()-1,{animate:true}));
  $("btnZoomOut").addEventListener("click",()=>map.setLevel(map.getLevel()+1,{animate:true}));
@@ -259,6 +359,11 @@ function initSheetDrag(){
  handle.addEventListener("pointerdown",e=>{ dragging=true; startY=e.clientY; startH=sheet.getBoundingClientRect().height/window.innerHeight*100; sheet.classList.add("dragging"); handle.setPointerCapture(e.pointerId); });
  handle.addEventListener("pointermove",e=>{ if(!dragging) return; setSheetHeight(startH + ((startY-e.clientY)/window.innerHeight*100)); });
  handle.addEventListener("pointerup",finish); handle.addEventListener("pointercancel",finish); handle.addEventListener("dblclick",()=>setSheetHeight(sheet.getBoundingClientRect().height/window.innerHeight*100 < 45 ? 72 : 28));
+}
+// 정산 흐름이면 다음 단계 버튼 라벨을 '정산으로 돌아가기'로 표시
+if (NF_SETTLEMENT_ID) {
+  const gq = $("btnGoQr");
+  if (gq) gq.textContent = "정산으로 돌아가기";
 }
 loadKakaoSdk().then(bootMap).catch(() => { const el = $("map-error"); if (el) el.classList.add("show"); });
 </script>

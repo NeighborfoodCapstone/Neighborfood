@@ -49,8 +49,41 @@
   </div>
 </header>
 
+<!-- Deal action bar (약속 확정 / GPS·정산 이동) -->
+<div id="dealBar" class="fixed top-14 w-full z-40 bg-white/95 backdrop-blur border-b border-black/[.05] hidden">
+  <div class="max-w-2xl mx-auto px-3 py-2 flex items-center gap-2">
+    <div id="dealInfo" class="flex-1 min-w-0 text-[11.5px] text-on-surface-variant leading-tight truncate">거래 장소·시간이 아직 정해지지 않았어요.</div>
+    <button id="dealHostBtn" class="hidden shrink-0 bg-primary text-white rounded-xl px-3 py-1.5 text-[12px] font-bold">장소·시간 정하기</button>
+    <button id="dealGpsBtn" class="hidden shrink-0 bg-primary text-white rounded-xl px-3 py-1.5 text-[12px] font-bold flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:15px">my_location</span>거래 인증·정산</button>
+  </div>
+</div>
+
+<!-- 약속 확정 모달 (주최자) -->
+<div id="apptModal" class="fixed inset-0 z-[70] hidden">
+  <div class="absolute inset-0 bg-black/40" onclick="nfCloseAppt()"></div>
+  <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-white rounded-3xl p-5 shadow-xl">
+    <p class="text-[15px] font-bold">거래 장소·시간 정하기</p>
+    <p class="text-[12px] text-on-surface-variant mt-1 mb-4">확정하면 참여자들이 GPS 인증을 진행할 수 있어요.</p>
+    <label class="text-[12px] font-semibold text-on-surface-variant">거래 장소</label>
+    <input id="apptPlace" type="text" placeholder="예) 구의역 3번 출구" class="mt-1.5 w-full rounded-xl ring-1 ring-outline-variant px-3 py-2.5 outline-none text-[13px]"/>
+    <!-- 현재 위치 캡처 버튼 -->
+    <button id="apptLocBtn" onclick="nfGetCurrentLoc()"
+      class="mt-2 w-full ring-1 ring-outline-variant rounded-xl py-2.5 text-[12.5px] font-semibold
+             flex items-center justify-center gap-1.5 text-on-surface-variant active:bg-surface-container">
+      <span class="material-symbols-outlined" style="font-size:16px">my_location</span>현재 위치를 GPS 인증 기준 좌표로 사용
+    </button>
+    <p id="apptLocInfo" class="text-[11px] text-on-surface-variant mt-1.5 text-center hidden"></p>
+    <label class="text-[12px] font-semibold text-on-surface-variant mt-4 block">거래 일시</label>
+    <input id="apptAt" type="datetime-local" class="mt-1.5 w-full rounded-xl ring-1 ring-outline-variant px-3 py-2.5 outline-none text-[13px]"/>
+    <div class="flex gap-2 mt-5">
+      <button onclick="nfCloseAppt()" class="flex-1 rounded-2xl py-3 text-[13px] font-bold bg-surface-container text-on-surface">취소</button>
+      <button id="apptSaveBtn" class="flex-1 rounded-2xl py-3 text-[13px] font-bold bg-primary text-white">확정하기</button>
+    </div>
+  </div>
+</div>
+
 <!-- Messages -->
-<main class="flex-1 overflow-y-auto pt-14 pb-[84px] chat-bg">
+<main class="flex-1 overflow-y-auto pt-[92px] pb-[84px] chat-bg">
   <div id="messageList" class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-2"></div>
 </main>
 
@@ -74,6 +107,7 @@
     const inputEl = document.getElementById('msgInput');
     const sendBtn = document.getElementById('sendBtn');
     let lastId = 0, myId = null, prevSender = null, pollTimer = null;
+    let nfPostId = null, nfHostId = null, nfSettlementId = null;
 
     if (!convId) {
       listEl.innerHTML = '<p class="text-center text-[13px] text-on-surface-variant py-10">잘못된 접근이에요. 채팅 목록에서 다시 들어와 주세요.</p>';
@@ -125,7 +159,211 @@
         const d=await r.json();
         document.getElementById('groupTitle').textContent = '공동구매 · ' + (d.title || '');
         document.getElementById('memberCount').textContent = '참여자 ' + d.count + '명';
+        nfPostId = d.postId; nfHostId = d.hostId;
+        await nfRefreshDealBar();
       }catch(e){}
+    }
+
+    // ── 거래 확정/GPS·정산 액션 바 ──
+    async function nfRefreshDealBar(){
+      if (nfPostId == null || myId == null) return;
+      const bar = document.getElementById('dealBar');
+      const info = document.getElementById('dealInfo');
+      const hostBtn = document.getElementById('dealHostBtn');
+      const gpsBtn = document.getElementById('dealGpsBtn');
+      const isHost = (myId === nfHostId);
+
+      // 정산 조회 (없으면 404)
+      let stl = null;
+      try {
+        const r = await fetch(API_BASE + '/api/settlements/post/' + nfPostId);
+        if (window.nfHandleAuthError && nfHandleAuthError(r)) return;
+        if (r.ok) stl = (await r.json()).settlement;
+      } catch(e){}
+
+      bar.classList.remove('hidden');
+      hostBtn.classList.add('hidden'); gpsBtn.classList.add('hidden');
+
+      if (!stl){
+        // 정산 전 — 게시글에 저장된 약속 정보를 표시
+        let postAppt = null;
+        try {
+          const pr = await fetch(API_BASE + '/posts/' + nfPostId);
+          if (pr.ok) postAppt = await pr.json();
+        } catch(e){}
+
+        let apptLabel = '';
+        if (postAppt){
+          if (postAppt.appointment_place) apptLabel += postAppt.appointment_place;
+          if (postAppt.appointment_at){
+            const dt = new Date(postAppt.appointment_at.endsWith('Z')||postAppt.appointment_at.includes('+') ? postAppt.appointment_at : postAppt.appointment_at+'Z');
+            if (!isNaN(dt)) apptLabel += (apptLabel?' · ':'') + (dt.getMonth()+1)+'/'+dt.getDate()+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+          }
+        }
+
+        if (isHost){
+          info.textContent = apptLabel ? ('거래 약속: ' + apptLabel + ' · 정산은 나중에 시작할 수 있어요') : '거래가 모이면 정산을 시작하세요. 먼저 장소·시간을 정할 수 있어요.';
+          hostBtn.textContent = apptLabel ? '약속 변경' : '장소·시간 정하기';
+          hostBtn.classList.remove('hidden');
+          hostBtn.onclick = nfOpenAppt;
+          // 약속이 확정됐으면 정산 시작 진입점 제공
+          if (apptLabel) {
+            gpsBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:15px">savings</span>정산 시작하기';
+            gpsBtn.classList.remove('hidden');
+            gpsBtn.onclick = function(){ location.href = 'Settlement.html?postId=' + nfPostId; };
+          }
+        } else {
+          info.textContent = apptLabel ? ('거래 약속: ' + apptLabel) : '주최자가 거래 장소·시간을 정하는 중이에요.';
+        }
+        return;
+      }
+
+      nfSettlementId = stl.id;
+      const hasAppt = !!(stl.appointmentAt || stl.appointmentPlace);
+      let apptLabel = '';
+      if (stl.appointmentPlace) apptLabel += stl.appointmentPlace;
+      if (stl.appointmentAt){
+        const dt = new Date(stl.appointmentAt.endsWith('Z')||stl.appointmentAt.includes('+') ? stl.appointmentAt : stl.appointmentAt+'Z');
+        if (!isNaN(dt)) apptLabel += (apptLabel?' · ':'') + (dt.getMonth()+1)+'/'+dt.getDate()+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+      }
+
+      if (isHost){
+        info.textContent = hasAppt ? ('거래 약속: ' + apptLabel) : '거래 장소·시간을 정해 주세요.';
+        hostBtn.textContent = hasAppt ? '약속 변경' : '장소·시간 정하기';
+        hostBtn.classList.remove('hidden');
+        hostBtn.onclick = nfOpenAppt;
+        // 주최자도 정산 현황 보기로 이동 가능
+        gpsBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:15px">savings</span>정산 현황';
+        gpsBtn.classList.remove('hidden');
+        gpsBtn.onclick = function(){ location.href = 'Settlement.html?settlementId=' + nfSettlementId; };
+      } else {
+        if (!hasAppt){
+          info.textContent = '주최자가 거래 장소·시간을 정하는 중이에요.';
+        } else {
+          info.textContent = '거래 약속: ' + apptLabel;
+          gpsBtn.classList.remove('hidden');
+          gpsBtn.onclick = function(){ location.href = 'Settlement.html?settlementId=' + nfSettlementId; };
+        }
+      }
+    }
+
+    // ── 약속 모달: 좌표 캡처 + 저장 ─────────────────────────────────────────
+    var _apptLat = null, _apptLng = null;
+
+    window.nfGetCurrentLoc = function(){
+      var btn = document.getElementById('apptLocBtn');
+      var info = document.getElementById('apptLocInfo');
+
+      // PWA / 모바일 보안 컨텍스트 체크 (Geolocation은 HTTPS 또는 localhost에서만 허용)
+      if (!window.isSecureContext) {
+        info.textContent = '⚠ GPS 기능은 HTTPS 또는 localhost 환경에서만 사용할 수 있어요. '
+          + '장소 텍스트만 입력하셔도 약속 확정이 가능합니다.';
+        info.classList.remove('hidden');
+        info.style.color = 'var(--md-sys-color-error, #ba1a1a)';
+        return;
+      }
+      if (!navigator.geolocation) {
+        info.textContent = '이 브라우저는 위치 정보를 지원하지 않습니다. 장소 텍스트만 입력해 주세요.';
+        info.classList.remove('hidden');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:15px">hourglass_top</span>위치 확인 중...';
+      navigator.geolocation.getCurrentPosition(
+        function(p){
+          _apptLat = p.coords.latitude; _apptLng = p.coords.longitude;
+          info.textContent = '✓ GPS 좌표 설정 완료 (정확도 ±' + Math.round(p.coords.accuracy) + 'm) — 참여자 100m 검증 기준';
+          info.classList.remove('hidden'); info.style.color = 'var(--md-sys-color-primary,#006e1c)';
+          btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:15px;font-variation-settings:\'FILL\' 1">check_circle</span>좌표 설정 완료 · 다시 설정';
+          btn.disabled = false;
+        },
+        function(e){
+          var msg;
+          if (e.code === 1) msg = '위치 권한이 거부됐어요. 브라우저 설정에서 위치 접근을 허용하세요.';
+          else if (e.code === 2) msg = '위치를 확인할 수 없어요. GPS 신호가 좋은 곳에서 다시 시도해 주세요.';
+          else if (e.code === 3) msg = 'GPS 응답 시간 초과. 잠시 후 다시 시도해 주세요.';
+          else msg = '위치 오류: ' + (e.message||'권한 허용 필요') + ' — 장소 텍스트만 입력해도 됩니다.';
+          info.textContent = msg;
+          info.classList.remove('hidden');
+          btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">my_location</span>현재 위치를 GPS 인증 기준 좌표로 사용';
+          btn.disabled = false;
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      );
+    };
+
+    window.nfOpenAppt = async function(){
+      _apptLat = null; _apptLng = null;
+      var info = document.getElementById('apptLocInfo');
+      if (info){ info.classList.add('hidden'); info.textContent = ''; }
+      var btn = document.getElementById('apptLocBtn');
+      if (btn) btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">my_location</span>현재 위치를 GPS 인증 기준 좌표로 사용';
+      document.getElementById('apptModal').classList.remove('hidden');
+
+      // 게시글 기본 위치/좌표 + 기존 약속을 프리필
+      if (nfPostId != null){
+        try {
+          const r = await fetch(API_BASE + '/posts/' + nfPostId);
+          if (r.ok){
+            const p = await r.json();
+            const placeInput = document.getElementById('apptPlace');
+            const atInput = document.getElementById('apptAt');
+            // 우선순위: 기존 약속 > 게시글 기본 주소
+            placeInput.value = p.appointment_place || p.address || '';
+            // 좌표: 기존 약속 좌표 > 게시글 좌표
+            var plat = (p.appointment_lat != null) ? p.appointment_lat : p.lat;
+            var plng = (p.appointment_lng != null) ? p.appointment_lng : p.lng;
+            if (plat != null && plng != null){
+              _apptLat = plat; _apptLng = plng;
+              info.textContent = '✓ 기본 위치 좌표 사용 중 (게시글 위치) — 변경하려면 아래 버튼을 누르세요';
+              info.classList.remove('hidden');
+              info.style.color = 'var(--md-sys-color-on-surface-variant,#6f7a6b)';
+            }
+            if (p.appointment_at){
+              // ISO → datetime-local 포맷 변환
+              try {
+                const d = new Date(p.appointment_at.endsWith('Z')||p.appointment_at.includes('+') ? p.appointment_at : p.appointment_at+'Z');
+                if (!isNaN(d)){
+                  const pad = n=>String(n).padStart(2,'0');
+                  atInput.value = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+                }
+              } catch(_){}
+            }
+          }
+        } catch(_){}
+      }
+    };
+    window.nfCloseAppt = function(){
+      _apptLat = null; _apptLng = null;
+      document.getElementById('apptModal').classList.add('hidden');
+    };
+
+    async function nfSaveAppt(){
+      if (nfPostId == null){ alert('게시글 정보를 불러오는 중이에요. 잠시 후 다시 시도해 주세요.'); return; }
+      const place = document.getElementById('apptPlace').value.trim();
+      const atLocal = document.getElementById('apptAt').value;
+      if (!place && !atLocal){ alert('장소 또는 시간을 입력해 주세요.'); return; }
+      const atIso = atLocal ? new Date(atLocal).toISOString() : null;
+      const btn = document.getElementById('apptSaveBtn'); btn.disabled = true;
+      try {
+        // 정산 존재 여부와 무관하게 게시글에 약속 저장 (정산이 있으면 서버가 자동 동기화)
+        const r = await fetch(API_BASE + '/posts/' + nfPostId + '/appointment', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            place:          place || null,
+            appointment_at: atIso,
+            lat:            _apptLat,
+            lng:            _apptLng,
+          })
+        });
+        if (window.nfHandleAuthError && nfHandleAuthError(r)) return;
+        const d = await r.json().catch(()=>({}));
+        if (!r.ok){ alert(d.detail || '확정에 실패했어요.'); return; }
+        nfCloseAppt();
+        await nfRefreshDealBar();
+      } catch(e){ alert('서버에 연결할 수 없어요.'); }
+      finally { btn.disabled = false; }
     }
     async function poll(){
       try{
@@ -163,9 +401,16 @@
     inputEl.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }});
     sendBtn.addEventListener('click', send);
 
+    document.getElementById('apptSaveBtn').addEventListener('click', nfSaveAppt);
+
+    let nfDealTick = 0;
     (async function init(){
       await loadMe(); await loadHeader(); await poll();
-      pollTimer=setInterval(poll, 4000);
+      pollTimer=setInterval(async function(){
+        await poll();
+        // 12초마다 거래/정산 상태 갱신 (약속 확정·정산 생성 반영)
+        if ((++nfDealTick % 3) === 0) await nfRefreshDealBar();
+      }, 4000);
     })();
   })();
 </script>

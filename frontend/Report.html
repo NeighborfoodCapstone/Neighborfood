@@ -45,12 +45,12 @@
 <main class="max-w-2xl mx-auto px-4 pt-4">
 
   <!-- Subject card -->
-  <section class="bg-white rounded-2xl ring-soft p-3 flex items-start gap-3">
+  <section id="subjectCard" class="bg-white rounded-2xl ring-soft p-3 flex items-start gap-3">
     <div class="w-16 h-16 rounded-xl ph shrink-0"></div>
     <div class="flex-1 min-w-0">
-      <span class="inline-block text-[10px] font-bold bg-error-container text-on-error-container px-2 py-0.5 rounded-full mb-1">게시글 신고</span>
-      <p class="text-[13.5px] font-semibold leading-snug">유통기한 임박 식재료 나눔 (계란/우유)</p>
-      <p class="text-[11px] text-on-surface-variant mt-0.5">작성자 · 김지연 · 20분 전</p>
+      <span id="subjectBadge" class="inline-block text-[10px] font-bold bg-error-container text-on-error-container px-2 py-0.5 rounded-full mb-1">신고하기</span>
+      <p id="subjectTitle" class="text-[13.5px] font-semibold leading-snug">신고 대상을 불러오는 중…</p>
+      <p id="subjectSub" class="text-[11px] text-on-surface-variant mt-0.5"></p>
     </div>
   </section>
 
@@ -62,13 +62,14 @@
   <section class="mt-4">
     <p class="text-[11px] font-bold text-on-surface-variant tracking-wide mb-2">신고 사유 <span class="text-error">*</span></p>
     <div class="space-y-2">
-      <label class="reason"><input type="radio" name="r" checked/><span class="dot"></span><span class="label text-[13.5px]">잘못된 식품 정보 · 위생 위험</span></label>
-      <label class="reason"><input type="radio" name="r"/><span class="dot"></span><span class="label text-[13.5px]">스팸 · 광고 · 도배</span></label>
-      <label class="reason"><input type="radio" name="r"/><span class="dot"></span><span class="label text-[13.5px]">사기 · 사칭 의심</span></label>
-      <label class="reason"><input type="radio" name="r"/><span class="dot"></span><span class="label text-[13.5px]">거래 매너 불량</span></label>
-      <label class="reason"><input type="radio" name="r"/><span class="dot"></span><span class="label text-[13.5px]">혐오 표현 · 부적절한 언어</span></label>
-      <label class="reason"><input type="radio" name="r"/><span class="dot"></span><span class="label text-[13.5px]">개인정보 노출</span></label>
-      <label class="reason"><input type="radio" name="r"/><span class="dot"></span><span class="label text-[13.5px]">기타</span></label>
+      <label class="reason"><input type="radio" name="r" value="잘못된 식품 정보 · 위생 위험"/><span class="dot"></span><span class="label text-[13.5px]">잘못된 식품 정보 · 위생 위험</span></label>
+      <label class="reason"><input type="radio" name="r" value="스팸 · 광고 · 도배"/><span class="dot"></span><span class="label text-[13.5px]">스팸 · 광고 · 도배</span></label>
+      <label class="reason"><input type="radio" name="r" value="사기 · 사칭 의심"/><span class="dot"></span><span class="label text-[13.5px]">사기 · 사칭 의심</span></label>
+      <label class="reason"><input type="radio" name="r" value="거래 매너 불량"/><span class="dot"></span><span class="label text-[13.5px]">거래 매너 불량</span></label>
+      <label class="reason"><input type="radio" name="r" value="공동구매 노쇼 (정산 미이행)"/><span class="dot"></span><span class="label text-[13.5px]">공동구매 노쇼 (정산 미이행)</span></label>
+      <label class="reason"><input type="radio" name="r" value="혐오 표현 · 부적절한 언어"/><span class="dot"></span><span class="label text-[13.5px]">혐오 표현 · 부적절한 언어</span></label>
+      <label class="reason"><input type="radio" name="r" value="개인정보 노출"/><span class="dot"></span><span class="label text-[13.5px]">개인정보 노출</span></label>
+      <label class="reason"><input type="radio" name="r" value="기타"/><span class="dot"></span><span class="label text-[13.5px]">기타</span></label>
     </div>
   </section>
 
@@ -76,9 +77,9 @@
   <section class="mt-5">
     <div class="flex items-center justify-between mb-2">
       <p class="text-[11px] font-bold text-on-surface-variant tracking-wide">상세 내용 <span class="text-error">*</span></p>
-      <p class="text-[10.5px] text-on-surface-variant">0 / 500</p>
+      <p id="charCount" class="text-[10.5px] text-on-surface-variant">0 / 500</p>
     </div>
-    <textarea rows="5" class="w-full bg-white rounded-2xl ring-1 ring-outline-variant px-4 py-3.5 text-[14px] leading-6 resize-none focus:ring-2 focus:ring-error outline-none" placeholder="언제, 어떤 상황이 있었는지 구체적으로 적어주세요. 사실관계 파악에 큰 도움이 됩니다."></textarea>
+    <textarea id="detailText" rows="5" class="w-full bg-white rounded-2xl ring-1 ring-outline-variant px-4 py-3.5 text-[14px] leading-6 resize-none focus:ring-2 focus:ring-error outline-none" placeholder="언제, 어떤 상황이 있었는지 구체적으로 적어주세요. 사실관계 파악에 큰 도움이 됩니다." maxlength="500"></textarea>
   </section>
 
   <!-- Evidence -->
@@ -122,12 +123,149 @@
 <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-black/[.06] z-40">
   <div class="max-w-2xl mx-auto px-4 py-3 pb-6 flex gap-2">
     <button onclick="history.back()" class="px-4 rounded-2xl ring-1 ring-outline-variant bg-white text-[13px] font-semibold">취소</button>
-    <button class="flex-1 bg-error text-white rounded-2xl py-3.5 text-[14px] font-bold active:scale-[.99] transition flex items-center justify-center gap-1.5">
+    <button id="submitBtn" class="flex-1 bg-error text-white rounded-2xl py-3.5 text-[14px] font-bold active:scale-[.99] transition flex items-center justify-center gap-1.5">
       <span class="material-symbols-outlined" style="font-size:18px">flag</span>
       신고 제출
     </button>
   </div>
 </div>
 
+<script>
+(function(){
+  var API = window.location.origin;
+  var qs = new URLSearchParams(location.search);
+
+  // FastAPI 에러 detail을 안전하게 문자열화
+  function detailMsg(d) {
+    if (!d) return '';
+    var det = d.detail;
+    if (typeof det === 'string') return det;
+    if (Array.isArray(det)) return det.map(function(e){ return e && e.msg ? e.msg : ''; }).filter(Boolean).join(', ');
+    if (det && typeof det === 'object') return det.msg || JSON.stringify(det);
+    return '';
+  }
+
+  // URL 파라미터
+  // targetType  : 'user' | 'post'
+  // targetId    : 신고 대상 id
+  // targetName  : 표시용 이름
+  // reason      : 사유 프리필 (노쇼 등)
+  // detail      : 상세 내용 프리필
+  // settlementId: 정산 화면 복귀용 (노쇼 경유 시)
+  // postId      : 정산 복귀용 (noshow 콜백)
+  var targetType   = qs.get('targetType') || 'user';
+  var targetId     = qs.get('targetId');
+  var targetName   = qs.get('targetName') || '신고 대상';
+  var preReason    = qs.get('reason')  || '';
+  var preDetail    = qs.get('detail')  || '';
+  var settlementId = qs.get('settlementId');
+  var postId       = qs.get('postId');
+  var noshowUserId = qs.get('noshowUserId');   // 정산 노쇼 신고 대상 (있으면 noshow API도 호출)
+
+  // ── 신고 대상 카드 세팅 ──
+  var badge = document.getElementById('subjectBadge');
+  var title = document.getElementById('subjectTitle');
+  var sub   = document.getElementById('subjectSub');
+
+  if (targetType === 'user') {
+    badge.textContent = '사용자 신고';
+    title.textContent = targetName;
+    sub.textContent   = preReason ? '사유: ' + preReason : '';
+  } else {
+    badge.textContent = '게시글 신고';
+    title.textContent = targetName;
+    sub.textContent   = '';
+    if (targetId) {
+      // 게시글 제목 가져오기 시도
+      fetch(API + '/api/posts/' + targetId)
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(p){ if(p && p.title) title.textContent = p.title; })
+        .catch(function(){});
+    }
+  }
+
+  // ── 사유 프리필 ──
+  if (preReason) {
+    var radios = document.querySelectorAll('input[name="r"]');
+    var matched = false;
+    radios.forEach(function(r){
+      if (r.value === preReason) { r.checked = true; matched = true; }
+    });
+    if (!matched) {
+      // 정확히 일치하는 항목 없으면 '기타' 체크
+      radios.forEach(function(r){ if (r.value === '기타') r.checked = true; });
+    }
+  } else {
+    // 기본 선택: 첫 번째
+    var first = document.querySelector('input[name="r"]');
+    if (first) first.checked = true;
+  }
+
+  // ── 상세 내용 프리필 + 글자 수 카운터 ──
+  var detailEl = document.getElementById('detailText');
+  var countEl  = document.getElementById('charCount');
+  if (preDetail) detailEl.value = preDetail;
+  function updateCount() {
+    countEl.textContent = detailEl.value.length + ' / 500';
+  }
+  detailEl.addEventListener('input', updateCount);
+  updateCount();
+
+  // ── 신고 제출 ──
+  var submitBtn = document.getElementById('submitBtn');
+  submitBtn.addEventListener('click', async function(){
+    if (!targetId) { alert('신고 대상 정보가 없습니다. 이전 화면에서 다시 시도해 주세요.'); return; }
+    var selectedRadio = document.querySelector('input[name="r"]:checked');
+    if (!selectedRadio) { alert('신고 사유를 선택해 주세요.'); return; }
+    var detail = detailEl.value.trim();
+    if (!detail) { alert('상세 내용을 입력해 주세요.'); return; }
+
+    var reasonText = selectedRadio.value
+      + (detail ? ' — ' + detail.slice(0, 200) : '');
+
+    submitBtn.disabled = true;
+    try {
+      var r = await fetch(API + '/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target_type: targetType,
+          target_id:   Number(targetId),
+          reason:      reasonText.slice(0, 500)
+        })
+      });
+      if (window.nfHandleAuthError && nfHandleAuthError(r)) return;
+      var d = await r.json().catch(function(){return {};});
+      if (r.ok) {
+        // 노쇼 신고 컨텍스트: 신고 접수와 함께 정산 노쇼 처리(status='noshow' + trust_score 페널티)
+        if (settlementId && noshowUserId) {
+          try {
+            await fetch(API + '/api/settlements/' + settlementId + '/shares/' + noshowUserId + '/noshow', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }
+            });
+          } catch(_) {}
+        }
+        // 노쇼 신고 경유 시: 정산 화면으로 복귀
+        if (settlementId || postId) {
+          var back = postId
+            ? 'Settlement.html?postId=' + postId
+            : 'Settlement.html?settlementId=' + settlementId;
+          alert('신고가 접수되었습니다.');
+          location.href = back;
+        } else {
+          alert('신고가 접수되었습니다. 관리팀이 24시간 안에 검토합니다.');
+          history.back();
+        }
+      } else {
+        alert(detailMsg(d) || '신고 제출에 실패했습니다.');
+        submitBtn.disabled = false;
+      }
+    } catch(_){
+      alert('서버에 연결할 수 없어요.');
+      submitBtn.disabled = false;
+    }
+  });
+})();
+</script>
 </body>
 </html>
