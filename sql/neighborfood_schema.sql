@@ -83,7 +83,11 @@ CREATE TABLE IF NOT EXISTS posts (
     gb_target     INTEGER,
     gb_current    INTEGER DEFAULT 0,
     gb_price      INTEGER,
-    exchange_want TEXT
+    exchange_want TEXT,
+    appointment_place TEXT,  -- posts 거래 약속 장소(정산이 승계)
+    appointment_at    TEXT,  -- posts 거래 약속 일시
+    appointment_lat   REAL,  -- posts 약속 좌표 위도
+    appointment_lng   REAL   -- posts 약속 좌표 경도
 );
 CREATE INDEX IF NOT EXISTS idx_posts_type_created ON posts (type, created_at);
 CREATE INDEX IF NOT EXISTS idx_posts_author       ON posts (author_id);
@@ -121,6 +125,69 @@ CREATE TABLE IF NOT EXISTS groupbuy_participants (
     PRIMARY KEY (post_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_gbp_user ON groupbuy_participants (user_id);
+
+-- ----------------------------------------------------------------------------
+-- 5-2. manner_ratings — 상호 매너 평가
+--    완료된 거래(transactions.status='completed')에 대해 당사자가 상대를 평가.
+--    (transaction_id, rater_id) UNIQUE 로 거래당 평가자 1회만 허용.
+--    score: +1(좋았어요) | -1(아쉬웠어요). users.trust_score에 소폭 반영.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS manner_ratings (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    transaction_id INTEGER NOT NULL REFERENCES transactions(id),
+    rater_id       INTEGER NOT NULL REFERENCES users(id),   -- 평가하는 사람
+    ratee_id       INTEGER NOT NULL REFERENCES users(id),   -- 평가받는 사람
+    score          INTEGER NOT NULL CHECK (score IN (-1, 1)),
+    comment        TEXT,
+    created_at     TEXT    NOT NULL,
+    UNIQUE (transaction_id, rater_id)
+);
+CREATE INDEX IF NOT EXISTS idx_mr_ratee ON manner_ratings (ratee_id, created_at);
+
+-- ----------------------------------------------------------------------------
+-- 5-3. settlements — 공동구매 정산 헤더
+--    주최자(글 작성자)가 총 금액을 입력해 생성. 참여자별 분담은 shares에 기록.
+--    앱은 자금을 보관/이동하지 않고 납부 상태만 추적(신뢰 기반).
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS settlements (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id           INTEGER NOT NULL REFERENCES posts(id),
+    requester_id      INTEGER NOT NULL REFERENCES users(id),   -- 주최자(글 작성자)
+    total_amount      INTEGER NOT NULL,
+    account_info      TEXT,                                    -- 주최자 계좌(평문, 선택)
+    status            TEXT NOT NULL DEFAULT 'pending'
+                      CHECK (status IN ('pending','completed','canceled')),
+    appointment_place TEXT,                                    -- 주최자 확정 거래 장소
+    appointment_at    TEXT,                                    -- 주최자 확정 거래 일시(ISO-8601)
+    appointment_lat   REAL,                                    -- 약속 장소 위도 (GPS 100m 검증 기준)
+    appointment_lng   REAL,                                    -- 약속 장소 경도 (GPS 100m 검증 기준)
+    created_at        TEXT NOT NULL,
+    completed_at      TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_stl_post      ON settlements (post_id);
+CREATE INDEX IF NOT EXISTS idx_stl_requester ON settlements (requester_id, created_at);
+
+-- ----------------------------------------------------------------------------
+-- 5-4. settlement_shares — 참여자별 분담
+--    순차 2단계 인증: gps_verified(Step 1) → quality_agreed(Step 2) 모두 1이어야 납부 가능
+--    gps_verified  : 거래 지점 GPS 인증(LOCATION_VERIFIED) 완료 시 1
+--    quality_agreed: 대면 QR 인증 완료(품질 동의) 시 1
+--    auto_confirmed: (레거시) 과거 GPS+24h 자동확인 플래그 — 현재 미사용, 하위호환 유지
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS settlement_shares (
+    settlement_id  INTEGER NOT NULL REFERENCES settlements(id),
+    user_id        INTEGER NOT NULL REFERENCES users(id),
+    amount         INTEGER NOT NULL,
+    status         TEXT NOT NULL DEFAULT 'unpaid'
+                   CHECK (status IN ('unpaid','paid','noshow')),
+    gps_verified   INTEGER NOT NULL DEFAULT 0,               -- Step 1: GPS 인증 완료
+    quality_agreed INTEGER NOT NULL DEFAULT 0,               -- Step 2: QR 인증 완료
+    auto_confirmed INTEGER NOT NULL DEFAULT 0,               -- (레거시, 미사용)
+    paid_at        TEXT,
+    created_at     TEXT NOT NULL,
+    PRIMARY KEY (settlement_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_shares_user ON settlement_shares (user_id, status);
 
 -- ----------------------------------------------------------------------------
 -- 6. qr_sessions — QR 거래 인증 세션
@@ -249,7 +316,9 @@ CREATE INDEX IF NOT EXISTS idx_conv_post_kind ON conversations (post_id, kind);
 
 -- ----------------------------------------------------------------------------
 -- 12. messages — 채팅 메시지
---     read_at: 1:1 읽음 처리용 (그룹은 conversation_members.last_read_id 사용)
+--     read_at:   1:1 읽음 처리용 (그룹은 conversation_members.last_read_id 사용)
+--     is_system: 1이면 시스템 알림 메시지 (예: "OOO님이 참여를 취소하셨습니다.")
+--                posts.py cancel_join_groupbuy 에서 멱등 ALTER 후 삽입 (2026-08-12)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS messages (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -257,7 +326,8 @@ CREATE TABLE IF NOT EXISTS messages (
     sender_id       INTEGER NOT NULL REFERENCES users(id),
     content         TEXT    NOT NULL,
     created_at      TEXT    NOT NULL,
-    read_at         TEXT
+    read_at         TEXT,
+    is_system       INTEGER NOT NULL DEFAULT 0  -- 0: 일반 메시지, 1: 시스템 알림
 );
 CREATE INDEX IF NOT EXISTS idx_msg_conv ON messages (conversation_id, id);
 

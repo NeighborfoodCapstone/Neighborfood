@@ -280,4 +280,5 @@ async def get_group_members(conv_id: int, user: dict = Depends(get_current_user)
         """, (conv["host_id"], conv_id)).fetchall()
         post = conn.execute("SELECT title FROM posts WHERE id = ?", (conv["post_id"],)).fetchone()
     members = [dict(r) for r in rows]
-    return {"count": len(members), "title": (post["title"] if post else ""), "members": members}
+    return {"count": len(members), "title": (post["title"] if post else ""),
+            "postId": conv["post_id"], "hostId": conv["host_id"], "members": members}
