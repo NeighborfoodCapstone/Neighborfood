@@ -71,7 +71,7 @@
     <div class="mt-4">
       <div class="flex items-baseline justify-between">
         <p class="text-[12px] font-semibold text-on-surface-variant">신뢰 온도</p>
-        <p class="text-[14px] font-bold text-primary"><span id="mpTrust">36.5</span><span class="text-[11px]">°</span></p>
+        <p class="text-[14px] font-bold text-primary"><span id="mpTrust">–</span><span class="text-[11px]">°</span></p>
       </div>
       <div class="mt-1.5 relative h-2 rounded-full bg-surface-container-high overflow-hidden">
         <div id="mpTherm" class="therm h-full rounded-full" style="width:0%"></div>
@@ -97,8 +97,8 @@
       <p id="cntDone" class="text-[18px] font-bold">0</p>
       <p class="text-[10.5px] text-on-surface-variant mt-0.5">완료</p>
     </a>
-    <a class="bg-white ring-soft rounded-xl p-3 text-center opacity-50" title="후기 기능은 준비 중이에요">
-      <p class="text-[18px] font-bold">–</p>
+    <a href="Transaction_History.html" class="bg-white ring-soft rounded-xl p-3 text-center">
+      <p id="cntReview" class="text-[18px] font-bold">0</p>
       <p class="text-[10.5px] text-on-surface-variant mt-0.5">후기</p>
     </a>
   </section>
@@ -130,29 +130,10 @@
   <section class="mt-4">
     <div class="flex items-baseline justify-between mb-2">
       <h2 class="text-[14px] font-bold">받은 배지</h2>
-      <button onclick="alert('배지 기능은 준비 중이에요.')" class="text-[12px] text-on-surface-variant/60">준비 중</button>
+      <span id="badgeCount" class="text-[12px] text-on-surface-variant/60"></span>
     </div>
-    <div class="flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
-      <div class="shrink-0 w-20 flex flex-col items-center">
-        <div class="w-14 h-14 rounded-full bg-primary-fixed flex items-center justify-center"><span class="material-symbols-outlined text-on-primary-fixed-variant" style="font-variation-settings:'FILL' 1;">eco</span></div>
-        <p class="text-[10.5px] mt-1.5 text-center font-semibold">첫 나눔</p>
-      </div>
-      <div class="shrink-0 w-20 flex flex-col items-center">
-        <div class="w-14 h-14 rounded-full bg-secondary-fixed-dim flex items-center justify-center"><span class="material-symbols-outlined text-on-secondary-fixed-variant" style="font-variation-settings:'FILL' 1;">handshake</span></div>
-        <p class="text-[10.5px] mt-1.5 text-center font-semibold">10회 거래</p>
-      </div>
-      <div class="shrink-0 w-20 flex flex-col items-center">
-        <div class="w-14 h-14 rounded-full bg-tertiary-fixed-dim flex items-center justify-center"><span class="material-symbols-outlined text-on-tertiary-container" style="font-variation-settings:'FILL' 1;">schedule</span></div>
-        <p class="text-[10.5px] mt-1.5 text-center font-semibold">시간 약속</p>
-      </div>
-      <div class="shrink-0 w-20 flex flex-col items-center opacity-40">
-        <div class="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:20px">lock</span></div>
-        <p class="text-[10.5px] mt-1.5 text-center">동네 영웅</p>
-      </div>
-      <div class="shrink-0 w-20 flex flex-col items-center opacity-40">
-        <div class="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:20px">lock</span></div>
-        <p class="text-[10.5px] mt-1.5 text-center">레시피 공유</p>
-      </div>
+    <div id="badgeList" class="flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+      <p class="text-[12px] text-on-surface-variant/70 px-1">불러오는 중…</p>
     </div>
   </section>
 
@@ -161,6 +142,10 @@
     <a href="Transaction_History.html" class="flex items-center justify-between px-4 py-3.5">
       <div class="flex items-center gap-3"><span class="material-symbols-outlined text-on-surface-variant">receipt_long</span><span class="text-[14.5px]">거래 내역</span></div>
       <span class="text-[12px] text-on-surface-variant flex items-center gap-1"><span id="mnTx">0건</span> <span class="material-symbols-outlined" style="font-size:18px">chevron_right</span></span>
+    </a>
+    <a id="mnSettleRow" href="#" class="flex items-center justify-between px-4 py-3.5 hidden">
+      <div class="flex items-center gap-3"><span class="material-symbols-outlined text-on-surface-variant">savings</span><span class="text-[14.5px]">정산 내역</span></div>
+      <span class="text-[12px] text-on-surface-variant flex items-center gap-1"><span id="mnSettle">0건</span> <span class="material-symbols-outlined" style="font-size:18px">chevron_right</span></span>
     </a>
     <a href="Wishlist.html" class="flex items-center justify-between px-4 py-3.5">
       <div class="flex items-center gap-3"><span class="material-symbols-outlined text-on-surface-variant">favorite</span><span class="text-[14.5px]">관심 목록</span></div>
@@ -205,10 +190,15 @@
   (async function () {
     var API = window.location.origin;
     function setText(id, v){ var e=document.getElementById(id); if(e) e.textContent=v; }
+
+    // 여러 API 결과를 모아 배지 판정에 활용
+    var state = { me:null, txCount:0, shared:0, received:0, ratingPositive:0, reviewTotal:0 };
+
     try {
       var r = await fetch(API + '/api/users/me');
       if (window.nfHandleAuthError && nfHandleAuthError(r)) return;
       var me = r.ok ? await r.json() : null;
+      state.me = me;
       if (me) {
         var nick = me.nickname || me.loginId || '이웃';
         setText('mpName', nick);
@@ -235,6 +225,9 @@
       var tx = await fetch(API + '/api/transactions').then(function(x){return x.ok?x.json():null;});
       if (tx && tx.stats) {
         var done = (tx.stats.shared || 0) + (tx.stats.received || 0);
+        state.txCount = tx.count || 0;
+        state.shared  = tx.stats.shared || 0;
+        state.received = tx.stats.received || 0;
         setText('cntOngoing', tx.stats.ongoing || 0);
         setText('cntDone', done);
         setText('mpTxMeta', '거래 ' + (tx.count || 0) + '건');
@@ -245,6 +238,31 @@
     try {
       var w = await fetch(API + '/api/wishlist').then(function(x){return x.ok?x.json():null;});
       if (w) { setText('cntWish', w.count || 0); setText('mnWish', w.count || 0); }
+    } catch (e) {}
+    try {
+      // 받은 매너 평가 요약 → '후기' 카운터
+      var rv = await fetch(API + '/api/ratings/received').then(function(x){return x.ok?x.json():null;});
+      if (rv) {
+        state.reviewTotal    = rv.total || 0;
+        state.ratingPositive = rv.positive || 0;
+        setText('cntReview', rv.total || 0);
+      }
+    } catch (e) {}
+    try {
+      // 정산 내역 → 메뉴 항목 (내가 주최했거나 분담이 있는 정산)
+      var st = await fetch(API + '/api/settlements/my').then(function(x){return x.ok?x.json():null;});
+      if (st && st.items && st.items.length) {
+        var row = document.getElementById('mnSettleRow');
+        setText('mnSettle', st.items.length + '건');
+        // 가장 최근 정산으로 바로 이동 (postId 우선)
+        var latest = st.items[0];
+        if (row) {
+          row.href = latest.postId
+            ? ('Settlement.html?postId=' + latest.postId)
+            : ('Settlement.html?settlementId=' + latest.id);
+          row.classList.remove('hidden');
+        }
+      }
     } catch (e) {}
     try {
       var fr = await fetch(API + '/api/fridge').then(function(x){return x.ok?x.json():null;});
@@ -264,7 +282,51 @@
         }
       }
     } catch (e) {}
+
+    // ── 배지: 실제 활동 데이터 기반 획득 판정 ──
+    renderBadges(state);
   })();
+
+  // 배지 정의: cond(state)가 true면 획득(컬러), false면 잠금(회색)
+  function renderBadges(s) {
+    var me = s.me || {};
+    var BADGES = [
+      { key:'first_share', label:'첫 나눔',   icon:'eco',       color:'bg-primary-fixed',        fg:'text-on-primary-fixed-variant',
+        cond: s.shared >= 1,
+        hint: '나눔 거래를 완료하면 받아요.' },
+      { key:'trade10',     label:'10회 거래', icon:'handshake', color:'bg-secondary-fixed-dim',  fg:'text-on-secondary-fixed-variant',
+        cond: s.txCount >= 10,
+        hint: '거래 ' + s.txCount + '/10건' },
+      { key:'punctual',    label:'시간 약속', icon:'schedule',  color:'bg-tertiary-fixed-dim',   fg:'text-on-tertiary-container',
+        cond: s.ratingPositive >= 1,
+        hint: '긍정적인 매너 평가를 받으면 받아요.' },
+      { key:'hood_hero',   label:'동네 영웅', icon:'shield',    color:'bg-primary-fixed',        fg:'text-on-primary-fixed-variant',
+        cond: !!me.neighborhoodVerifiedAt,
+        hint: '동네 인증을 완료하면 받아요.' },
+      { key:'trusted',     label:'믿음직',   icon:'volunteer_activism', color:'bg-secondary-fixed-dim', fg:'text-on-secondary-fixed-variant',
+        cond: (typeof me.trustScore === 'number') && me.trustScore >= 40,
+        hint: '신뢰 온도 40°를 넘기면 받아요.' }
+    ];
+
+    var earned = BADGES.filter(function(b){ return b.cond; });
+    var cntEl = document.getElementById('badgeCount');
+    if (cntEl) cntEl.textContent = earned.length + '/' + BADGES.length;
+
+    var wrap = document.getElementById('badgeList');
+    if (!wrap) return;
+    wrap.innerHTML = BADGES.map(function(b){
+      if (b.cond) {
+        return '<div class="shrink-0 w-20 flex flex-col items-center" title="' + b.hint + '">'
+          + '<div class="w-14 h-14 rounded-full ' + b.color + ' flex items-center justify-center">'
+          + '<span class="material-symbols-outlined ' + b.fg + '" style="font-variation-settings:\'FILL\' 1;">' + b.icon + '</span></div>'
+          + '<p class="text-[10.5px] mt-1.5 text-center font-semibold">' + b.label + '</p></div>';
+      }
+      return '<div class="shrink-0 w-20 flex flex-col items-center opacity-40" title="' + b.hint + '">'
+        + '<div class="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center">'
+        + '<span class="material-symbols-outlined" style="font-size:20px">lock</span></div>'
+        + '<p class="text-[10.5px] mt-1.5 text-center">' + b.label + '</p></div>';
+    }).join('');
+  }
 </script>
 </body>
 </html>

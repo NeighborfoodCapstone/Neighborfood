@@ -748,16 +748,45 @@ $("helpBtn").addEventListener("click", () => {
 });
 window.addEventListener("beforeunload", () => { clearScanRestartTimer(); if (qrScanner) qrScanner.stop().catch(() => undefined); });
 
+// ── 정산 흐름 연동 ──────────────────────────────────────────────────────────
+function nfSetupSettlementFlow() {
+ const q = new URLSearchParams(location.search);
+ const settlementId = q.get("settlementId");
+ if (!settlementId) return;
+ const subjectId = q.get("subjectId") || "";
+ // 참여자 subjectId 프리필 (QR 발급 대상)
+ if (subjectId) { const el = $("subjectId"); if (el) el.value = subjectId; }
+ // 상단에 정산 복귀 바 삽입
+ const bar = document.createElement("div");
+ bar.className = "fixed bottom-0 left-0 right-0 z-[60] bg-white border-t border-black/10 px-4 py-3 pb-6 flex items-center gap-2";
+ bar.innerHTML =
+   '<div class="flex-1 text-[11.5px] text-on-surface-variant leading-tight">'
+   + '내 QR을 발급해 주최자에게 보여주고, 스캔이 끝나면 정산 화면으로 돌아가세요.</div>'
+   + '<button id="nfBackToSettlement" class="shrink-0 bg-primary text-white rounded-2xl px-4 py-2.5 text-[13px] font-bold">정산으로 돌아가기</button>';
+ document.body.appendChild(bar);
+ document.body.classList.add("pb-24");
+ $("nfBackToSettlement").addEventListener("click", () => {
+   location.href = `./Settlement.html?settlementId=${encodeURIComponent(settlementId)}&qr=1`;
+ });
+}
+
 async function initPage() {
  initSheetDrag();
  renderHistory();
  setSheetHeight(24);
  showStage("camera");
- const urlToken = new URLSearchParams(location.search).get("token");
+ nfSetupSettlementFlow();
+ const q = new URLSearchParams(location.search);
+ const urlToken = q.get("token");
  if (urlToken) {
   await setMode("scan");
   try { await verifyRaw(urlToken); }
   catch (error) { showVerifyResult({ ok:false, result:"not_found", message:error.message }, urlToken); }
+  return;
+ }
+ // 정산 흐름(issue 모드로 진입)이면 발급 패널을 먼저 보여준다
+ if (q.get("settlementId") && q.get("mode") === "issue") {
+  await setMode("issue");
   return;
  }
  if (!autoStartTried) {
