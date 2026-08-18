@@ -225,8 +225,9 @@
 const API_ENDPOINTS = {
  request: "/api/qr/request",
  verify: "/api/qr/verify",
- verifyByToken: (token) => `/api/qr/verify/${encodeURIComponent(token)}`,
- health: "/api/qr/health"
+ verifyByToken: (token) => `/api/qr/verify/${encodeURIComponent(token)}`
+ // health 엔드포인트 제거(2026-08-17): 백엔드 qr router에 /api/qr/health가 없어
+ // 404를 유발하던 미사용 정의를 삭제. 상태 확인은 /api/qr/history 로 대체 가능.
 };
 const LOCAL_HISTORY_KEY = "neighborfood.qrScan.localHistory.v1";
 
@@ -237,6 +238,7 @@ let pendingScanValue = "";
 let lastIssuedSession = null;
 let autoStartTried = false;
 let scanRestartTimer = null;
+let nfLocationSessionId = "";   // GPS 위치 인증 세션 ID (URL ?locationSessionId=... 로 수신)
 const SCAN_RESET_DELAY_MS = 1400;
 
 const heroCopy = {
@@ -423,6 +425,34 @@ async function issueSession({ subjectId, purpose, ttlSeconds }) {
  });
  if (!data.ok || !data.session) throw new Error(data.message || "QR 발급 실패");
  return data.session;
+}
+
+// GPS 위치 인증 세션과 방금 발급한 QR 세션을 연결한다.
+// - locationSessionId가 URL로 전달됐고(=GPS 인증을 거쳐 온 흐름), 로그인 상태일 때만 호출한다.
+//   (선택 2-A: 비로그인 스캔/발급 기능은 그대로 유지. 인증 실패는 QR 발급을 막지 않는다.)
+// - 성공 시 백엔드가 GPS 세션에 qr_session_id를 기록하고 상태를 QR_ISSUED로 바꾼다.
+//   이후 상대가 이 QR을 검증하면 qr.py가 GPS 세션을 QR_VERIFIED로 갱신한다.
+// - Authorization 헤더는 shared/auth.js의 fetch 래퍼가 자동 주입한다.
+async function linkLocationSessionToQr(qrSession) {
+ try {
+  if (!nfLocationSessionId) return;                       // GPS 흐름이 아니면 skip
+  if (!window.nfGetToken || !nfGetToken()) return;        // 선택 2-A: 로그인 시에만
+  const qrSessionId = pick(qrSession, "id", "sessionId", "session_id");
+  if (!qrSessionId) return;
+  const res = await fetch(
+   `/api/location-verify/${encodeURIComponent(nfLocationSessionId)}/qr-issued`,
+   { method: "POST", headers: { "Content-Type": "application/json" },
+     body: JSON.stringify({ qrSessionId }) }
+  );
+  if (!res.ok) {
+   // 소유권(403)·미로그인(401)·세션없음(404) 등은 조용히 넘어감(발급 자체는 성공)
+   console.warn("[GPS 연동] qr-issued 실패:", res.status);
+  } else {
+   console.info("[GPS 연동] GPS 세션에 QR 세션 연결 완료:", nfLocationSessionId, "→", qrSessionId);
+  }
+ } catch (err) {
+  console.warn("[GPS 연동] qr-issued 예외:", err);
+ }
 }
 async function drawIssuedQr(session) {
  const canvas = $("issuedQrCanvas");
@@ -706,6 +736,7 @@ $("issueForm").addEventListener("submit", async (event) => {
   $("statusText").textContent = "QR 발급 요청 중...";
   const session = await issueSession({ subjectId, purpose, ttlSeconds });
   lastIssuedSession = session;
+  await linkLocationSessionToQr(session);   // GPS 흐름이면 GPS 세션↔QR 세션 연결(item 6)
   await drawIssuedQr(session);
   showIssueResult(session);
   $("statusText").textContent = "QR 발급 완료";
@@ -744,7 +775,7 @@ $("clearHistoryBtn").addEventListener("click", () => {
  $("verifyResult").classList.add("hidden");
 });
 $("helpBtn").addEventListener("click", () => {
- alert("서버 실행: py -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload\n스마트폰 접속: ngrok HTTPS 주소의 /frontend/QR%20Scan.html\nAPI 호출: 같은 origin의 /api/qr/request, /api/qr/verify\n주의: file://로 열면 카메라/QR/API 테스트가 불안정합니다.");
+ alert("서버 실행: py -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload\n스마트폰 접속: ngrok HTTPS 주소의 /frontend/QR_Scan.html\nAPI 호출: 같은 origin의 /api/qr/request, /api/qr/verify\n주의: file://로 열면 카메라/QR/API 테스트가 불안정합니다.");
 });
 window.addEventListener("beforeunload", () => { clearScanRestartTimer(); if (qrScanner) qrScanner.stop().catch(() => undefined); });
 
@@ -777,6 +808,9 @@ async function initPage() {
  showStage("camera");
  nfSetupSettlementFlow();
  const q = new URLSearchParams(location.search);
+ // GPS→QR 흐름: 위치 인증 세션 ID를 받아 두고, QR 발급 성공 시 qr-issued로 연결한다.
+ const locationSessionIdParam = q.get("locationSessionId");
+ if (locationSessionIdParam) nfLocationSessionId = locationSessionIdParam;
  const urlToken = q.get("token");
  if (urlToken) {
   await setMode("scan");

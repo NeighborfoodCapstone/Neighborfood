@@ -38,3 +38,7 @@ uploads/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# ── 백업·임시 적용 스크립트 (커밋 금지 · 2026-08-17 시정) ──────────────────
+*.bak_*
+apply_*.py
