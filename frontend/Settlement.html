@@ -319,8 +319,13 @@
         qrBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:\'FILL\' 1">qr_code_scanner</span>2단계 · QR 인증하러 가기';
         qrBtn.classList.remove('hidden');
         qrBtn.onclick = function(){
+          // 선택 1-B: 1단계 GPS 인증에서 저장해 둔 위치 세션 ID를 QR 발급 화면에 넘겨
+          // GPS 세션 ↔ QR 세션을 연결한다(QR_Scan.html에서 qr-issued 호출).
+          var locv = '';
+          try { locv = sessionStorage.getItem('nf_locv_' + s.id) || ''; } catch(e){}
+          var extra = locv ? ('&locationSessionId=' + encodeURIComponent(locv)) : '';
           location.href = 'QR_Scan.html?mode=issue&subjectId=user_' + me.id
-            + '&purpose=pickup_confirm&ttlSeconds=300&settlementId=' + s.id;
+            + '&purpose=pickup_confirm&ttlSeconds=300&settlementId=' + s.id + extra;
         };
       } else {
         // 두 단계 완료 → 납부 활성

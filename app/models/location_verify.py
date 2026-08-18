@@ -11,7 +11,7 @@ class DummyTargetRequest(BaseModel):
     lng: float
     accuracy: Optional[float] = None
     address: Optional[str] = None
-    radiusM: float = 300
+    radiusM: float = 100
     subjectId: Optional[str] = None
 
 
@@ -19,7 +19,7 @@ class GpsCheckRequest(BaseModel):
     lat: float
     lng: float
     accuracy: Optional[float] = None
-    radiusM: float = 300
+    radiusM: float = 100
     accuracyLimitM: float = 1500
 
 
