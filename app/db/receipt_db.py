@@ -309,18 +309,14 @@ def _rc_to_int(value: str) -> int:
 def parse_receipt(text: str) -> dict:
     """OCR 텍스트에서 매장명·구매일시·품목·합계를 추출합니다.
 
-    개선 기준:
-    - 데모값을 절대 넣지 않는다.
-    - 마트형 영수증처럼 품목명 라인과 단가/수량/금액 라인이 분리된 경우를 처리한다.
-    - 사업자번호/전화번호/카드번호/승인번호/바코드/단말기번호를 품목/가격으로 오인하지 않는다.
-
-    2026-08-17 파서 개선(스타벅스 등 회귀 대응):
-    - POS / 포스, T: 계열 메타(콜론 라벨형), 카카오페이 등 간편결제 문구 제거
-    - '번호:', '발급:' 등 콜론 라벨형 메타 라인 제거
-    - '가능' 등 결제/안내 문구 제거
-    - 상품명 + 단가 + 수량 + 금액 구조 우선 인식, 상품명 + 금액 구조 인식
-    - OCR 줄분리 시 상품명 다음 줄에 가격이 오는 경우 fallback(pending_name) 처리
-    - '카카오페이'는 필터하되 '카카오닙스' 등 실제 상품은 보존(브랜드 단위로만 필터)
+    2026-08-22 parser v2.1:
+    - 기존 스타벅스/카페형 한 줄·줄분리 파싱을 유지한다.
+    - 마트형 ``순번 → 품목명 → 바코드/PLU → 단가 → 수량 → 금액`` 구조를 처리한다.
+    - CLOVA가 한 행을 여러 inferText 토큰으로 쪼개도 품목 상태를 유지한다.
+    - ``*231973`` 같은 PLU, 긴 바코드, ``[2,150]`` 같은 참고가를 실제 가격으로 쓰지 않는다.
+    - 500/750원처럼 콤마가 없는 3자리 가격도 품목 영역에서는 허용한다.
+    - ``900ML``, ``150g`` 같은 용량 토큰은 상품명에 이어 붙인다.
+    - 판매총액/결제/회원/포인트 영역에 들어가면 품목 파싱을 종료한다.
     """
     lines = [ln.strip() for ln in text.splitlines() if ln and ln.strip()]
     store = None
@@ -331,158 +327,450 @@ def parse_receipt(text: str) -> dict:
     def clean_line(s: str) -> str:
         return re.sub(r"\s+", " ", str(s or "").strip())
 
+    def compact_line(s: str) -> str:
+        return re.sub(r"\s+", "", clean_line(s))
+
+    # 용량 표기(900ML/150g) 안의 숫자를 가격으로 오인하지 않도록
+    # 영숫자에 붙어 있지 않은 3~7자리 숫자만 금액 후보로 본다.
+    money_re = re.compile(
+        r"(?<![A-Za-z0-9])(?:\d{1,3}(?:,\d{3})+|\d{3,7})(?![A-Za-z0-9])"
+    )
+
     def money_tokens(s: str) -> List[int]:
-        """가격 후보만 추출한다. 사업자번호/바코드 같은 긴 숫자는 제거."""
         result: List[int] = []
-        for token in re.findall(r"\d{1,3}(?:,\d{3})+|\d{4,}", s or ""):
-            raw = re.sub(r"[^0-9]", "", token)
+        for token in money_re.findall(s or ""):
+            raw = token.replace(",", "")
             if not raw:
-                continue
-            if len(raw) >= 8 and "," not in token:
                 continue
             value = int(raw)
             if 0 < value <= 2_000_000:
                 result.append(value)
         return result
 
-    def is_meta_line(s: str) -> bool:
-        raw = str(s or "").strip()
-        compact = re.sub(r"\s+", "", raw)
+    def is_total_label(s: str) -> bool:
+        compact = compact_line(s)
+        return bool(
+            re.search(
+                r"판매총액|합계|총액|결제금액|받을금액|받은금액|판매금액|청구액",
+                compact,
+            )
+        )
 
-        # (1) 콜론 라벨형 메타: "T:...", "번호:...", "발급:...", "POS:...", "No:..." 등
-        #     - 알파벳 1~4자 + 콜론 (T:, No:, TID:, POS:)
-        #     - 또는 대표적인 한글 메타 라벨 + 콜론
+    def is_item_header(s: str) -> bool:
+        compact = compact_line(s)
+        return bool(
+            re.search(
+                r"상품\(?코드\)?|품명|상품명|메뉴명|메뉴|상품내역",
+                compact,
+                re.I,
+            )
+        )
+
+    def is_item_stop(s: str) -> bool:
+        compact = compact_line(s)
+        return bool(
+            re.search(
+                r"판매총액|판매금액|받을금액|받은금액|결제금액|결제수단|"
+                r"합계|총액|부가세|회원|포인트|신용카드|카드매출|승인|할부|현금영수증",
+                compact,
+                re.I,
+            )
+        )
+
+    def is_meta_line(s: str) -> bool:
+        raw = clean_line(s)
+        compact = compact_line(raw)
+
+        if RC_DATE.search(raw):
+            return True
+
+        # T:, POS:, No:, 번호:, 발급: 같은 라벨형 메타
         if re.match(r"^[A-Za-z]{1,4}\s*[:：]", raw):
             return True
-        if re.match(r"^(번호|발급|승인|카드|가맹|단말|전표|거래|매출전표|주문|영수증)\s*[:：]", raw):
+        if re.match(
+            r"^(번호|발급|승인|카드|가맹|단말|전표|거래|매출전표|주문|영수증|회원|할부)\s*[:：]",
+            raw,
+        ):
             return True
 
-        # (2) 키워드 기반 필터: 모듈 상단 RC_NOISE_KW를 실제로 사용
-        #     (기존에는 정의만 되고 사용되지 않던 문제를 함께 수정)
-        for w in RC_NOISE_KW:
-            if w.lower() in compact.lower():
+        for word in RC_NOISE_KW:
+            if word.lower() in compact.lower():
                 return True
 
-        # (3) 숫자 비중이 높은 줄(전화/승인/카드/단말 번호 등)은 품목이 아님
-        alnum = re.sub(r"[^0-9A-Za-z가-힣]", "", compact)
-        if alnum and len(re.sub(r"[^0-9]", "", alnum)) / max(1, len(alnum)) > 0.7:
+        if re.search(r"(할인|쿠폰|프로모션)", compact, re.I):
             return True
+
+        # 전화/승인번호처럼 숫자 비중이 지나치게 높은 줄
+        alnum = re.sub(r"[^0-9A-Za-z가-힣]", "", compact)
+        if alnum:
+            digit_ratio = len(re.sub(r"[^0-9]", "", alnum)) / max(1, len(alnum))
+            if digit_ratio > 0.85:
+                return True
+
         return False
 
+    def normalize_item_name(s: str, strip_mart_p: bool = False) -> str:
+        value = clean_line(s)
+        # 마트 품목행 끝의 참고/정상가 [2,150] 등은 상품명에서 제거
+        value = re.sub(r"\s*\[\s*\d[\d,]*\s*\]\s*$", "", value)
+
+        # 순번 직후의 P는 농협/마트 계열 품목 플래그로 취급.
+        # 영문 상품명 Pepsi 등의 첫 P를 지우지 않도록 한글 앞에서만 제거한다.
+        if strip_mart_p:
+            value = re.sub(r"^[Pp]\s*(?=[가-힣])", "", value)
+
+        value = re.sub(r"^[#*\-\s]+", "", value)
+        return clean_line(value)
+
     def is_possible_name(s: str) -> bool:
-        s = clean_line(s)
-        if not (2 <= len(s) <= 60):
+        value = clean_line(s)
+        if not (1 <= len(value) <= 60):
             return False
-        if is_meta_line(s):
+        # '무'처럼 한 글자인 실제 품목은 허용한다.
+        if len(value) == 1 and not re.fullmatch(r"[가-힣]", value):
             return False
-        if not re.search(r"[가-힣A-Za-z]", s):
+        if is_meta_line(value):
             return False
-        if re.search(r"\d{8,}", re.sub(r"[,\-\s]", "", s)):
+        if not re.search(r"[가-힣A-Za-z]", value):
+            return False
+        if re.search(r"\d{8,}", re.sub(r"[,\-\s]", "", value)):
             return False
         return True
 
-    # 날짜
+    def is_size_token(s: str) -> bool:
+        return bool(
+            re.fullmatch(
+                r"\d+(?:\.\d+)?\s*(?:ml|l|g|kg|개|입|팩|병|캔)",
+                clean_line(s),
+                re.I,
+            )
+        )
+
+    def is_bracket_price(s: str) -> bool:
+        return bool(re.fullmatch(r"\[\s*\d[\d,]*\s*\]", clean_line(s)))
+
+    def is_product_code_only(s: str) -> bool:
+        # parser v2.1.2 masked barcode + trailing columns fix
+        # 일반 PLU/바코드와 CLOVA 마스킹 바코드를 가격 후보에서 제외한다.
+        value = clean_line(s)
+
+        if not re.fullmatch(r"[*#]?\s*[\d,*#\-]+", value):
+            return False
+
+        digits = re.sub(r"\D", "", value)
+        has_marker = value.lstrip().startswith(("*", "#"))
+        has_mask = bool(re.search(r"[*#]{2,}", value))
+
+        if has_mask and len(digits) >= 5:
+            return True
+        if has_marker:
+            return 5 <= len(digits) <= 14
+        return 8 <= len(digits) <= 14
+
+    def strip_leading_product_code(s: str) -> str:
+        """'바코드/PLU + 금액...' 행이면 앞의 코드만 제거한다."""
+        value = clean_line(s)
+        match = re.match(r"^\s*([*#]?\s*[\d,*#\-]+)\s+(.+)$", value)
+        if not match:
+            return value
+
+        prefix = match.group(1)
+        digits = re.sub(r"\D", "", prefix)
+        has_marker = prefix.lstrip().startswith(("*", "#"))
+        has_mask = bool(re.search(r"[*#]{2,}", prefix))
+
+        is_code = (
+            (has_mask and len(digits) >= 5)
+            or (has_marker and 5 <= len(digits) <= 14)
+            or (not has_marker and 8 <= len(digits) <= 14)
+        )
+        return clean_line(match.group(2)) if is_code else value
+
+    def name_from_price_line(s: str, strip_mart_p: bool = False) -> str:
+        value = money_re.sub(" ", s)
+        # 단독 수량(1, 2 등)은 제거하되 900ML/150g처럼 문자에 붙은 숫자는 보존
+        value = re.sub(
+            r"(?<![A-Za-z0-9])\d{1,2}(?![A-Za-z0-9])",
+            " ",
+            value,
+        )
+        return normalize_item_name(value, strip_mart_p=strip_mart_p)
+
+    # 구매일시
     for ln in lines:
-        m = RC_DATE.search(ln)
-        if m:
-            purchased_at = m.group(0).replace(".", "-").replace("/", "-")
+        match = RC_DATE.search(ln)
+        if match:
+            purchased_at = match.group(0).replace(".", "-").replace("/", "-")
             break
 
     # 상호명
     for ln in lines:
-        s = clean_line(ln)
-        if re.search(r"(E[·\.\-]?\s*MART|이마트|마트|슈퍼|시장|상점)", s, re.I):
-            s = re.split(r"\d{3}[- ]?\d{2}[- ]?\d{5}", s)[0].strip()
-            if 2 <= len(s) <= 40:
-                store = s
+        value = clean_line(ln)
+        if re.search(
+            r"(E[·\.\-]?\s*MART|이마트|마트|슈퍼|시장|상점|농협|스타벅스)",
+            value,
+            re.I,
+        ):
+            value = re.split(r"\d{3}[- ]?\d{2}[- ]?\d{5}", value)[0].strip()
+            if 2 <= len(value) <= 40:
+                store = value
                 break
+
     if not store:
         for ln in lines[:10]:
-            s = clean_line(ln)
-            if is_possible_name(s):
-                store = s
+            value = clean_line(ln)
+            if len(value) >= 2 and is_possible_name(value):
+                store = value
                 break
 
-    # 합계/총액
-    for ln in lines:
-        if re.search(r"합계|총액|결제금액|받을금액|받은금액|판매금액|청구액", ln):
-            nums = money_tokens(ln)
-            if nums:
-                total = nums[-1]
+    # 총액. CLOVA가 '판매총액' / '8,560'을 서로 다른 토큰으로 쪼개는 경우도 처리.
+    for i, ln in enumerate(lines):
+        if not is_total_label(ln):
+            continue
 
-    if total is None:
-        all_prices: List[int] = []
-        for ln in lines:
-            if re.search(r"합계|총액|결제|금액|청구액", ln):
-                all_prices.extend(money_tokens(ln))
-        if all_prices:
-            total = max(all_prices)
+        values = money_tokens(ln)
+        if values:
+            total = values[-1]
+            break
 
-    # 품목 추출: 품목명 라인과 가격 라인 분리 대응
-    pending_name = None
+        for j in range(i + 1, min(i + 3, len(lines))):
+            values = money_tokens(lines[j])
+            if values:
+                total = values[-1]
+                break
+        if total is not None:
+            break
+
+    # 품목 헤더가 있으면 그 뒤부터 시작한다.
+    start_idx = 0
+    header_found = False
+    for i, ln in enumerate(lines):
+        if is_item_header(ln):
+            start_idx = i + 1
+            header_found = True
+            break
+
+    candidate_lines = lines[start_idx:] if header_found else lines
+
     used = set()
+    current_name: Optional[str] = None
+    current_prices: List[int] = []
+    qty_candidates: List[int] = []
+    seen_item = False
+    awaiting_name_after_seq = False
 
-    for ln in lines:
-        s = clean_line(ln)
+    def finalize_current() -> None:
+        nonlocal current_name, current_prices, qty_candidates, seen_item
 
-        # "001 품목명" 형태
-        m_no = re.match(r"^\d{1,3}\s+(.+)$", s)
-        if m_no and is_possible_name(m_no.group(1)):
-            pending_name = clean_line(m_no.group(1))
-            continue
-
-        prices = money_tokens(s)
-
-        # pending 품목명 + 현재 가격라인 결합
-        if pending_name and prices:
-            price = prices[-1]
+        if current_name and current_prices:
+            amount = current_prices[-1]
             qty = 1
-            if len(prices) >= 2 and prices[-2] > 0 and price % prices[-2] == 0:
-                q = price // prices[-2]
-                if 1 <= q <= 99:
-                    qty = q
-            key = (pending_name, price)
-            if key not in used:
-                items.append({"name": pending_name, "qty": qty, "price": price})
-                used.add(key)
-            pending_name = None
-            continue
 
-        # 같은 줄에 품목명 + 가격이 같이 있는 경우
-        if prices:
-            # 1) 가격형(콤마 포함 또는 4자리 이상) 숫자 제거
-            name = re.sub(r"\d{1,3}(?:,\d{3})+|\d{4,}", "", s)
-            # 2) 상품명 뒤에 남은 단가/수량용 짧은 숫자 토큰(예: '850 6')도 제거
-            #    — 단, 상품명 중간의 용량 표기(500ml, 200g 등)는 문자와 붙어 있어 보존됨
-            name = re.sub(r"(?<![A-Za-z0-9])\d{1,3}(?![A-Za-z0-9])", " ", name)
-            name = re.sub(r"^[#*\-\s]+", "", clean_line(name))
-            if is_possible_name(name):
-                price = prices[-1]
-                qty = 1
-                if len(prices) >= 2 and prices[-2] > 0 and price % prices[-2] == 0:
-                    q = price // prices[-2]
-                    if 1 <= q <= 99:
+            # 단가 + 수량 + 금액 형태면 수량을 복원한다.
+            if len(current_prices) >= 2:
+                unit_price = current_prices[-2]
+
+                # OCR이 수량을 별도 토큰으로 준 경우 우선 사용
+                for q in reversed(qty_candidates):
+                    if 1 <= q <= 99 and unit_price * q == amount:
                         qty = q
-                key = (name, price)
-                if key not in used:
-                    items.append({"name": name, "qty": qty, "price": price})
-                    used.add(key)
-                pending_name = None
-                continue
+                        break
+                else:
+                    if unit_price > 0 and amount % unit_price == 0:
+                        inferred = amount // unit_price
+                        if 1 <= inferred <= 99:
+                            qty = inferred
 
-        # 품목명만 있는 줄
-        if is_possible_name(s):
-            if store and s == store:
-                continue
-            if re.search(r"대한민국|할인점|고객센터|감사합니다|이마트\s*탄현점", s):
-                continue
-            pending_name = s
+            key = (current_name, amount)
+            if key not in used:
+                items.append(
+                    {
+                        "name": current_name,
+                        "qty": qty,
+                        # 기존 API 의미 유지: price에는 해당 품목 행의 최종 금액을 저장
+                        "price": amount,
+                    }
+                )
+                used.add(key)
+                seen_item = True
+
+        current_name = None
+        current_prices = []
+        qty_candidates = []
+
+    for ln in candidate_lines:
+        value = clean_line(ln)
+
+        if RC_DATE.search(value):
             continue
 
-    if total is not None and len(items) > 1:
-        items = [it for it in items if it["price"] != total]
+        # 판매총액/결제/회원 영역 진입 시 품목 파싱 종료
+        if is_item_stop(value):
+            finalize_current()
+            if header_found or seen_item:
+                break
+            continue
 
-    return {"store": store, "purchasedAt": purchased_at, "total": total, "items": items}
+        # 헤더가 여러 OCR 토큰으로 쪼개진 경우 남은 헤더 토큰 제거
+        if re.fullmatch(
+            r"(단가|수량|금액|상품\(코드\)|상품코드|품명)",
+            value,
+            re.I,
+        ):
+            continue
+
+        # CLOVA가 '001'과 'P굿모닝우유'를 따로 반환하는 경우.
+        if re.fullmatch(r"\d{1,3}", value):
+            number = int(value)
+
+            # 001/002/...는 가격보다 품목 순번일 가능성이 훨씬 높다.
+            if len(value) == 3 and value.startswith("0"):
+                finalize_current()
+                awaiting_name_after_seq = True
+                continue
+
+            if current_name is None:
+                awaiting_name_after_seq = True
+                continue
+
+            # 이미 단가+금액을 모두 모은 뒤 숫자가 나오면 다음 순번으로 본다.
+            if len(current_prices) >= 2:
+                finalize_current()
+                awaiting_name_after_seq = True
+                continue
+
+            # current_name 뒤 첫 3자리 숫자는 500/750원 같은 소액 가격일 수 있다.
+            if not current_prices:
+                if number >= 100:
+                    current_prices.append(number)
+                elif 1 <= number <= 99:
+                    qty_candidates.append(number)
+                continue
+
+            # 단가 하나를 읽은 뒤 1~99면 수량, 100 이상이면 최종 금액 후보
+            if number <= 99:
+                qty_candidates.append(number)
+            else:
+                current_prices.append(number)
+            continue
+
+        # '001 P양파', '003 P무'처럼 순번과 품목명이 같은 OCR 행에 있는 경우
+        numbered = re.match(r"^\s*\d{1,3}\s*[.)-]?\s+(.+)$", value)
+        if numbered:
+            finalize_current()
+            body = normalize_item_name(numbered.group(1), strip_mart_p=True)
+            prices = money_tokens(body)
+
+            if prices:
+                name = name_from_price_line(body, strip_mart_p=True)
+                if is_possible_name(name):
+                    current_name = name
+                    current_prices.extend(prices)
+            elif is_possible_name(body):
+                current_name = body
+
+            awaiting_name_after_seq = False
+            continue
+
+        if awaiting_name_after_seq:
+            body = normalize_item_name(value, strip_mart_p=True)
+            if is_possible_name(body):
+                current_name = body
+                awaiting_name_after_seq = False
+                continue
+
+        # 굿모닝우유 / 900ML처럼 용량만 다음 OCR 토큰으로 분리된 경우
+        if current_name and is_size_token(value):
+            current_name = clean_line(f"{current_name} {value}")
+            continue
+
+        # [2,150] 같은 정상가/참고가는 실제 결제금액으로 쓰지 않는다.
+        # CLOVA가 품목 뒤에 가격 열 전체를 다시 나열할 때 마지막 품목이 오염되지 않도록,
+        # 이미 현재 품목 가격을 확보했다면 참고가 진입 시 현재 품목을 먼저 확정한다.
+        if current_name and is_bracket_price(value):
+            if current_prices:
+                finalize_current()
+            continue
+
+        # *231973, *88,010, 8801104210645 같은 코드-only 토큰은 무시하되
+        # current_name 상태는 그대로 유지한다.
+        if current_name and is_product_code_only(value):
+            continue
+
+        # '*231973 3,300 1 3,300' 같이 코드와 금액 행이 합쳐진 경우
+        numeric_row = strip_leading_product_code(value)
+        prices = money_tokens(numeric_row)
+
+        if current_name and prices:
+            current_prices.extend(prices)
+
+            for qty_text in re.findall(
+                r"(?<![A-Za-z0-9])\d{1,2}(?![A-Za-z0-9])",
+                numeric_row,
+            ):
+                qty = int(qty_text)
+                if 1 <= qty <= 99:
+                    qty_candidates.append(qty)
+
+            # 한 행에 단가와 최종금액이 모두 있으면 즉시 품목 확정
+            if len(prices) >= 2:
+                finalize_current()
+            continue
+
+        if is_meta_line(value):
+            continue
+
+        # 'I-T)아메리카노 4,100 2 8,200' 같은 같은-행 품목
+        if prices:
+            name = name_from_price_line(numeric_row)
+            if is_possible_name(name):
+                finalize_current()
+                current_name = name
+                current_prices.extend(prices)
+
+                for qty_text in re.findall(
+                    r"(?<![A-Za-z0-9])\d{1,2}(?![A-Za-z0-9])",
+                    numeric_row,
+                ):
+                    qty = int(qty_text)
+                    if 1 <= qty <= 99:
+                        qty_candidates.append(qty)
+
+                if len(prices) >= 2:
+                    finalize_current()
+                continue
+
+        # 품목명이 OCR에서 여러 텍스트 토큰으로 쪼개진 경우 가격이 나오기 전까지 합친다.
+        if is_possible_name(value):
+            if store and value == store:
+                continue
+            if re.search(r"대한민국|할인점|고객센터|감사합니다", value):
+                continue
+
+            if current_name:
+                if current_prices:
+                    finalize_current()
+                    current_name = normalize_item_name(value)
+                else:
+                    merged = clean_line(f"{current_name} {value}")
+                    current_name = (
+                        merged if len(merged) <= 60 else normalize_item_name(value)
+                    )
+            else:
+                current_name = normalize_item_name(value)
+
+    finalize_current()
+
+    # 기존 v2 동작 유지: 여러 품목 중 '총액' 자체가 품목으로 섞인 경우 제거
+    if total is not None and len(items) > 1:
+        items = [item for item in items if item["price"] != total]
+
+    return {
+        "store": store,
+        "purchasedAt": purchased_at,
+        "total": total,
+        "items": items,
+    }
 
 def empty_receipt_result() -> dict:
     """OCR/파싱 실패 시 가짜 항목 없이 빈 결과를 반환합니다."""
