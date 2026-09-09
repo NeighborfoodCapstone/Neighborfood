@@ -1,9 +1,12 @@
 # NeighborFood — 정산 시스템 구현 계획 (A+ 안)
 
 > 작성: 2026-08-03  
-> 최종 수정: 2026-08-06  
-> 상태: **전체 흐름 구현 완료** — 채팅→약속→GPS(100m)→QR→납부→정산완료→매너평가 end-to-end 동작 확인  
-> 참조 화면: `Settlement.html` · `Group_Chat.html` · `Local_Verify_Demo.html` (모두 실데이터 연동)
+> 최종 수정: 2026-09-08 (§8 테스트 시나리오 현황 재정리 — nf_functional_test.py 부재 반영)  
+> 상태: **전체 흐름 구현 완료 + UX 갭 해소 완료** — 채팅→약속→GPS(100m)→QR→납부→정산완료→매너평가 end-to-end 동작 확인  
+> 참조 화면: `Settlement.html` · `Group_Chat.html` · `Local_Verify_Demo.html` · `My_Activity.html` (모두 실데이터 연동)
+>
+> **2026-08-12 추가 완료**: `Settlement.html` 완료 후 → `My_Activity.html?tab=history` 리다이렉트 수정,
+> `My_Activity.html` 매너 평가 모달 연동, `Group_Buy_Detail.html` 참여/취소 토글, 게시글 수정 흐름 완성
 
 ---
 
@@ -319,22 +322,48 @@ Settlement.html?settlementId=456 ← 채팅방 "거래 인증·정산" / Transac
 
 ---
 
-## 8. 테스트 시나리오 (`nf_functional_test.py`)
+## 8. 테스트 시나리오
 
-섹션 12 (거래) 뒤에 섹션 12-1 (정산) 추가:
+> ⚠️ **현황 갱신 (2026-09-08)**: 이 섹션은 원래 `nf_functional_test.py`의 섹션 12-1(정산)로 구현·완료(✅)되었다고 기술되어 있었으나, 저장소 최신 구조 확인 결과 `nf_functional_test.py` 파일 자체가 더 이상 존재하지 않는 것으로 확인됨 (README.md·NeighborFood_Architecture_Plan.md의 "문서-저장소 정합성 안내" 참고). 즉 **정산 기능에 대한 자동화 테스트는 현재 저장소에 존재하지 않는다.** 아래 8-1은 과거 설계된 시나리오를 흔적으로 남긴 것이며, 8-2는 현재 저장소에 실존하는 유일한 자동화 테스트를 기술한다.
 
-```
-1) 정산 생성 (POST /api/settlements)         → 201, shares 자동 생성 확인
-2) 게시글 기준 정산 조회                      → 200, pending 상태
-3) 중복 정산 생성 시도                        → 409
-4) 참여자 납부 (POST .../shares/me/pay)       → 200, paid_at 세팅 확인
-5) 납부 중복 시도                             → 400/409
-6) 비관련자 접근                              → 403
-7) 노쇼 신고 (POST .../shares/{uid}/noshow)  → 200, trust_score 감소 확인
-8) 주최자 완료 처리                           → 200, status=completed 확인
-9) 완료 후 취소 시도                          → 400
-10) 미납 정산 있는 사용자 공동구매 참여 시도  → 400 차단 확인
-```
+### 8-1. 정산 기능 테스트 시나리오 — ⬜ 자동화 미구현 (제거됨, 수동 테스트로 병행)
+
+과거 `nf_functional_test.py` 섹션 12(거래) 뒤에 섹션 12-1(정산)로 설계되었던 시나리오. 스크립트 부재로 현재는 자동 실행되지 않으며, QA는 아래 항목을 수동으로 병행 확인한다.
+
+| # | 시나리오 | 기대 결과 | 상태 |
+|---|---|---|---|
+| 1 | 정산 생성 (`POST /api/settlements`) | 201, shares 자동 생성 확인 | ⬜ 미구현/제거됨 · 수동 확인 |
+| 2 | 게시글 기준 정산 조회 | 200, pending 상태 | ⬜ 미구현/제거됨 · 수동 확인 |
+| 3 | 중복 정산 생성 시도 | 409 | ⬜ 미구현/제거됨 · 수동 확인 |
+| 4 | 참여자 납부 (`POST .../shares/me/pay`) | 200, paid_at 세팅 확인 | ⬜ 미구현/제거됨 · 수동 확인 |
+| 5 | 납부 중복 시도 | 400/409 | ⬜ 미구현/제거됨 · 수동 확인 |
+| 6 | 비관련자 접근 | 403 | ⬜ 미구현/제거됨 · 수동 확인 |
+| 7 | 노쇼 신고 (`POST .../shares/{uid}/noshow`) | 200, trust_score 감소 확인 | ⬜ 미구현/제거됨 · 수동 확인 |
+| 8 | 주최자 완료 처리 | 200, status=completed 확인 | ⬜ 미구현/제거됨 · 수동 확인 |
+| 9 | 완료 후 취소 시도 | 400 | ⬜ 미구현/제거됨 · 수동 확인 |
+| 10 | 미납 정산 있는 사용자 공동구매 참여 시도 | 400 차단 확인 | ⬜ 미구현/제거됨 · 수동 확인 |
+
+### 8-2. 현재 저장소의 자동화 테스트 — `tests/test_receipt_parser_v212.py`
+
+정산 흐름과는 무관하게, 영수증 OCR 파서(v2.1.2)에 대한 단위·회귀 테스트가 저장소에 신규로 존재한다. `pytest` 등 외부 프레임워크 없이 `python tests/test_receipt_parser_v212.py`로 단독 실행 가능.
+
+| # | 테스트 함수 | 검증 내용 |
+|---|---|---|
+| 1 | `test_real_nonghyup_clova_output` | 실제 CLOVA OCR 출력(농협 마트형 구조) 기준 품목명·수량·단가·총액 파싱 |
+| 2 | `test_masked_barcode_same_line` | 마스킹 바코드와 가격이 같은 줄에 있는 경우의 파싱 |
+| 3 | `test_starbucks_regression` | 스타벅스 등 카페형 영수증 회귀 테스트 (카카오페이·번호·발급 등 메타 문구 오인식 방지) |
+| 4 | `test_normal_small_prices` | 500·750원처럼 콤마 없는 3자리 소액 가격 파싱 |
+| 5 | `test_kakao_product_name` | "카카오"가 포함된 상품명이 결제수단(카카오페이) 문구로 오인식되지 않는지 확인 |
+
+### 8-3. 커버리지 격차 및 후속 조치
+
+| 영역 | 자동화 테스트 현황 |
+|---|---|
+| 정산(settlements)·GPS·QR·노쇼 | ⬜ 없음 — 8-1 시나리오 기준 수동 테스트로만 병행 |
+| 영수증 OCR 파서 | ✅ `tests/test_receipt_parser_v212.py` (5건) |
+| 인증·게시글·채팅·매너평가 등 나머지 기능 | ⬜ 없음 |
+
+정산 등 핵심 거래 흐름에 대한 자동화 테스트 스위트 재도입이 우선 후속 과제이다 (§9 구현 순서·§10 영향 범위도 2026-09-08 동시 정정 완료 — 더 이상 `nf_functional_test.py`를 완료로 표기하지 않음).
 
 ---
 
@@ -345,7 +374,7 @@ Settlement.html?settlementId=456 ← 채팅방 "거래 인증·정산" / Transac
 ✅ ② settlement_db.py 신규 (CRUD + 인증 함수 일체)
 ✅ ③ settlements.py 라우터 신규 (API 13종 — 노쇼·GPS·QR·약속 포함)
 ✅ ④ main.py 라우터 등록
-⬜ ⑤ posts.py join_groupbuy 참여 차단 로직 — 로컬 수동 적용 필요
+⬜ ⑤ posts.py join_groupbuy 참여 차단 로직 — 함수(`has_unpaid_settlement`) 구현 완료, 호출 연결만 누락
 ✅ ⑥-대체 settlements.py에서 qr_sessions 직접 검증 (qr.py 의존 제거)
 ✅ ⑦ Settlement.html 3단계 버튼 + GPS 폴링 + QR 안내 + 완료 후 매너평가 버튼
 ✅ ⑧ Group_Buy_Detail.html + Transaction_History.html 진입점
@@ -357,7 +386,7 @@ Settlement.html?settlementId=456 ← 채팅방 "거래 인증·정산" / Transac
 ✅ ⑭ settlement_db.py create_transactions_for_settlement (완료→거래 연동)
 ✅ ⑮ location_verify.py 전체 라우터 재구성 (stub→완전한 파일)
 ✅ ⑯ location_verify_db.py DEFAULT_RADIUS_M = 100
-✅ ⑰ nf_functional_test.py 시나리오 추가
+⬜ ⑰ ~~nf_functional_test.py 시나리오 추가~~ (⚠️ 2026-09-08 확인: 해당 스크립트 저장소에서 제거됨 — §8 참고)
 ✅ ⑱ 마크다운 4개 파일 업데이트 (2026-08-06)
 ```
 
@@ -376,17 +405,18 @@ Settlement.html?settlementId=456 ← 채팅방 "거래 인증·정산" / Transac
 | 라우터 재구성 | `location_verify.py` | stub → 완전한 라우터 (5개 엔드포인트, 보안 포함) | ✅ |
 | DB 레이어 수정 | `location_verify_db.py` | DEFAULT_RADIUS_M = 100 | ✅ |
 | 라우터 등록 | `main.py` | settlements import + include_router | ✅ |
-| 기존 라우터 수정 | `posts.py` | `join_groupbuy` 참여 차단 로직 | ⬜ 미적용 |
+| 기존 라우터 수정 | `posts.py` | `join_groupbuy` 참여 차단 로직 (`has_unpaid_settlement()` 호출 누락) | ⬜ 미적용 |
 | 프론트 | `Settlement.html` | 3단계 버튼·GPS 폴링·QR 안내·완료 후 리뷰 버튼 | ✅ |
 | 프론트 | `Group_Chat.html` | 약속 모달(좌표 포함)·정산 시작하기·GPS 이동 버튼 | ✅ |
 | 프론트 | `Local_Verify_Demo.html` | 정산 모드 약속 좌표 자동 로드·100m 기준 | ✅ |
 | 프론트 | `QR_Scan.html` | 정산 흐름 발급 모드 + 복귀 버튼 | ✅ |
-| 프론트 | `My_Activity.html` | 완료 거래 매너 평가 버튼 + 모달 | ✅ |
+| 프론트 | `My_Activity.html` | 완료 거래 매너 평가 버튼 + 모달 + 게시글 수정 링크 | ✅ |
 | 프론트 | `Group_Buy_Detail.html` | "정산하기" 진입점 | ✅ |
 | 프론트 | `Transaction_History.html` | "정산 보기" 링크 | ✅ |
-| 테스트 | `nf_functional_test.py` | 섹션 12-1 (노쇼 취소 포함) | ✅ |
+| 테스트 | ~~`nf_functional_test.py`~~ | 섹션 12-1 (노쇼 취소 포함) | ⬜ 제거됨 (§8 참고) |
+| 테스트 | `tests/test_receipt_parser_v212.py` | 영수증 파서 회귀 테스트 (정산과 무관, §8-2 참고) | ✅ (신규) |
 
 **신규 파일**: `settlement_db.py`, `settlements.py` 2개  
 **재구성 파일**: `location_verify.py` 1개  
-**수정 파일**: 12개 (posts.py join_groupbuy 제외)  
-**마크다운 업데이트**: 4개 완료
+**수정 파일**: 12개 (posts.py join_groupbuy 제외) + 2026-08-12 추가 수정 (`Admin_Notices.html`, `Admin_Chat_History.html`, `Group_Buy_Detail.html`, `Settlement.html`, `Help.html`, `Create_Post.html`, `My_Activity.html`, `posts.py`)  
+**마크다운 업데이트**: 4개 완료 (2026-08-22 재갱신)
