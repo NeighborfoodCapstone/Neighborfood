@@ -1,9 +1,13 @@
 # NeighborFood ERD 문서
-
+ 
 동네 식재료 나눔·공동구매·교환 플랫폼의 데이터베이스 구조 및 프로젝트 디렉토리 문서입니다.
 3개로 분리돼 있던 SQLite(`auth.db` / `qr_auth.db` / `receipt_auth.db`)를 **단일 SQLite 파일(`data/neighborfood.db`)** 로 통합하고, 회원 기능 도입에 맞춰 `users`·`sessions`·`transactions`·`groupbuy_participants`를 추가한 현행 구조를 정리합니다.
-
-> 최종 갱신: 2026-08-07
+ 
+> 최종 갱신: 2026-08-22
+> 2026-09-08 문서-저장소 정합성 검토: `seed_admin.py` 등 7개 스크립트 + `posts.json`이 저장소에 미존재 확인(§0 참고), `frontend/vendor/html5-qrcode.min.js`·`tests/test_receipt_parser_v212.py` 신규 반영, 테이블 수 18→19 정정(`manner_ratings` 누락 보완, §9-7 신설), 프런트 목록의 `QR_Create` 제거(실존 파일 아님), §11 정산 API 개수 오기재 정정(9종→13종).
+> · 영수증 파서 v2.1 — 마트형 구조(`순번→품목명→바코드→단가→수량→금액`) 파싱 추가, 용량 토큰(900ML/150g) 상품명 결합, PLU·바코드 가격 오인 방지 정규식 강화 (2026-08-22)
+> · 영수증 `RC_NOISE_KW` 키워드 보강 — 카페형 메타 문구(POS/카카오페이/번호 등) 품목 오인식 방지 (2026-08-17)
+> · UX 갭 감사·해소 — Admin 연동(Notices·Chat_History), 참여/취소 토글, 게시글 수정 흐름, 공개 공지 아코디언, 매너 평가 리다이렉트, `messages.is_system` 컬럼 추가 (2026-08-12)
 > · `posts` 테이블에 약속 좌표(`appointment_lat/lng`) 4개 컬럼 추가, `POST /posts/{id}/appointment` 신규 (2026-08-07)
 > · **정산 시스템** 구현 완료 — `settlements` + `settlement_shares` 2개 테이블 추가, `settlement_db.py` 신규 (2026-08-04)
 > · GPS 위치 인증 보안 강화 — 전 API Bearer 인증·소유자 검증, `list_sessions(subject_id)` 필터, QR 인증 성공 시 `QR_VERIFIED` 연동 실호출 (2026-08-03)
@@ -11,18 +15,17 @@
 > · 내 냉장고(`fridge_items`) · 그룹 채팅(`conversations.kind`·`conversation_members`) · 관리자 기능(`notices`·`reports`) 추가 (2026-06-13)
 > · `users` 프로필 확장(`email`·`bio`·`interests`·`dietary`) · `transactions.appointment_at` 추가 (2026-06-11)
 > · ID/비밀번호 인증 전환 + `wishlists`·`conversations`·`messages` (2026-06-10)
-
+ 
 - **DBMS**: SQLite 3 (단일 파일 `data/neighborfood.db`)
-- **테이블 수**: 18개 (`users`, `sessions`, `auth_codes`, `posts`, `transactions`, `groupbuy_participants`, `settlements`, `settlement_shares`, `qr_sessions`, `receipts`, `fridge_items`, `location_verify_sessions`, `wishlists`, `conversations`, `messages`, `conversation_members`, `notices`, `reports`)
+- **테이블 수**: 19개 (`users`, `sessions`, `auth_codes`, `posts`, `transactions`, `groupbuy_participants`, `manner_ratings`, `settlements`, `settlement_shares`, `qr_sessions`, `receipts`, `fridge_items`, `location_verify_sessions`, `wishlists`, `conversations`, `messages`, `conversation_members`, `notices`, `reports`)
 - **접속 계층**: `db/*.py` — 모든 연결이 `make_conn(DB_PATH, foreign_keys=True)`로 동일 파일을 공유
 - **스키마 원본**: `neighborfood_schema.sql`
-
 ---
-
+ 
 ## 0. 프로젝트 디렉토리 구조
-
+ 
 핵심 디렉토리: **`app`(서버) · `frontend`(화면+JS) · `sql`(스키마) · `data`(실제 DB)**
-
+ 
 ```
 NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 ├── app/                            ▶ 서버 파일 (FastAPI 백엔드)
@@ -42,7 +45,7 @@ NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 │   │   ├── receipt_db.py             receipts (+ OCR 유틸)
 │   │   └── location_verify_db.py     location_verify_sessions (GPS 위치 인증)
 │   ├── models/                       Pydantic 모델
-│   │   ├── auth.py  user.py  post.py  qr.py  receipt.py  member.py  fridge.py
+│   │   └── auth.py  user.py  post.py  qr.py  receipt.py  member.py  fridge.py  location_verify.py
 │   └── routers/                      API 라우터
 │       ├── auth.py  users.py  posts.py  qr.py  receipt.py  wishlist.py  chat.py
 │       ├── transactions.py  fridge.py  admin.py  reports.py
@@ -61,19 +64,24 @@ NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 │   │   Wishlist · My_Page · My_Activity · Edit_Profile · Withdraw ·
 │   │   Fridge · Group_Chat · Chat_List · Chat_Detail ·
 │   │   Verify · Transaction_History · Settlement · Report ·
-│   │   QR_Create · QR_Scan · Receipt_Verify · Local_Verify_Demo ·
+│   │   QR_Scan · Receipt_Verify · Local_Verify_Demo ·
 │   │   Splash · Onboarding · Login · Signup · Password_Reset · Help  (.html)
 │   ├── (관리자 화면)
 │   │   Admin_Dashboard · Admin_Users · Admin_Notices ·
 │   │   Admin_Report_Detail · Admin_Chat_History · Admin_Staff_Invite  (.html)
-│   └── shared/                       공통 자산 (JS · CSS)
-│       ├── auth.js                   토큰 저장(localStorage) + fetch 자동 인증 주입
-│       ├── guard.js                  회원 전용 페이지 접근 가드 (nfRequireMember())
-│       ├── profile.js                프로필 조회/수정/탈퇴 호출 헬퍼
-│       └── tokens.css                디자인 토큰(CSS 변수)
+│   ├── shared/                       공통 자산 (JS · CSS)
+│   │   ├── auth.js                   토큰 저장(localStorage) + fetch 자동 인증 주입
+│   │   ├── guard.js                  회원 전용 페이지 접근 가드 (nfRequireMember())
+│   │   ├── profile.js                프로필 조회/수정/탈퇴 호출 헬퍼
+│   │   └── tokens.css                디자인 토큰(CSS 변수)
+│   └── vendor/                       외부 라이브러리 로컬 사본 [신규]
+│       └── html5-qrcode.min.js       QR/바코드 스캔 — CDN 장애 대비 1차 로드 경로
 │
 ├── sql/                            ▶ 현재 프로젝트 스키마
 │   └── neighborfood_schema.sql       전체 테이블 DDL (단일 진실 소스)
+│
+├── tests/                          ▶ 자동화 테스트 [신규]
+│   └── test_receipt_parser_v212.py   영수증 파서 v2.1.2 회귀 테스트 (pytest 없이 단독 실행)
 │
 ├── data/                           ▶ 실제 데이터베이스
 │   └── neighborfood.db               단일 SQLite 파일 (startup 시 자동 생성)
@@ -83,22 +91,25 @@ NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 ├── .vscode/  __pycache__/          에디터 설정 / 바이트코드 캐시
 │
 ├── main.py                         FastAPI 엔트리포인트 (미들웨어·정적 마운트·라우터 등록)
-├── posts.json                      초기 게시글 시드 데이터(JSON)
-├── seed_admin.py                   관리자 계정 부트스트랩(1회성)
-├── seed_posts.py                   더미 게시글 시드(개발용)
 ├── neighborfood_ERD.md             (이 문서) DB 구조 + 디렉토리
 ├── README.md                       프로젝트 개요·실행 가이드
+├── NeighborFood_Architecture_Plan.md  아키텍처 현황 및 개발 이력
+├── Settlement_Implementation_Plan.md  정산 시스템 구현 계획
+├── Capstone.md                     개발 컨텍스트·제약사항 요약
 ├── requirements.txt                파이썬 의존성
 ├── .env  .env.example  .gitignore  환경 변수 / 템플릿 / 제외 목록
 ```
-
+ 
+> ⚠️ **문서-저장소 정합성 안내 (2026-09-08 확인, README.md·NeighborFood_Architecture_Plan.md·Capstone.md와 동일 사안)**
+> 이전 버전 트리에는 `seed_admin.py`(관리자 계정 부트스트랩), `seed_posts.py`(더미 게시글 시드), `Seed_Account.py`(테스트 계정+완료 거래 시드), `Seed_capstone_settlement.py`(정산 수동 테스트 시드), `Seed_settlement_verify.py`(정산 API 자동 검증), `nf_functional_test.py`(전체 기능 자동 테스트), `reset_db.py`(DB 초기화), `posts.json`(초기 게시글 시드 데이터) 총 8개 파일이 있었으나, 저장소 최신 구조 확인 결과 더 이상 존재하지 않아 제거함. 10.5의 `seed_admin.py` 안내는 스크립트 재도입 전까지 실행되지 않는다.
+ 
 > `data/`, `uploads/`, `venv/`, `.venv/`, `__pycache__/`, `.env`는 `.gitignore` 대상입니다.
 > 정적 서빙: `main.py`가 `/frontend`(화면)·`/shared`(공통 JS)·`/uploads`를 마운트하며, 카메라 화면(QR/영수증)은 `/QR_Scan.html` 등 루트 라우트로도 서빙합니다.
-
+ 
 ---
-
+ 
 ## 1. ERD 다이어그램
-
+ 
 ```mermaid
 erDiagram
     users {
@@ -227,6 +238,15 @@ erDiagram
         INTEGER user_id PK "users.id"
         TEXT joined_at
     }
+    manner_ratings {
+        INTEGER id PK
+        INTEGER transaction_id FK "transactions.id"
+        INTEGER rater_id FK "users.id (평가자)"
+        INTEGER ratee_id FK "users.id (피평가자)"
+        INTEGER score "1=좋았어요 / -1=아쉬웠어요"
+        TEXT comment
+        TEXT created_at
+    }
     settlements {
         INTEGER id PK "자동 증가"
         INTEGER post_id FK "posts.id"
@@ -242,8 +262,9 @@ erDiagram
         INTEGER user_id PK,FK "users.id (참여자)"
         INTEGER amount "1인 분담 금액"
         TEXT status "unpaid / paid / noshow"
-        INTEGER quality_agreed "1=QR 스캔(품질 동의) 완료"
-        INTEGER auto_confirmed "1=GPS+24h 자동 납부 확인"
+        INTEGER gps_verified "1=GPS 100m 인증 완료 (Step 1)"
+        INTEGER quality_agreed "1=QR 스캔(품질 동의) 완료 (Step 2)"
+        INTEGER auto_confirmed "레거시 컬럼, 더 이상 세팅 안 됨"
         TEXT paid_at "납부 완료 시각(ISO)"
         TEXT created_at
     }
@@ -285,7 +306,7 @@ erDiagram
         REAL target_lat "인증 목표 위도"
         REAL target_lng "인증 목표 경도"
         TEXT target_address
-        REAL radius_m "허용 반경(m), 기본 300"
+        REAL radius_m "허용 반경(m), 기본 100"
         TEXT status "TARGET_CREATED 등"
         REAL current_lat
         REAL current_lng
@@ -296,7 +317,7 @@ erDiagram
         TEXT created_at
         TEXT updated_at
     }
-
+ 
     users ||--o{ sessions : "로그인 세션 (1:N)"
     users ||--o{ posts : "작성 (1:N)"
     users ||--o{ transactions : "제공/수령 (1:N)"
@@ -313,19 +334,21 @@ erDiagram
     users ||--o{ fridge_items : "내 냉장고 (1:N)"
     users ||--o{ notices : "공지 작성 (1:N)"
     users ||--o{ reports : "신고 (1:N)"
+    transactions ||--o{ manner_ratings : "거래 평가 (1:N)"
+    users ||--o{ manner_ratings : "평가자/피평가자 (1:N)"
     posts ||--o{ settlements : "게시글 기준 정산 (1:N)"
     users ||--o{ settlements : "정산 주최자 (1:N)"
     settlements ||--o{ settlement_shares : "참여자별 분담 (1:N)"
     users ||--o{ settlement_shares : "정산 참여자 (1:N)"
 ```
-
+ 
 > `posts.author_id`·`transactions`·`groupbuy_participants`·`settlements`·`settlement_shares`의 FK는 **물리 FK로 적용 완료**입니다(단일 파일 통합으로 활성화).
 > `qr_sessions.subject_id` / `receipts.subject_id`는 기존 흐름 보존을 위해 **논리적 참조(TEXT)** 로 유지하며, 거래 정합성은 `transactions.qr_session_id` / `receipt_id`를 통해 연결합니다.
-
+ 
 ---
-
+ 
 ## 2. 테이블 관계 요약
-
+ 
 | 부모 | 자식 | 연결 컬럼 | 관계 | FK | 의미 |
 |------|------|-----------|------|----|------|
 | `users` | `sessions` | `user_id` | 1 : N | ✅ (CASCADE) | 한 회원의 여러 로그인 세션 |
@@ -333,6 +356,8 @@ erDiagram
 | `users` | `transactions` | `provider_id` / `receiver_id` | 1 : N | ✅ | 회원이 제공/수령한 거래 |
 | `posts` | `transactions` | `post_id` | 1 : N | ✅ (이력 보존) | 한 게시글에서 발생한 거래 |
 | `posts` / `users` | `groupbuy_participants` | `post_id` / `user_id` | 1 : N | ✅ | 공동구매 참여자(복합 PK) |
+| `transactions` | `manner_ratings` | `transaction_id` | 1 : N | ✅ | 완료 거래에 대한 매너 평가 |
+| `users` | `manner_ratings` | `rater_id` / `ratee_id` | 1 : N | ✅ | 평가자/피평가자 |
 | `posts` | `settlements` | `post_id` | 1 : N | ✅ | 게시글의 정산 헤더 |
 | `users` | `settlements` | `requester_id` | 1 : N | ✅ | 주최자의 정산 |
 | `settlements` | `settlement_shares` | `settlement_id` | 1 : N | ✅ | 참여자별 분담(복합 PK) |
@@ -341,13 +366,13 @@ erDiagram
 | `users` | `receipts` | `subject_id` | 1 : N | 논리적 | 회원의 영수증 인증 |
 | `transactions` | `qr_sessions` | `qr_session_id` | 1 : 1 | 논리적 | 거래에 연계된 QR |
 | `transactions` | `receipts` | `receipt_id` | 1 : 1 | 논리적 | 거래에 연계된 영수증 |
-
+ 
 ---
-
+ 
 ## 3. `users` — 회원
-
+ 
 **ID·비밀번호·휴대폰 번호**로 가입하는 핵심 기준 테이블. 휴대폰 번호는 가입 시 입력만 받고(OTP 검증 없음), 비밀번호 재설정 OTP 수신 용도로만 사용한다.
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `id` | `INTEGER` | PK (AUTOINCREMENT) | 자동 증가 회원 번호. 타 테이블 참조 기준 |
@@ -366,40 +391,40 @@ erDiagram
 | `neighborhood` | `TEXT` | | 동네(위치) 인증으로 기록된 동네 이름 |
 | `neighborhood_verified_at` | `TEXT` | | 동네 인증 완료 시각(ISO) |
 | `created_at` / `updated_at` | `TEXT` | | ISO-8601 문자열 |
-
+ 
 > `email`·`bio`·`interests`·`dietary`는 2026-06-11 멱등 `ALTER TABLE`로 추가되었습니다.
-
+ 
 ---
-
+ 
 ## 4. `sessions` — 로그인 세션
-
+ 
 `/api/auth/login`(또는 가입 직후) 성공 시 발급되는 Bearer 토큰 저장소. `Authorization: Bearer <token>` 으로 회원을 식별한다.
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `token` | `TEXT` | PK | `secrets.token_urlsafe(32)` 원본 토큰 |
 | `user_id` | `INTEGER` | FK → `users.id` | `ON DELETE CASCADE` |
 | `expires_at` | `TEXT` | | 만료 시각(ISO). 경과 시 401 |
 | `created_at` | `TEXT` | | 발급 시각 |
-
+ 
 ---
-
+ 
 ## 5. `auth_codes` — OTP 인증코드 (비밀번호 재설정 전용)
-
+ 
 **비밀번호 재설정 시에만** SMS로 발송되는 일회성 인증번호의 임시 저장소. 가입된 번호에만 발급되며, 재설정 성공 시 즉시 삭제.
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `phone_number` | `TEXT` | PK | 재요청 시 `INSERT OR REPLACE` |
 | `code` | `TEXT` | | 6자리 인증번호 |
 | `expiry_time` | `TEXT` | | 만료 시각(ISO 문자열) |
-
+ 
 ---
-
+ 
 ## 6. `posts` — 게시글
-
+ 
 나눔·공동구매·교환 세 종류를 한 테이블에 통합. `type`에 따라 `gb_*`/`exchange_want`가 활성화된다.
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `id` | `INTEGER` | PK (AUTOINCREMENT) | 게시글 번호 |
@@ -420,18 +445,18 @@ erDiagram
 | `appointment_at` | `TEXT` | | 거래 약속 일시(ISO, 채팅 확정 → 정산 승계) |
 | `appointment_lat` | `REAL` | | 약속 위도 — 참여자 GPS 100m 검증 기준 |
 | `appointment_lng` | `REAL` | | 약속 경도 — 참여자 GPS 100m 검증 기준 |
-
+ 
 **인덱스**: `(type, created_at)`, `(author_id)`
-
+ 
 > `appointment_place/at/lat/lng`는 2026-08-07 멱등 `ALTER TABLE`로 추가되었습니다 (`auth_db.py` `init_auth_db()` 마이그레이션 블록).
 > `POST /posts/{id}/appointment` API를 통해 채팅방에서 정산 생성 전에도 약속을 확정할 수 있으며, 이후 정산 생성 시 `settlements`로 자동 승계됩니다.
-
+ 
 ---
-
+ 
 ## 7. `transactions` — 거래 (앵커 테이블)
-
+ 
 정산·매너평가·신고·거래내역이 공통으로 참조할 '하나의 거래' 단위. 향후 기능 테이블이 이 `id`를 FK로 참조한다.
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `id` | `INTEGER` | PK (AUTOINCREMENT) | 거래 번호 |
@@ -443,43 +468,43 @@ erDiagram
 | `receipt_id` | `TEXT` | | 연계 `receipts.id` (선택) |
 | `appointment_at` | `TEXT` | | 약속 일시(ISO, 선택). 거래 시간 협의용 |
 | `created_at` / `completed_at` | `TEXT` | | 생성·완료 일시 |
-
+ 
 **인덱스**: `(provider_id, created_at)`, `(receiver_id, created_at)`, `(post_id)`
-
+ 
 > `appointment_at`은 2026-06-11 멱등 `ALTER TABLE`로 추가되었습니다.
-
+ 
 ---
-
+ 
 ## 7-1. `groupbuy_participants` — 공동구매 참여자
-
+ 
 공동구매 게시글에 '누가 참여했는가'를 기록한다. 정산(N명 분담)·내 활동의 기반이며, 복합 PK로 중복 참여를 차단한다.
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `post_id` | `INTEGER` | PK, FK → `posts.id` | 공동구매 게시글 |
 | `user_id` | `INTEGER` | PK, FK → `users.id` | 참여 회원 |
 | `joined_at` | `TEXT` | | 참여 일시(ISO) |
-
+ 
 **인덱스**: `(user_id)`
-
+ 
 ---
-
+ 
 ## 7-2. `wishlists` — 찜 목록
-
+ 
 회원이 관심 게시글을 저장한다. 복합 PK로 중복 찜을 차단하며, 회원 탈퇴 시 함께 삭제(CASCADE)된다.
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `user_id` | `INTEGER` | PK, FK → `users.id` (CASCADE) | 찜한 회원 |
 | `post_id` | `INTEGER` | PK, FK → `posts.id` | 찜한 게시글 |
 | `created_at` | `TEXT` | | 찜한 시각(ISO) |
-
+ 
 ---
-
+ 
 ## 7-3. `conversations` — 채팅방
-
+ 
 게시글 1건 × 문의자(guest) 1명 = 방 1개. `UNIQUE(post_id, guest_id)`로 같은 글에 같은 문의자가 방을 중복 생성하지 못한다. host는 게시글 작성자.
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `id` | `INTEGER` | PK (AUTOINCREMENT) | 채팅방 번호 |
@@ -488,13 +513,13 @@ erDiagram
 | `guest_id` | `INTEGER` | FK → `users.id`, NOT NULL | 문의자 (그룹방은 작성자로 채워 NOT NULL 충족) |
 | `kind` | `TEXT` | NOT NULL, 기본 `direct` | `direct`(1:1) / `group`(공동구매 그룹). 멱등 `ALTER`로 추가 |
 | `created_at` | `TEXT` | | 생성 시각(ISO) |
-
+ 
 ---
-
+ 
 ## 7-4. `messages` — 채팅 메시지
-
+ 
 대화방의 메시지. 실시간 푸시 대신 `after_id` 증분 조회(REST 폴링)로 동작하며, 조회 시 상대 메시지가 읽음 처리된다.
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `id` | `INTEGER` | PK (AUTOINCREMENT) | 메시지 번호(증분 폴링 커서) |
@@ -504,13 +529,13 @@ erDiagram
 | `created_at` | `TEXT` | | 전송 시각(ISO) |
 | `read_at` | `TEXT` | | 상대가 읽은 시각(미독이면 NULL) |
 | `is_system` | `INTEGER` | DEFAULT 0 | 0=일반 메시지, 1=시스템 알림. 공동구매 참여 취소 시 `"OOO님이 참여를 취소하셨습니다."` 자동 삽입. `posts.py`의 `cancel_join_groupbuy`에서 멱등 ALTER 후 사용 (2026-08-12) |
-
+ 
 ---
-
+ 
 ## 8. `qr_sessions` — QR 거래 인증
-
+ 
 대면 거래 수령 확인용 일회용 토큰. 원본은 저장하지 않고 SHA-256 해시만 보관.
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `id` | `TEXT` | PK | `qrs_` + 랜덤 hex |
@@ -522,15 +547,15 @@ erDiagram
 | `used_at` / `last_scanned_at` | `TEXT` | | 검증·최근 스캔 시각 |
 | `scanner_ip` / `scanner_user_agent` | `TEXT` | | 스캔 기기 정보 |
 | `created_at` / `updated_at` | `TEXT` | | 생성·수정 일시 |
-
+ 
 **인덱스**: `(subject_id, issued_at)`, `(status, expires_at)`, `(token_hash)`
-
+ 
 ---
-
+ 
 ## 9. `receipts` — 영수증 OCR 인증
-
+ 
 영수증 이미지를 OCR로 분석해 품목을 추출하고, 선택 품목으로 인증해 신뢰 온도를 올린다. `image_path`는 PII 마스킹 후 경로만 저장.
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `id` | `TEXT` | PK | `rcpt_` + 랜덤 hex |
@@ -544,30 +569,30 @@ erDiagram
 | `image_path` | `TEXT` | | PII 마스킹 후 저장 경로 |
 | `scanned_at` / `verified_at` | `TEXT` | | 스캔·인증 완료 시각 |
 | `created_at` / `updated_at` | `TEXT` | | 생성·수정 일시 |
-
+ 
 **인덱스**: `(subject_id, scanned_at)`, `(status, scanned_at)`
-
+ 
 ---
-
+ 
 ## 9-1. `conversation_members` — 그룹 채팅 멤버십
-
+ 
 공동구매 **그룹 채팅**의 참여자와 멤버별 '마지막으로 읽은 메시지'를 기록한다. 1:1 채팅은 `messages.read_at`으로, 그룹 채팅은 멤버별 `last_read_id`로 안 읽은 수를 계산한다. 채팅을 처음 열 때 자격(작성자·공동구매 참여자)을 확인해 멤버로 추가(lazy join)한다.
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `conversation_id` | `INTEGER` | PK, FK → `conversations.id` (CASCADE) | 그룹 채팅방 |
 | `user_id` | `INTEGER` | PK, FK → `users.id` | 멤버 |
 | `last_read_id` | `INTEGER` | 기본 0 | 마지막으로 읽은 `messages.id` |
 | `joined_at` | `TEXT` | | 합류 시각(ISO) |
-
+ 
 **인덱스**: `(user_id)`
-
+ 
 ---
-
+ 
 ## 9-2. `fridge_items` — 내 냉장고
-
+ 
 회원의 보유 식재료와 유통기한(D-day)을 관리한다. 홈·마이페이지의 '소비 임박' 요약과 목록 화면(`Fridge.html`)에서 사용하며, 회원 탈퇴 시 함께 삭제(CASCADE)된다.
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `id` | `INTEGER` | PK (AUTOINCREMENT) | 식재료 번호 |
@@ -579,15 +604,15 @@ erDiagram
 | `memo` | `TEXT` | | 메모 |
 | `status` | `TEXT` | NOT NULL, 기본 `active` | `active` / `consumed` |
 | `created_at` / `updated_at` | `TEXT` | | ISO 시각 |
-
+ 
 **인덱스**: `(user_id, status, expiry_date)`
-
+ 
 ---
-
+ 
 ## 9-3. `notices` — 공지사항 (관리자)
-
+ 
 관리자가 작성하는 공지. `Admin_Notices.html`에서 작성·삭제한다.
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `id` | `INTEGER` | PK (AUTOINCREMENT) | 공지 번호 |
@@ -595,15 +620,15 @@ erDiagram
 | `title` | `TEXT` | NOT NULL | 제목 |
 | `content` | `TEXT` | NOT NULL | 본문 |
 | `created_at` | `TEXT` | NOT NULL | 작성 시각(ISO) |
-
+ 
 **인덱스**: `(created_at)`
-
+ 
 ---
-
+ 
 ## 9-4. `reports` — 신고
-
+ 
 회원이 게시글/회원을 신고하면 `pending`으로 적재되고, 관리자가 `Admin_Report_Detail.html`에서 `resolved`/`dismissed`로 처리한다.
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `id` | `INTEGER` | PK (AUTOINCREMENT) | 신고 번호 |
@@ -613,46 +638,54 @@ erDiagram
 | `reason` | `TEXT` | NOT NULL | 신고 사유 |
 | `status` | `TEXT` | NOT NULL, 기본 `pending` (CHECK) | `pending` / `resolved` / `dismissed` |
 | `created_at` | `TEXT` | NOT NULL | 접수 시각(ISO) |
-
+ 
 **인덱스**: `(status, created_at)`
-
+ 
 ---
-
+ 
 ## 9-5. `location_verify_sessions` — GPS 위치 인증 세션
-
-거래 수령 장소 등 특정 좌표에 실제로 도착했는지 GPS로 인증하는 세션. Haversine 공식으로 현재 좌표와 목표 좌표 간 거리를 계산해 허용 반경(기본 300m) 이내인지 판정하며, 인증 성공 후 발급된 QR 세션(`qr_sessions.id`)을 논리적으로 연결한다. `app/db/base.py`의 `init_all_databases()`에는 포함되지 않고, `app/routers/location_verify.py`의 각 엔드포인트가 호출 시점에 `init_location_verify_db()`로 지연 초기화한다. 프런트는 `Local_Verify_Demo.html`(진입점: `Reservation.html`).
-
+ 
+거래 수령 장소 등 특정 좌표에 실제로 도착했는지 GPS로 인증하는 세션. Haversine 공식으로 현재 좌표와 목표 좌표 간 거리를 계산해 허용 반경(기본 **100m**, 2026-08-07 변경) 이내인지 판정하며, 인증 성공 후 발급된 QR 세션(`qr_sessions.id`)을 논리적으로 연결한다. `app/db/base.py`의 `init_all_databases()`에는 포함되지 않고, `app/routers/location_verify.py`의 각 엔드포인트가 호출 시점에 `init_location_verify_db()`로 지연 초기화한다. 프런트는 `Local_Verify_Demo.html`(진입점: `Reservation.html`).
+ 
 **접근 제어 (2026-08-03 보안 강화)**: `subject_id`는 서버가 로그인 사용자 id(`users.id` 문자열)로 강제 기록하며, 세션 조회·조작은 소유자 본인 또는 관리자만 가능. 이력 조회(`list_sessions`)는 `subject_id` 필터로 본인 세션만 반환(관리자는 전체). QR 인증 성공 시 `qr.py`가 `mark_qr_verified_by_qr_session()`을 호출해 연결된 세션을 `QR_VERIFIED`로 전이시킨다(상태 흐름: `TARGET_CREATED` → `LOCATION_VERIFIED`/`TOO_FAR`/`LOW_ACCURACY` → `QR_ISSUED` → `QR_VERIFIED`).
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `id` | `TEXT` | PK | 세션 식별자(uuid) |
 | `subject_id` | `TEXT` | (논리적) | 인증 수행 식별자 |
 | `target_lat` / `target_lng` | `REAL` | NOT NULL | 인증 목표 좌표 |
 | `target_address` | `TEXT` | | 목표 주소(표시용) |
-| `radius_m` | `REAL` | 기본 300 | 허용 반경(미터) |
+| `radius_m` | `REAL` | 기본 **100** | 허용 반경(미터). 2026-08-07 300m → 100m 변경 |
 | `status` | `TEXT` | 기본 `TARGET_CREATED` | 세션 진행 상태 |
 | `current_lat` / `current_lng` / `current_accuracy` | `REAL` | | 제출된 현재 좌표·정확도 |
 | `distance_m` | `REAL` | | 목표-현재 계산 거리(m) |
 | `qr_session_id` | `TEXT` | (논리적) | 인증 후 연결된 `qr_sessions.id` |
 | `verified_at` | `TEXT` | | 인증 완료 시각(ISO) |
 | `created_at` / `updated_at` | `TEXT` | 기본 `CURRENT_TIMESTAMP` | 생성·수정 일시 |
-
+ 
 ---
-
-## 9-6. `settlements` / `settlement_shares` — 공동구매 정산 (2026-08-04 신규)
-
+ 
+## 9-6. `settlements` / `settlement_shares` — 공동구매 정산 (신규 2026-08-04, 흐름 확정 2026-08-07)
+ 
 앱이 실제 자금을 보관하거나 이동시키지 않는다. 참여자는 카카오페이·계좌이체 등 외부 수단으로 직접 송금하고, 앱은 상태만 추적한다. 기존 GPS·QR·trust_score 인프라와 연결해 신뢰 모델을 보강한다.
-
-**납부 3단계 자동화 흐름**
+ 
+**납부 2단계 순차 인증 흐름 (2026-08-06 확정)**
 ```
-QR 스캔 성공  → quality_agreed = 1  → "납부했어요" 버튼 활성화
-납부 버튼 클릭 → paid_at 기록       → 납부 완료 처리
-GPS 인증 + 24h → auto_confirmed = 1  → GET 조회 시점에 서버가 자동 납부 확인
+Step 1: GPS 인증 (≤100m 서버 Haversine 재검증)
+  → gps_verified = 1
+ 
+Step 2: QR 대면 인증 (주최자가 참여자 QR 스캔)
+  → quality_agreed = 1
+ 
+두 단계 완료 → "납부했어요" 버튼 활성화
+납부 버튼 클릭 → paid_at 기록 → 납부 완료 처리
 ```
-
+ 
+> `auto_confirmed` 컬럼(GPS+24h 자동 납부)은 2026-08-06 설계 결정으로 **제거**되었습니다.  
+> 컬럼 자체는 하위 호환을 위해 DB에 보존하나 더 이상 세팅되지 않습니다.
+ 
 ### `settlements` — 정산 헤더
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `id` | `INTEGER` | PK (AUTOINCREMENT) | 정산 번호 |
@@ -663,68 +696,89 @@ GPS 인증 + 24h → auto_confirmed = 1  → GET 조회 시점에 서버가 자�
 | `status` | `TEXT` | NOT NULL, 기본 `pending` (CHECK) | `pending` / `completed` / `canceled` |
 | `created_at` | `TEXT` | NOT NULL | 정산 생성 시각(ISO) |
 | `completed_at` | `TEXT` | | 완료 처리 시각(ISO) |
-
+ 
 **인덱스**: `(post_id)`, `(requester_id, created_at)`
-
+ 
 ### `settlement_shares` — 참여자별 분담
-
+ 
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
 | `settlement_id` | `INTEGER` | PK, FK → `settlements.id` | 정산 헤더 |
 | `user_id` | `INTEGER` | PK, FK → `users.id` | 분담 참여자 |
 | `amount` | `INTEGER` | NOT NULL | 1인 분담 금액 (`total_amount // N`, 나머지는 주최자 흡수) |
 | `status` | `TEXT` | NOT NULL, 기본 `unpaid` (CHECK) | `unpaid` / `paid` / `noshow` |
-| `quality_agreed` | `INTEGER` | NOT NULL, 기본 0 | 1 = QR 스캔 완료(품질 동의) |
-| `auto_confirmed` | `INTEGER` | NOT NULL, 기본 0 | 1 = GPS+24h 조건 자동 납부 확인 |
+| `gps_verified` | `INTEGER` | NOT NULL, 기본 0 | **Step 1**: 1 = GPS 100m 인증 완료 (`POST .../gps-done` 서버 Haversine 재검증) |
+| `quality_agreed` | `INTEGER` | NOT NULL, 기본 0 | **Step 2**: 1 = QR 스캔 완료(품질 동의). GPS Step 1 선행 필수 |
+| `auto_confirmed` | `INTEGER` | NOT NULL, 기본 0 | 레거시 컬럼 — 하위호환 보존, 더 이상 세팅 안 됨 |
 | `paid_at` | `TEXT` | | 납부 완료 시각(ISO). NULL = 미납 |
 | `created_at` | `TEXT` | NOT NULL | 분담 생성 시각(ISO) |
-
+ 
 **인덱스**: `(user_id, status)`
-
+ 
 **노쇼 취소 정책**: `DELETE /api/settlements/{id}/shares/{uid}/noshow` 호출 시 `status → unpaid`, `paid_at → NULL`, `trust_score +1.0` 원자적 복원, `status='pending'`인 자동 신고 삭제(관리자 처리 완료 신고는 보존).
-
+ 
 ---
-
+ 
+## 9-7. `manner_ratings` — 매너 평가 [신규 문서화, 2026-09-08]
+ 
+완료된 거래(`transactions.status='completed'`)에 대해 당사자가 상대를 평가한다. `(transaction_id, rater_id)` UNIQUE로 거래당 평가자 1회만 허용하며, 평가 결과가 상대의 `users.trust_score`에 반영된다. 프런트는 `My_Activity.html`의 평가 모달.
+ 
+| 컬럼 | 타입 | 키 | 설명 |
+|------|------|----|------|
+| `id` | `INTEGER` | PK (AUTOINCREMENT) | 평가 번호 |
+| `transaction_id` | `INTEGER` | FK → `transactions.id`, NOT NULL | 평가 대상 거래 |
+| `rater_id` | `INTEGER` | FK → `users.id`, NOT NULL | 평가하는 사람 |
+| `ratee_id` | `INTEGER` | FK → `users.id`, NOT NULL | 평가받는 사람 |
+| `score` | `INTEGER` | NOT NULL (CHECK) | `1`(좋았어요) / `-1`(아쉬웠어요) |
+| `comment` | `TEXT` | | 평가 코멘트(선택) |
+| `created_at` | `TEXT` | NOT NULL | 평가 시각(ISO) |
+ 
+**제약**: `UNIQUE(transaction_id, rater_id)` — 거래당 평가자 1회만 허용.
+**인덱스**: `(ratee_id, created_at)`
+ 
+> `app/routers/ratings.py`에서 평가 등록 시 `users.trust_score`를 원자적으로 `score`만큼(±0.5 단위) 반영하고, 평가 작성자에게도 소폭(+0.1) 보상을 지급한다. 모든 변경은 `MAX(0, MIN(99, trust_score ± ?))` 클램프를 적용한다.
+ 
+---
+ 
 ## 10. 설계 결정 메모
-
+ 
 ### 10.1 타임스탬프를 `TEXT`(ISO-8601)로 두는 이유
 애플리케이션이 모든 시각을 ISO-8601 문자열로 저장하고 `from_iso()`/`fromisoformat()`으로 비교합니다. UTC ISO 문자열은 **사전식 정렬 = 시간순 정렬**이라 `ORDER BY`·범위 비교가 그대로 동작합니다. SQLite는 별도 DATETIME 타입이 없어 TEXT 보관이 자연스럽습니다.
-
+ 
 ### 10.2 JSON을 `TEXT`로 저장
 `images`/`items`/`selected_items`/`interests`/`dietary`는 JSON을 텍스트로 저장하며, 코드의 `json.loads(value or "[]")` 패턴이 NULL/빈 값을 안전하게 처리합니다.
-
+ 
 ### 10.3 외래키(FK) 적용 범위
 단일 파일 통합으로 FK가 가능해져 `posts.author_id`·`transactions`·`groupbuy_participants`에 **물리 FK를 적용**했습니다. `transactions.post_id`는 CASCADE를 두지 않아(게시글은 소프트삭제) 거래 이력이 보존됩니다. `qr_sessions`/`receipts`의 `subject_id`는 기존 흐름을 깨지 않기 위해 논리적 참조로 남기고, 거래 정합성은 `transactions`를 통해 확보합니다. 모든 연결은 `foreign_keys=True`로 생성됩니다.
-
+ 
 ### 10.4 인증 정책 — ID/비밀번호 로그인, OTP는 재설정 전용 (2026-06-10 변경)
 가입은 `/api/auth/register`(ID·비밀번호·휴대폰 입력, OTP 검증 없음), 로그인은 `/api/auth/login`(ID·비밀번호)으로 수행하고 세션 토큰을 발급합니다. 휴대폰 OTP(`/request-auth` → `/reset-password`)는 **비밀번호 재설정에만** 사용하며, 가입된 번호에만 발송됩니다. 비밀번호는 표준 라이브러리 PBKDF2-SHA256(`salt$hash`, 20만회 반복)으로 저장합니다. 탈퇴는 행 삭제 대신 `status='withdrawn'` 소프트삭제로 거래 이력 무결성을 보존합니다. 로그인 시 `role=admin`이면 `Admin_Dashboard.html`로 분기합니다.
-
+ 
 ### 10.5 접근 정책 — 비회원/회원/관리자 3단계
-비회원은 게시판(목록·상세)·지도 열람만 가능하고, 글 작성·거래·채팅·찜·내 활동·마이페이지·동네 인증은 회원 전용입니다(서버: `get_current_user` 의존성 / 프런트: `shared/guard.js`의 `nfRequireMember()`). **관리자 기능**은 `get_current_admin` 가드로 보호되는 `/api/admin/*`로 구현되어 있습니다. 관리자 계정은 일반 가입으로 만들 수 없고 `seed_admin.py`(1회성 시드, 전화번호 충돌 자동 회피·기존 계정 승격 지원)로만 생성/승격합니다.
-
+비회원은 게시판(목록·상세)·지도 열람만 가능하고, 글 작성·거래·채팅·찜·내 활동·마이페이지·동네 인증은 회원 전용입니다(서버: `get_current_user` 의존성 / 프런트: `shared/guard.js`의 `nfRequireMember()`). **관리자 기능**은 `get_current_admin` 가드로 보호되는 `/api/admin/*`로 구현되어 있습니다. 관리자 계정은 일반 가입으로 만들 수 없고 ~~`seed_admin.py`(1회성 시드, 전화번호 충돌 자동 회피·기존 계정 승격 지원)로만~~ 생성/승격합니다 (⚠️ 해당 스크립트는 2026-09-08 기준 저장소에 미존재, §0 참고 — 대체 절차 필요).
+ 
 ### 10.6 동시성 주의 사항
 - `gb_current` 갱신: 반드시 `SET gb_current = gb_current + 1` 원자적 UPDATE 사용.
 - `trust_score` 갱신: 반드시 `SET trust_score = trust_score + ?` 원자적 UPDATE 사용.
 - 단일 SQLite + 채팅 폴링(4초): 사용자 증가 시 `database is locked` 드물게 발생 가능. WAL + `busy_timeout`으로 완화 중.
-
 ---
-
+ 
 ## 11. 관련 파일
-
+ 
 | 파일 | 역할 |
 |------|------|
 | `sql/neighborfood_schema.sql` | 전체 테이블 생성 스크립트 (단일 진실 소스) |
 | `data/neighborfood.db` | 단일 SQLite 데이터 파일 (startup 시 자동 생성) |
 | `app/db/base.py` | 연결 팩토리(WAL+busy_timeout), `init_all_databases()` |
 | `app/db/auth_db.py` | `users`·`sessions`·`auth_codes`·`posts` |
-| `app/db/transaction_db.py` | `transactions`·`groupbuy_participants` |
+| `app/db/transaction_db.py` | `transactions`·`groupbuy_participants`·`manner_ratings` |
 | `app/db/member_db.py` | `wishlists`·`conversations`(+`kind`)·`messages`·`conversation_members` |
 | `app/db/fridge_db.py` | `fridge_items` (내 냉장고) |
 | `app/db/admin_db.py` | `notices`·`reports` |
 | `app/db/qr_db.py` / `receipt_db.py` | `qr_sessions` / `receipts` |
 | `app/db/location_verify_db.py` | `location_verify_sessions` (GPS 위치 인증, 지연 초기화) |
 | `app/db/settlement_db.py` | `settlements` · `settlement_shares` CRUD, GPS 자동확인, QR 품질동의 연동 |
-| `app/routers/settlements.py` | 정산 API (`/api/settlements/*`) — 노쇼 취소 `DELETE` 포함 9종 |
+| `app/routers/settlements.py` | 정산 API (`/api/settlements/*`) — 노쇼 취소 `DELETE` 포함 13종 |
 | `app/core/deps.py` | 세션 토큰 인증/인가 (`get_current_user`, `get_current_admin`) |
 | `app/routers/users.py` | 회원 프로필/탈퇴 API |
 | `app/routers/chat.py` | 1:1·그룹 채팅 API (`/api/chats`, `/api/chats/group/*`) |
@@ -732,8 +786,7 @@ GPS 인증 + 24h → auto_confirmed = 1  → GET 조회 시점에 서버가 자�
 | `app/routers/admin.py` | 관리자 API (`/api/admin/*`) |
 | `app/routers/reports.py` | 신고 제출 API (`/api/reports`) |
 | `app/routers/location_verify.py` | GPS 위치 인증 API (`/api/location-verify/*`) |
-| `seed_admin.py` | 관리자 계정 부트스트랩(1회성 시드) |
-| `seed_posts.py` | 더미 게시글 시드(개발용) |
+| `app/routers/ratings.py` | 매너 평가 API (`/api/ratings/*`) |
 | `frontend/shared/auth.js` | 토큰 저장 + fetch 자동 인증 주입 |
 | `frontend/shared/guard.js` | 회원 전용 페이지 접근 가드 (`nfRequireMember()`) |
 | `main.py` | FastAPI 서버 본체 (정적 마운트·라우터 등록) |

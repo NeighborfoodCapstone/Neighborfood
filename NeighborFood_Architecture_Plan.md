@@ -1,7 +1,7 @@
 # NeighborFood FastAPI — 아키텍처 현황 및 개발 이력
 
-> 최종 수정: 2026-08-12
-> 상태: **핵심 거래 흐름(채팅→약속→GPS 100m 실검증→QR→납부→정산완료→매너평가) 완성 + 관리자·UX 갭 해소 완료**
+> 최종 수정: 2026-09-08 (기술 스택 사용 목적 서술 추가, 디렉토리 구조를 README.md와 정합화 / 존재하지 않는 `receipt_items` 테이블 언급 2곳 정정 — 영수증 품목은 `receipts.items`/`selected_items` JSON 컬럼으로만 저장)
+> 상태: **핵심 거래 흐름(채팅→약속→GPS 100m 실검증→QR→납부→정산완료→매너평가) 완성 + 관리자·UX 갭 해소 + 영수증 파서 v2.1 마트형 개선 완료**
 > 서버: 단일 FastAPI / DB: 단일 SQLite(`data/neighborfood.db`)
 
 ---
@@ -21,15 +21,15 @@ NeighborFood는 이웃 간 식재료 나눔·교환·공동구매를 중개하�
 
 ## 2. 기술 스택
 
-| 구분 | 기술 |
-|---|---|
-| 백엔드 | FastAPI (Python), Uvicorn |
-| DB | SQLite 3 단일 파일 (`data/neighborfood.db`) |
-| 인증 | Bearer 세션 토큰 (`sessions` 테이블), PBKDF2-SHA256 비밀번호 해시 |
-| 프론트엔드 | Vanilla HTML/JS, Tailwind CSS CDN, Material Symbols |
-| 지도 | Kakao Maps SDK (`.env` 동적 로드, 소스 코드 키 하드코딩 금지) |
-| QR/바코드 | html5-qrcode (QR·1D 동시 인식) |
-| 영수증 OCR | CLOVA OCR 연동 |
+| 구분 | 기술 | 사용 목적 |
+|---|---|---|
+| 백엔드 | FastAPI (Python), Uvicorn | 비동기 I/O 기반으로 REST API를 빠르게 구축하고, Swagger(`/docs`) 문서를 자동 생성하기 위해 사용 |
+| DB | SQLite 3 단일 파일 (`data/neighborfood.db`) | 별도 DB 서버 운영 부담 없이 단일 파일로 배포·백업·로컬 개발을 단순화하기 위해 사용 |
+| 인증 | Bearer 세션 토큰 (`sessions` 테이블), PBKDF2-SHA256 비밀번호 해시 (표준 라이브러리) | 외부 인증 라이브러리 의존 없이 표준 라이브러리만으로 안전한 비밀번호 저장과 세션 기반 인증을 구현하기 위해 사용 |
+| 프론트엔드 | Vanilla HTML/JS, Tailwind CSS CDN, Material Symbols | 별도 빌드 도구 없이 정적 파일만으로 화면을 빠르게 구성하고, 39개 화면에 일관된 디자인 토큰을 적용하기 위해 사용 |
+| 지도 | Kakao Maps SDK (`.env` 동적 로드, 소스 코드 키 하드코딩 금지) | 국내 서비스에 적합한 지도·좌표 데이터를 제공하고, API 키를 `.env`로 동적 로드해 소스코드 유출을 막기 위해 사용 |
+| QR/바코드 | html5-qrcode (QR·1D 동시 인식) | 브라우저 카메라로 QR·1D 바코드를 동시에 인식해 대면 거래 인증을 구현하기 위해 사용. 2026-09 기준 `frontend/vendor/html5-qrcode.min.js`로 로컬 사본을 두어 CDN 장애 시에도 스캔 기능이 동작하도록 함 |
+| 영수증 OCR | CLOVA OCR 연동 + Tesseract fallback (parser v2.1: 마트형·카페형 구조 동시 지원) | 1차로 CLOVA OCR의 인식 정확도를 활용하고, 키가 없거나 호출이 실패해도 Tesseract로 대체해 영수증 인증 기능이 항상 동작하도록 하기 위해 사용 |
 
 ---
 
@@ -39,21 +39,21 @@ NeighborFood는 이웃 간 식재료 나눔·교환·공동구매를 중개하�
 project_root/
 ├── main.py                      FastAPI 엔트리포인트 (미들웨어·마운트·라우터 등록)
 ├── app/
-│   ├── config.py                DB_PATH, UPLOAD_DIR, SESSION_TTL_DAYS 등 상수
+│   ├── config.py                DB_PATH, UPLOAD_DIR, SESSION_TTL_DAYS=30, RECEIPT_TRUST_DELTA=0.3 등
 │   ├── core/
 │   │   ├── deps.py              get_current_user / get_current_admin / get_bearer_token
-│   │   └── utils.py             now_utc, to_iso, hash_password, verify_password
+│   │   └── utils.py             now_utc, to_iso, hash_password, verify_password, parse_token
 │   ├── db/
 │   │   ├── base.py              make_conn() — sqlite3 Row factory + WAL 설정
 │   │   ├── auth_db.py           users · sessions · auth_codes · posts DDL
-│   │   ├── member_db.py         wishlists · conversations · messages · conversation_members DDL
+│   │   ├── member_db.py         wishlists · conversations · messages(is_system) · conversation_members DDL
 │   │   ├── transaction_db.py    transactions · groupbuy_participants · manner_ratings
 │   │   │                        settlements · settlement_shares DDL
 │   │   ├── settlement_db.py     정산 CRUD + GPS/QR 검증 + transactions 연동 함수
 │   │   ├── fridge_db.py         fridge_items DDL + CRUD
 │   │   ├── admin_db.py          notices · reports DDL + CRUD
 │   │   ├── qr_db.py             qr_sessions DDL + CRUD
-│   │   ├── receipt_db.py        receipts · receipt_items DDL + CRUD
+│   │   ├── receipt_db.py        receipts DDL(items/selected_items는 JSON 컬럼) + OCR (CLOVA/Tesseract, parser v2.1)
 │   │   └── location_verify_db.py location_verify_sessions DDL, DEFAULT_RADIUS_M=100
 │   ├── models/
 │   │   ├── auth.py · user.py · post.py · member.py · fridge.py
@@ -62,11 +62,11 @@ project_root/
 │       ├── auth.py              인증 (register, login, logout, OTP, reset)
 │       ├── users.py             회원 프로필·탈퇴·동네 인증·비밀번호 변경
 │       ├── posts.py             게시글 CRUD·참여·취소·약속·my-status·자동 만료
-│       ├── chat.py              1:1 채팅 + 그룹 채팅
+│       ├── chat.py              1:1 채팅 + 그룹 채팅 (is_system 지원)
 │       ├── wishlist.py          찜 목록
 │       ├── transactions.py      거래 생성·상태 전환
 │       ├── fridge.py            내 냉장고
-│       ├── settlements.py       공동구매 정산 (13종 API)
+│       ├── settlements.py       공동구매 정산 (GPS→QR 2단계, 노쇼 신고/취소 포함)
 │       ├── ratings.py           매너 평가 (trust_score 연동)
 │       ├── reports.py           신고 제출·취소
 │       ├── admin.py             관리자 전용 API
@@ -80,20 +80,20 @@ project_root/
 │   │   ├── guard.js             회원 전용 페이지 접근 가드 (nfRequireMember)
 │   │   ├── profile.js           프로필 조회/수정/탈퇴 헬퍼
 │   │   └── tokens.css           디자인 토큰 (CSS 변수)
-│   └── (HTML 파일 목록은 §9 참조)
+│   ├── vendor/
+│   │   └── html5-qrcode.min.js  QR·바코드 스캔 라이브러리 로컬 사본 [신규] — CDN 장애 대비 1차 로드 경로
+│   └── (HTML 파일 목록은 §6 참조)
 │
 ├── sql/neighborfood_schema.sql  전체 테이블 DDL (단일 진실 소스)
+├── tests/
+│   └── test_receipt_parser_v212.py  영수증 파서 회귀·유닛 테스트 [신규] — pytest 없이 단독 실행 가능
 ├── data/neighborfood.db         실제 SQLite DB
 ├── uploads/                     이미지 업로드 저장소
-├── seed_posts.py                더미 게시글 시드 (개발용)
-├── seed_admin.py                관리자 계정 부트스트랩 (1회성)
-├── Seed_Account.py              Capstone_1 테스트 계정 + 완료 거래 시드
-├── Seed_capstone_settlement.py  정산 수동 테스트용 시드 (Capstone_1~3)
-├── Seed_settlement_verify.py    정산 API 자동 검증 스크립트
-├── nf_functional_test.py        전체 기능 자동 테스트 스크립트
-├── reset_db.py                  DB 초기화 (테이블 DELETE + Admin 재생성)
-└── .env / .env.example          환경변수 (KAKAO_JS_KEY, DB_PATH 등)
+└── .env / .env.example          환경변수 (KAKAO_JS_KEY, CLOVA_OCR_* 등)
 ```
+
+> ⚠️ **문서-저장소 정합성 안내 (2026-09-08 확인, README.md와 동일)**
+> 이전 버전에는 `seed_posts.py`, `seed_admin.py`, `Seed_Account.py`, `Seed_capstone_settlement.py`, `Seed_settlement_verify.py`, `nf_functional_test.py`, `reset_db.py` 7개 루트 스크립트가 있었으나, 저장소 최신 구조 확인 결과 더 이상 존재하지 않아 트리에서 제거함(각 스크립트의 과거 역할은 README.md "폴더 구조" 절의 표 참고). 자동화 테스트는 현재 `tests/test_receipt_parser_v212.py`(영수증 파서 전용) 하나만 존재하며, 정산 등 나머지 기능의 자동화 테스트는 §8(`Settlement_Implementation_Plan.md`) 기준 미구현 상태로 수동 테스트 병행 중.
 
 ---
 
@@ -102,12 +102,12 @@ project_root/
 | 테이블 | 설명 | 위치 |
 |---|---|---|
 | `users` | 회원 (login_id·pw·trust_score·role·status·neighborhood_lat/lng) | auth_db |
-| `sessions` | Bearer 세션 토큰 | auth_db |
+| `sessions` | Bearer 세션 토큰 (TTL 30일) | auth_db |
 | `auth_codes` | OTP 인증코드 (비밀번호 재설정 전용) | auth_db |
 | `posts` | 게시글 통합 (share·exchange·groupbuy, appointment 좌표 포함) | auth_db |
 | `wishlists` | 찜 목록 | member_db |
 | `conversations` | 채팅방 (kind: direct/group) | member_db |
-| `messages` | 채팅 메시지 (is_system 컬럼 포함) | member_db |
+| `messages` | 채팅 메시지 (`is_system` 컬럼 포함 — 시스템 알림용) | member_db |
 | `conversation_members` | 그룹 채팅 멤버십 + 읽음 포인터 | member_db |
 | `transactions` | 거래 이력 (pending→confirmed→completed) | transaction_db |
 | `groupbuy_participants` | 공동구매 참여자 기록 | transaction_db |
@@ -118,7 +118,7 @@ project_root/
 | `notices` | 관리자 공지사항 | admin_db |
 | `reports` | 신고 (target_type: post/user) | admin_db |
 | `qr_sessions` | QR 거래 인증 세션 | qr_db |
-| `receipts` / `receipt_items` | 영수증 OCR 인증 | receipt_db |
+| `receipts` | 영수증 OCR 인증 (품목은 `items`/`selected_items` JSON 컬럼으로 저장, 별도 테이블 없음) | receipt_db |
 | `location_verify_sessions` | GPS 위치 인증 세션 | location_verify_db |
 
 ---
@@ -150,7 +150,7 @@ project_root/
 | POST | `/posts` | ✅ | 게시글 등록 (author_id=세션 회원) |
 | GET | `/posts` | - | 목록 (타입·카테고리 필터, 자동 만료 처리 포함) |
 | GET | `/posts/{id}` | - | 단건 (작성자 닉네임·trust_score 조인) |
-| PATCH | `/posts/{id}` | ✅ | 게시글 수정 (작성자/admin, 안전 필드 한정) |
+| PATCH | `/posts/{id}` | ✅ | 게시글 수정 (작성자/admin, 참여자 있는 공구 인원·가격 잠금) |
 | DELETE | `/posts/{id}` | ✅ | 소프트삭제 (작성자/admin) |
 | POST | `/posts/{id}/appointment` | ✅ | 약속 장소·시간·좌표 저장 (작성자만, 정산 자동 승계) |
 | GET | `/posts/{id}/my-status` | ✅ | 내 역할 조회 (isAuthor, isParticipant) |
@@ -238,10 +238,10 @@ project_root/
 | GET | `/api/admin/chats` | 채팅방 목록 (모니터링) |
 | GET | `/api/admin/chats/{id}/messages` | 채팅 메시지 조회 |
 
-### 공지 공개 API
+### 공개 API (비인증)
 | Method | Path | 설명 |
 |---|---|---|
-| GET | `/api/notices` | 공개 공지 목록 (비인증, 최대 50건) |
+| GET | `/api/notices` | 공개 공지 목록 (비인증, Help.html 아코디언 표시) |
 | GET | `/api/config/kakao-key` | 카카오 JS 키 반환 (프론트 동적 로드용) |
 
 ### GPS 위치 인증 — `/api/location-verify/*`
@@ -283,13 +283,13 @@ project_root/
 | `Neighborhood_Setting.html` | ✅ 연동 | 동네 인증 (GPS 좌표 저장) |
 | `My_Page.html` | ✅ 연동 | 내 프로필·신뢰 온도·리뷰 수 |
 | `Edit_Profile.html` | ✅ 연동 | 프로필 수정 (이메일·소개·관심·식이) |
-| `My_Activity.html` | ✅ 연동 | 채팅·내 글·거래 내역 탭 + 매너 평가 모달 |
+| `My_Activity.html` | ✅ 연동 | 채팅·내 글·거래 내역 탭 + 매너 평가 모달 + 게시글 수정 링크 |
 | `Wishlist.html` | ✅ 연동 | 찜 목록 실데이터 |
 | `Fridge.html` | ✅ 연동 | 내 냉장고 (수동 추가·영수증 가져오기) |
 | `Chat_List.html` / `Chat_Detail.html` | ✅ 연동 | 1:1 채팅 |
 | `Group_Chat.html` | ✅ 연동 | 그룹 채팅 + 약속 모달 + 정산 시작 버튼 |
 | `Transaction_History.html` | ✅ 연동 | 거래 내역 + 정산 보기 링크 |
-| `Settlement.html` | ✅ 연동 | 공동구매 정산 전체 흐름 (주최자/참여자 분기) |
+| `Settlement.html` | ✅ 연동 | 공동구매 정산 전체 흐름 (주최자/참여자 분기, 완료 후 매너평가 리다이렉트) |
 | `Local_Verify_Demo.html` | ✅ 연동 | GPS 100m 위치 인증 (정산 모드 약속 좌표 자동 로드) |
 | `QR_Scan.html` | ✅ 연동 | QR·바코드 스캔 (정산 QR 발급 모드 포함) |
 | `Receipt_Verify.html` | ✅ 연동 | 영수증 OCR 인증 |
@@ -352,12 +352,12 @@ project_root/
 ### 2026-08-07 전체 흐름 완성
 - **GPS 100m 실검증** — 기존 self-referencing 구조를 약속 좌표 고정 + Haversine 서버 재검증으로 교체
 - **`POST /posts/{id}/appointment`** 신규 (채팅 단계에서 먼저 약속 확정, 정산 생성 시 자동 승계)
-- `Group_Chat.html`: "정산 시작하기" 버튼, 약속 모달 GPS 좌표 캡처, `/api/posts/` → `/posts/` 3곳 경로 버그 수정
-- `Settlement.html`: "참여자 QR 스캔하기" 버튼, 완료 후 "매너 평가 남기기" 버튼, isAuthor 판별 버그 수정
+- `Group_Chat.html`: "정산 시작하기" 버튼, 약속 모달 GPS 좌표 캡처, `/api/posts/` → `/posts/` 경로 버그 수정
+- `Settlement.html`: "참여자 QR 스캔하기" 버튼, 완료 후 "매너 평가 남기기" 버튼
 - `Local_Verify_Demo.html`: 정산 모드 약속 좌표 자동 로드, `RADIUS_M=100`, PWA `isSecureContext` 체크
 - `DEFAULT_RADIUS_M` 300 → **100** (프론트·백 동기화)
 
-### 2026-08-12 UX 갭 감사 및 해소 (이번 세션)
+### 2026-08-12 UX 갭 감사 및 해소
 기능 갭 감사 보고서(Unreachable UI·Admin 스텁·권장 기능 3개 카테고리)를 기반으로 우선순위별 구현 진행.
 
 **Phase 2 — 관리자 & 핵심 UX**
@@ -380,10 +380,16 @@ project_root/
 | 참여 취소 그룹챗 연동 | `posts.py` | `messages.is_system` 컬럼 멱등 마이그레이션, 그룹챗 퇴장 + 시스템 메시지 삽입 |
 | 취소 버튼 스타일 수정 | `Group_Buy_Detail.html` | Tailwind `error` 색 미정의 문제 → `style.cssText` 인라인 직접 지정(`#ba1a1a`) |
 
-**`GET /api/notices` (공개 공지 API)**: `main.py`에 이미 구현 확인 — 재구현 없음  
-**`PATCH /api/users/me/password`**: `users.py`에 이미 구현 확인 — 재구현 없음  
-**`DELETE /posts/{id}/join` (백엔드)**: `posts.py`에 이미 구현 확인 — 재구현 없음  
-**`Admin_Users.html`·`Admin_Report_Detail.html`**: 이미 라이브 연동 확인 — 재구현 없음
+### 2026-08-17 영수증 파서 노이즈 키워드 보강
+- **`receipt_db.py` `RC_NOISE_KW` 보강**: 스타벅스 등 카페형 영수증에서 "POS/카카오페이/번호/발급/가능" 등 메타 문구가 식재료 품목으로 잘못 인식되던 문제를 `is_meta_line()` 키워드 보강으로 해결
+
+### 2026-08-22 영수증 파서 v2.1 — 마트형 구조 지원
+- **`receipt_db.py` `parse_receipt()` parser v2.1 업데이트**:
+  - 마트형 `순번 → 품목명 → 바코드/PLU → 단가 → 수량 → 금액` 구조 파싱 로직 추가
+  - `*231973` 같은 PLU 코드·긴 바코드·`[2,150]` 같은 참고가를 실제 가격으로 오인하지 않도록 정규식 강화
+  - 500/750원처럼 콤마 없는 3자리 가격도 품목 영역에서는 허용
+  - `900ML`, `150g` 같은 용량 토큰은 상품명에 이어 붙이는 처리 추가
+  - CLOVA가 한 행을 여러 `inferText` 토큰으로 쪼개도 품목 상태를 유지
 
 ---
 
@@ -391,11 +397,10 @@ project_root/
 
 | 우선순위 | 항목 | 상세 |
 |---|---|---|
-| 🔴 **필수** | **미납 정산 참여 차단** | `posts.py`의 `join_groupbuy`에 "진행 중 정산에 미납 share가 있으면 새 공동구매 참여 차단" 로직 적용. 코드 예시는 `Settlement_Implementation_Plan.md` 섹션 3·`settlement_db.py`의 `has_unpaid_settlement()` 참조. 현재 함수는 구현되어 있으나 `join_groupbuy` 내에서 호출이 누락된 상태 |
-| 🟡 **권장** | **`Admin_Staff_Invite.html` 연동** | 운영진 목록 하드코딩 → 실데이터 교체. 기존 계정 검색 후 `PATCH /api/admin/users/{id}` (`role='admin'`)으로 승격하는 UI 구현. 백엔드 API는 완비 |
-| 🟡 **권장** | **작성자 매너 평가 표시** | `Product_Detail.html`·`Group_Buy_Detail.html` 작성자 카드에 `GET /api/ratings/received?user_id={authorId}` 연동하여 긍정/부정 건수 표시. API 완비 |
-| 🟢 **개선** | **관리자 사이드바 배지 동적화** | `Admin_Report_Detail.html`·`Admin_Staff_Invite.html` 사이드바의 신고 배지가 `"24"` 하드코딩. `GET /api/admin/dashboard`의 `reportsPending` 값으로 교체 |
-| 🟢 **개선** | **공지 추가 노출** | `Home.html` 상단 배너 등에 `GET /api/notices` 연결하여 사용자 접근성 향상 |
+| 🔴 **필수** | **미납 정산 참여 차단** | `posts.py`의 `join_groupbuy`에 "진행 중 정산에 미납 share가 있으면 새 공동구매 참여 차단" 로직 적용. `settlement_db.py`의 `has_unpaid_settlement()` 함수 구현 완료, 호출만 누락 |
+| 🟡 **권장** | **`Admin_Staff_Invite.html` 연동** | 운영진 목록 하드코딩 → 실데이터 교체. 기존 계정 검색 후 `PATCH /api/admin/users/{id}` (`role='admin'`)으로 승격하는 UI 구현. 백엔드 API 완비 |
+| 🟡 **권장** | **작성자 매너 평가 표시** | `Product_Detail.html`·`Group_Buy_Detail.html` 작성자 카드에 `GET /api/ratings/received?user_id={authorId}` 연동. API 완비 |
+| 🟢 **개선** | **관리자 사이드바 배지 동적화** | `Admin_Report_Detail.html`·`Admin_Staff_Invite.html` 신고 배지 `"24"` 하드코딩 → `GET /api/admin/dashboard`의 `reportsPending` 값으로 교체 |
 | 🟢 **개선** | **배포 CORS 도메인 제한** | `main.py`의 `allow_origins=["*"]`를 `.env`의 실제 도메인으로 교체 (배포 전 필수) |
 
 ---
@@ -413,6 +418,7 @@ project_root/
 | 비밀번호 변경 | 현재 세션 유지, 타 기기 세션 일괄 폐기 |
 | 공동구매 참여 취소 | `groupbuy_participants` 삭제 + `gb_current` 원자적 감소 + 그룹챗 `conversation_members` 제거 + 시스템 메시지 삽입 (`is_system=1`) |
 | 게시글 삭제 | 소프트삭제 (`status='deleted'`). 거래·채팅 이력 보존 |
+| 세션 유효 기간 | `SESSION_TTL_DAYS = 30` (30일) |
 
 ---
 
@@ -433,22 +439,27 @@ http://127.0.0.1:8000/Receipt_Verify.html
 http://127.0.0.1:8000/docs
 
 # 더미 데이터
-python seed_posts.py
+python seed_posts.py                  # ⚠️ 2026-09-08 기준 저장소에 미존재 (아래 안내 참고)
 
 # 관리자 계정 생성/승격
-python seed_admin.py                  # 신규 생성 (login_id=Admin)
-python seed_admin.py <login_id>       # 기존 계정 admin 역할 승격
+python seed_admin.py                  # ⚠️ 2026-09-08 기준 저장소에 미존재
+python seed_admin.py <login_id>       # ⚠️ 2026-09-08 기준 저장소에 미존재
 
 # 테스트 계정 시드 (정산 수동 테스트용)
-python Seed_Account.py               # Capstone_1 + 완료 거래 1건
-python Seed_capstone_settlement.py   # Capstone_1~3 + 공동구매 정산 시드
+python Seed_Account.py               # ⚠️ 2026-09-08 기준 저장소에 미존재
+python Seed_capstone_settlement.py   # ⚠️ 2026-09-08 기준 저장소에 미존재
 
-# 자동 기능 테스트
+# 자동 기능 테스트 (정산 포함 전체 흐름) — ⚠️ 2026-09-08 기준 저장소에 미존재, §3 정합성 안내 참고
 python nf_functional_test.py
 
-# DB 초기화 (전체 데이터 삭제 + Admin 재생성)
+# DB 초기화 (전체 데이터 삭제 + Admin 재생성) — ⚠️ 2026-09-08 기준 저장소에 미존재
 python reset_db.py
+
+# 영수증 파서 회귀 테스트 [신규] — 유일하게 현재 저장소에 존재하는 자동화 테스트
+python tests/test_receipt_parser_v212.py
 ```
+
+> 위 6개 명령(더미 데이터·관리자 계정·테스트 시드·전체 기능 테스트·DB 초기화)은 대응 스크립트가 저장소에서 제거되어 현재 실행되지 않습니다. §3의 "문서-저장소 정합성 안내" 참고.
 
 **테스트 계정 기본값:**
 
