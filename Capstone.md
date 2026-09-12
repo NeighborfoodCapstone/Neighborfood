@@ -3,6 +3,7 @@
  
 > 최종 갱신: 2026-08-12 · UX 갭 감사·해소 완료 (관리자 연동·참여 취소·게시글 수정·공지 표시·매너 평가 리다이렉트)
 > 2026-09-08 문서-저장소 정합성 검토: `seed_admin.py`·`seed_posts.py`·`posts.json`이 실제 저장소에 더 이상 존재하지 않는 것으로 확인됨 (아래 §4 "문서-저장소 정합성 안내" 참고). `frontend/vendor/html5-qrcode.min.js`, `tests/test_receipt_parser_v212.py` 신규 반영. 정산 API 개수 오기재(9종→13종) 2곳 정정, "## Included" 목록의 자기모순(이미 완료된 매너평가·참여취소 흐름이 잔여로 중복 기재) 정정.
+> 2026-09-12 관리자 기능 실데이터 연동 완료: `seed_admin.py` 복원, `adminGuard.js` 신설, `Admin_Users.html`·`Admin_Report_Detail.html`·`Admin_Staff_Invite.html`·`Admin_Dashboard.html` 전면 실연동, 미납 정산 참여 차단 리팩터링, 주최자 귀책/먹튀 trust_score 자동 페널티, 회원 직접 신고 진입점 신설.
  
 현재 완료:
 - 게시판 (나눔/공동구매/교환 통합)
@@ -17,7 +18,7 @@
 - 거래(transactions) API · 회원 화면 실데이터 연동 · 프로필 확장(이메일·소개·관심·식이)
 - 내 냉장고(`fridge_items` + `/api/fridge`, 유통기한 D-day) — `Fridge.html`
 - 그룹(공동구매) 채팅(`conversations.kind`·`conversation_members` + `/api/chats/group/*`) — `Group_Chat.html`
-- 관리자 기능(`/api/admin/*`, `notices`·`reports`, 6종 화면 연결) + ~~`seed_admin.py`(계정 부트스트랩)~~ (⚠️ 2026-09-08 기준 저장소에 미존재, §4 참고)
+- 관리자 기능(`/api/admin/*`, `notices`·`reports`, 6종 화면 실데이터 연동 완료 2026-09-12) + `seed_admin.py`(계정 부트스트랩, 2026-09-12 복원)
 - 신고(`reports` + `POST /api/reports` → 관리자 처리)
 - 배포 대응: 전 화면 `API_BASE`=`window.location.origin`(상대경로), `tokens.css` 전체 39개 화면 적용 완료
 - GPS 위치 인증(`location_verify_sessions` + `/api/location-verify/*`, 더미 타겟 생성·GPS 반경 체크·QR 연동) — `Local_Verify_Demo.html`
@@ -46,13 +47,13 @@
   - `posts.py`: `list_posts()` 진입 시 만료 글 일괄 `expired` 전환, `cancel_join_groupbuy`에 그룹챗 퇴장 + `messages.is_system` 시스템 메시지 삽입 추가
   - `neighborfood_schema.sql` · `neighborfood_ERD.md`: `messages.is_system` 컬럼 동기화
 미완료(잔여):
-- `posts.py` `join_groupbuy` **미납 정산 참여 차단** — `settlement_db.has_unpaid_settlement(uid)` 호출 로직을 `join_groupbuy` 내에 수동 적용 필요. 함수 자체는 `settlement_db.py`에 구현 완료. (`Settlement_Implementation_Plan.md` 섹션 3 참조)
-- `Admin_Staff_Invite.html` 운영진 관리 연동 — 운영진 목록 하드코딩 → 실데이터 교체, 기존 계정 검색 후 `PATCH /api/admin/users/{id}` 역할 승격 UI 구현 필요 (백엔드 API 완비)
 - 작성자 매너 평가 표시 — `Product_Detail.html`·`Group_Buy_Detail.html` 작성자 카드에 `GET /api/ratings/received?user_id={authorId}` 연동 (API 완비)
-- 관리자 사이드바 신고 배지 동적화 — `Admin_Report_Detail.html`·`Admin_Staff_Invite.html` 등 일부 페이지의 배지가 `"24"` 하드코딩
 완료로 전환된 기존 잔여 항목:
 - ~~상호 매너 평가~~ → ✅ `ratings.py` + `manner_ratings` 테이블 + `trust_score` 원자적 UPDATE 구현 완료 (2026-08 이전)
 - ~~공동구매 참여 취소 흐름~~ → ✅ `DELETE /posts/{id}/join` (백엔드), 프론트 토글·시스템 메시지 모두 완료 (2026-08-12)
+- ~~`posts.py` `join_groupbuy` 미납 정산 참여 차단~~ → ✅ `settlement_db.has_unpaid_settlement()` 호출로 리팩터링 완료 (2026-09-12)
+- ~~`Admin_Staff_Invite.html` 운영진 관리 연동~~ → ✅ 회원 검색→승격/권한 해제 UI로 재설계 완료 (2026-09-12)
+- ~~관리자 사이드바 신고 배지 동적화~~ → ✅ `adminGuard.js` 공용 가드로 전 페이지 실데이터 반영 완료 (2026-09-12)
 주의:
 - 기존 구조 유지
 - 최소 수정 원칙
@@ -61,12 +62,12 @@
 - (해결됨) **공동구매 인원 정합성**: `posts.py`의 `join_groupbuy`가 `SET gb_current = gb_current + 1 WHERE ... AND gb_current < gb_target` 원자적 UPDATE로 전환 완료(2026-07-09). 단, 참여 취소(cancel) 흐름은 아직 미정의.
 - (해결됨) **trust_score 레이스**: `ratings.py`에서 `SET trust_score = MIN(99, MAX(0, trust_score + ?))` 원자적 UPDATE 적용 완료. 매너 평가 기능 자체도 구현 완료.
 - **SQLite 동시성**: 채팅 폴링(4초) + 정산·평가 쓰기 경합 시 `database is locked` 드물게 발생 가능. WAL + `busy_timeout`으로 완화 중.
-- **배포 보안**: 도메인 제한·토큰 취급 정책은 시연/개발 수준. 실제 배포 시 점검 필요. CORS `allow_origins=["*"]`, ~~`seed_admin.py`~~ 기본 비밀번호는 배포 도메인 확정 전까지 의도적으로 보류 (⚠️ 해당 스크립트는 2026-09-08 기준 저장소에 미존재, §4 참고).
+- **배포 보안**: 도메인 제한·토큰 취급 정책은 시연/개발 수준. `main.py`가 `.env`의 `ALLOWED_ORIGINS`로 CORS를 동적 분기하도록 준비 완료(2026-09-12, 미설정 시 `*` 유지) — **배포 시 실제 도메인 값 입력 필요**. `seed_admin.py` 기본 비밀번호(`admin0000`)도 배포 전 변경 권장.
 - **OCR 환경 의존**: 실제 OCR 구동을 위해 서버에 `tesseract` 설치 필요. 미설치 시 데모 폴백.
 - (해결됨) **Kakao 키 하드코딩**: 전 화면 `/api/config/kakao-key` 동적 로드로 전환 완료(2026-08-03). 단, 이미 노출된 이력이 있는 키라면 GitHub 공개 전 카카오 개발자 콘솔에서 키 재발급 권장.
 - (해결됨) **GPS 위치 인증 무인증 공개**: 전 API 인증 필수 + 소유자 검증 + 이력 본인 필터로 전환 완료(2026-08-03).
 - (해결됨) **GPS self-referencing 버그**: 기존엔 참여자가 자신의 현재 위치를 target으로 만들어 항상 통과됐으나, 2026-08-07 수정으로 주최자 약속 좌표를 target으로 고정하고 서버 Haversine 재검증(≤100m)으로 전환 완료.
-- (해결됨 → ⚠️ 재확인 필요, 2026-09-08) 관리자 계정 생성 → ~~`seed_admin.py`: `python seed_admin.py`(admin 생성) / `python seed_admin.py <login_id>`(기존 계정 승격)~~. 전화번호 충돌 자동 회피, 멱등이었으나, 해당 스크립트 자체가 저장소에서 제거된 것으로 확인됨(§4 참고) — 대체 절차(DB 직접 삽입 등) 필요.
+- (해결됨) 관리자 계정 생성 → `seed_admin.py`: `python seed_admin.py`(admin 생성) / `python seed_admin.py <login_id>`(기존 계정 승격). 전화번호 충돌 시 명확한 에러 메시지, 재실행해도 안전(멱등). 2026-09-12 복원 및 테스트 완료.
 # Response Rules
  
 When modifying code:
@@ -96,7 +97,7 @@ When modifying code:
 * **Backend:** FastAPI (Python 3.10+), 3-Tier 모듈 구조(`app/config·core·db·models·routers`).
 * **Database:** SQLite 3 단일 파일 `data/neighborfood.db` (외래키 활성화, WAL).
 * **Auth:** **ID/비밀번호 가입·로그인**(가입 시 휴대폰 번호 입력만 받고 OTP 검증 없음) → 세션 토큰(Bearer) 발급. OTP는 **비밀번호 재설정에만** 사용. 비밀번호는 표준 라이브러리 PBKDF2-SHA256(`salt$hash`)으로 저장. 인가는 `app/core/deps.py` 의존성, 프런트는 `shared/auth.js`(토큰 보관·주입) + `shared/guard.js`(회원 전용 페이지 가드).
-* **접근 정책:** 비회원은 **게시판(목록·상세)과 지도(Map)만** 이용 가능. 글 작성·거래·채팅·찜·내 활동·마이페이지·동네 인증은 회원 전용. 역할은 비회원/회원/관리자 3단계. 관리자 기능은 `get_current_admin` 가드의 `/api/admin/*`로 구현되어 있으며, admin 계정은 ~~`seed_admin.py`로만~~ 생성/승격한다 (⚠️ 해당 스크립트는 2026-09-08 기준 저장소에 미존재, §4 참고 — 대체 절차 필요).
+* **접근 정책:** 비회원은 **게시판(목록·상세)과 지도(Map)만** 이용 가능. 글 작성·거래·채팅·찜·내 활동·마이페이지·동네 인증은 회원 전용. 역할은 비회원/회원/관리자 3단계. 관리자 기능은 `get_current_admin` 가드의 `/api/admin/*`로 구현되어 있으며, admin 계정은 `seed_admin.py`로 생성/승격한다 (2026-09-12 복원).
 * **AI Module:** FastAPI 내 OCR (pillow + pytesseract, 미설치 시 데모 폴백).
 * **Storage:** 로컬 `uploads/` 디렉토리 (S3 등 외부 스토리지는 향후 선택 사항).
 * **users 확장 컬럼:** `email`, `bio`, `interests`(JSON), `dietary`(JSON) — 프로필 PATCH로 저장, `Edit_Profile.html` 연동 완료.
@@ -169,7 +170,8 @@ NEIGHBORFOOD/
 ```
  
 > ⚠️ **문서-저장소 정합성 안내 (2026-09-08 확인, README.md·NeighborFood_Architecture_Plan.md와 동일 사안)**
-> 이전 버전 트리에는 `seed_admin.py`(관리자 계정 부트스트랩), `seed_posts.py`(더미 게시글 시드), `posts.json`(초기 게시글 시드 데이터) 3개 파일이 있었으나, 저장소 최신 구조 확인 결과 더 이상 존재하지 않아 제거함. `seed_admin.py`를 전제로 한 위 "잠재 이슈"·"현재 완료"·"접근 정책" 항목의 안내는 스크립트 재도입 전까지 실행되지 않는다.
+> 이전 버전 트리에는 `seed_admin.py`(관리자 계정 부트스트랩), `seed_posts.py`(더미 게시글 시드), `posts.json`(초기 게시글 시드 데이터) 3개 파일이 있었으나, 저장소 최신 구조 확인 결과 더 이상 존재하지 않아 제거함.
+> **2026-09-12 갱신**: 이 중 `seed_admin.py`는 복원되어 정상 동작합니다(위 "잠재 이슈"·"현재 완료"·"접근 정책" 항목 갱신됨). `seed_posts.py`·`posts.json`은 여전히 저장소에 존재하지 않습니다.
  
 **핵심 파일 (변경 주의)**
 * **엔트리포인트:** `main.py` (앱 생성·미들웨어·정적 마운트·라우터 등록 전담)
@@ -178,7 +180,7 @@ NEIGHBORFOOD/
 * **스키마 정의:** `sql/neighborfood_schema.sql` (단일 진실 소스), 산출물 `data/neighborfood.db`
 * **모델:** `app/models/auth.py`, `user.py`, `post.py`, `qr.py`, `receipt.py`, `member.py`, `fridge.py`
 * **라우터:** `app/routers/auth.py`, `users.py`, `posts.py`, `qr.py`, `receipt.py`, `wishlist.py`, `chat.py`, `transactions.py`, `fridge.py`, `admin.py`, `reports.py`, `location_verify.py`, `ratings.py`, `settlements.py`
-* **프런트 공통:** `frontend/shared/auth.js`, `frontend/shared/guard.js`, `frontend/shared/profile.js`, `frontend/shared/tokens.css`
+* **프런트 공통:** `frontend/shared/auth.js`, `frontend/shared/guard.js`, `frontend/shared/adminGuard.js`(관리자 가드, 신규 2026-09-12), `frontend/shared/profile.js`, `frontend/shared/tokens.css`
 ---
 # 5. Scope & Exclusion
  
@@ -198,7 +200,7 @@ NEIGHBORFOOD/
 - 단일 SQLite 통합 완료
 - 거래 앵커(`transactions`)·공동구매 참여자(`groupbuy_participants`) 골격
 - 내 냉장고(`fridge_items`)·그룹 채팅(`conversation_members`)·관리자(`notices`·`reports`) 구현 완료
-- 관리자 계정 부트스트랩 ~~`seed_admin.py`~~ (⚠️ 2026-09-08 기준 저장소에 미존재, §4 참고), 전 화면 상대경로 `API_BASE` 적용
+- 관리자 계정 부트스트랩 `seed_admin.py` (2026-09-12 복원), 전 화면 상대경로 `API_BASE` 적용
 - 신고(`reports` + `POST /api/reports` → 관리자 처리) 구현 완료
 - GPS 위치 인증(`location_verify_sessions` + `/api/location-verify/*`) 구현 완료 — `Local_Verify_Demo.html`
 - 공동구매 참여 원자적 UPDATE, Kakao 키 `.env` 전환(Map.html), `neighborfood_schema.sql`·`tokens.css` 동기화, `requirements.txt` 갱신 완료 (2026-07-09 커밋 전 점검)
@@ -206,7 +208,7 @@ NEIGHBORFOOD/
 - **정산 시스템** 구현 완료 — `settlements`+`settlement_shares` 테이블, `/api/settlements/*` API 13종(노쇼 취소 `DELETE .../noshow` 포함), `Settlement.html` 실데이터 연동, `Group_Buy_Detail.html`·`Transaction_History.html` 진입점 추가 (2026-08-04)
 - **전체 흐름 완성** — GPS 100m 실검증·약속 좌표 저장·`POST /posts/{id}/appointment`·채팅 UX 갭 해소·매너 평가 버튼 완료 (2026-08-07)
 ## Included (구현 대상 — 잔여)
-- `posts.py` `join_groupbuy` 미납 정산 참여 차단 로직 — 로컬 수동 적용 필요 (`Settlement_Implementation_Plan.md` 섹션 3 참조)
+- ~~`posts.py` `join_groupbuy` 미납 정산 참여 차단 로직~~ — ✅ **완료** (2026-09-12): `settlement_db.has_unpaid_settlement()` 호출로 적용
 - ~~`qr.py` QR 인증 성공 시 `quality_agreed` 연동~~ — **불필요** (2026-08-07): `POST /api/settlements/{id}/shares/me/qr-done`으로 대체 완료
 - ~~상호 매너 평가(`manner_ratings` 테이블 + `trust_score` 반영)~~ — ✅ 완료(2026-08 이전, 상단 "완료로 전환된 기존 잔여 항목" 참고). [2026-09-08 정정: 이 목록에 잘못 남아있던 항목]
 - ~~공동구매 참여 취소 흐름~~ — ✅ 완료(2026-08-12, 상단 "완료로 전환된 기존 잔여 항목" 참고). [2026-09-08 정정: 이 목록에 잘못 남아있던 항목]
@@ -224,7 +226,7 @@ NEIGHBORFOOD/
   (카메라 사용 화면(QR/영수증)은 8000 포트로 열 것. 인증·게시는 같은 출처에서 진행)
 * **Backend / AI:** `uvicorn main:app --reload`
 * **더미 데이터:** ~~`python seed_posts.py`~~ (⚠️ 2026-09-08 기준 저장소에 미존재)
-* **관리자 계정:** ~~`python seed_admin.py`~~ (신규 생성) / ~~`python seed_admin.py <login_id>`~~ (기존 계정 승격) — (⚠️ 2026-09-08 기준 저장소에 미존재, §4 참고)
+* **관리자 계정:** `python seed_admin.py` (신규 생성, login_id=Admin/pw=admin0000) / `python seed_admin.py <login_id>` (기존 계정 승격) — 2026-09-12 복원
 * **영수증 파서 테스트 [신규]:** `python tests/test_receipt_parser_v212.py`
 * **API 문서:** `http://127.0.0.1:8000/docs`
 * **DB 초기화:** 서버 startup 시 `init_all_databases()`가 `neighborfood.db`를 자동 생성
