@@ -6,6 +6,7 @@
 <title>채팅 기록 (관리자) - NeighborFood</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 <script src="shared/auth.js"></script>
+<script src="shared/adminGuard.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <link href="shared/tokens.css" rel="stylesheet"/>
@@ -49,7 +50,7 @@
       <p class="group-label">개요</p>
       <a href="Admin_Dashboard.html"><span class="material-symbols-outlined" style="font-size:18px">dashboard</span> 대시보드</a>
       <p class="group-label">운영</p>
-      <a href="Admin_Report_Detail.html"><span class="material-symbols-outlined" style="font-size:18px">flag</span> 신고 처리 <span class="ml-auto text-[10px] bg-error text-white px-1.5 rounded">24</span></a>
+      <a href="Admin_Report_Detail.html"><span class="material-symbols-outlined" style="font-size:18px">flag</span> 신고 처리 <span id="navReportBadge" class="ml-auto text-[10px] bg-error text-white px-1.5 rounded">0</span></a>
       <a class="on" href="Admin_Chat_History.html"><span class="material-symbols-outlined" style="font-size:18px">chat</span> 채팅 기록</a>
       <a href="Admin_Notices.html"><span class="material-symbols-outlined" style="font-size:18px">campaign</span> 공지 관리</a>
       <p class="group-label">사용자</p>
@@ -60,7 +61,7 @@
     </nav>
     <div class="mt-auto bg-white/5 rounded-xl p-2.5 flex gap-2.5 items-center mt-6">
       <div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[11px] font-bold">박</div>
-      <div class="text-[11.5px] min-w-0 flex-1"><p class="font-semibold truncate">박운영</p><p class="text-white/50 text-[10px]">슈퍼 관리자</p></div>
+      <div class="text-[11.5px] min-w-0 flex-1"><p id="adminName" class="font-semibold truncate">관리자</p><p class="text-white/50 text-[10px]">슈퍼 관리자</p></div>
       <span class="material-symbols-outlined text-white/60 cursor-pointer hover:text-white" style="font-size:18px" onclick="nfLogout('Login.html')">logout</span>
     </div>
   </aside>
@@ -153,11 +154,9 @@
   function esc(s){ const d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
   function fmt(iso){ if(!iso) return ''; const d=new Date(iso.endsWith('Z')||iso.includes('+')?iso:iso+'Z'); return isNaN(d)?'':d.toLocaleString('ko-KR'); }
 
-  (async function guard(){
-    let me=null;
-    try{ me = await fetch(API+'/api/users/me').then(r=>r.ok?r.json():null); }catch(e){}
-    if(!me){ location.replace('Login.html?next='+encodeURIComponent('Admin_Chat_History.html')); return; }
-    if(me.role!=='admin'){ alert('관리자만 접근할 수 있어요.'); location.replace('Home.html'); return; }
+  (async function(){
+    const me = await nfRequireAdmin('Admin_Chat_History.html');
+    if(!me) return;
     loadConvs();
   })();
 

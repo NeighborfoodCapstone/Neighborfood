@@ -6,6 +6,7 @@
 <title>사용자 관리 - NeighborFood</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 <script src="shared/auth.js"></script>
+<script src="shared/adminGuard.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <link href="shared/tokens.css" rel="stylesheet"/>
@@ -45,7 +46,7 @@
       <p class="group-label">개요</p>
       <a href="Admin_Dashboard.html"><span class="material-symbols-outlined" style="font-size:18px">dashboard</span> 대시보드</a>
       <p class="group-label">운영</p>
-      <a href="Admin_Report_Detail.html"><span class="material-symbols-outlined" style="font-size:18px">flag</span> 신고 처리 <span class="ml-auto text-[10px] bg-error text-white px-1.5 rounded">24</span></a>
+      <a href="Admin_Report_Detail.html"><span class="material-symbols-outlined" style="font-size:18px">flag</span> 신고 처리 <span id="navReportBadge" class="ml-auto text-[10px] bg-error text-white px-1.5 rounded">0</span></a>
       <a href="Admin_Chat_History.html"><span class="material-symbols-outlined" style="font-size:18px">chat</span> 채팅 기록</a>
       <a href="Admin_Notices.html"><span class="material-symbols-outlined" style="font-size:18px">campaign</span> 공지 관리</a>
       <p class="group-label">사용자</p>
@@ -56,8 +57,8 @@
     </nav>
     <div class="mt-auto bg-white/5 rounded-xl p-2.5 flex gap-2.5 items-center mt-6">
       <div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[11px] font-bold">박</div>
-      <div class="text-[11.5px] min-w-0 flex-1"><p class="font-semibold truncate">박운영</p><p class="text-white/50 text-[10px]">슈퍼 관리자</p></div>
-      <span class="material-symbols-outlined text-white/60" style="font-size:18px">logout</span>
+      <div class="text-[11.5px] min-w-0 flex-1"><p id="adminName" class="font-semibold truncate">관리자</p><p class="text-white/50 text-[10px]">슈퍼 관리자</p></div>
+      <span class="material-symbols-outlined text-white/60 cursor-pointer hover:text-white" style="font-size:18px" onclick="nfLogout('Login.html')">logout</span>
     </div>
   </aside>
 
@@ -67,7 +68,7 @@
         <button class="md:hidden w-9 h-9 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">menu</span></button>
         <div class="flex-1 max-w-md bg-surface-container-low rounded-xl px-3 py-2 flex items-center gap-2 text-[12.5px] text-on-surface-variant">
           <span class="material-symbols-outlined" style="font-size:16px">search</span>
-          <input class="bg-transparent outline-none flex-1" placeholder="닉네임, 이메일, ID 검색..."/>
+          <input id="searchInput" class="bg-transparent outline-none flex-1" placeholder="닉네임, ID 검색..."/>
         </div>
         <button class="w-9 h-9 rounded-full hover:bg-black/5 flex items-center justify-center"><span class="material-symbols-outlined">notifications</span></button>
       </div>
@@ -79,7 +80,7 @@
         <div>
           <p class="text-[11px] font-bold text-on-surface-variant tracking-wide">USER MANAGEMENT</p>
           <h1 class="text-[24px] font-bold mt-0.5">사용자 관리</h1>
-          <p class="text-[12px] text-on-surface-variant mt-1">총 <b class="text-on-surface">24,182</b>명 · 오늘 신규 <b class="text-primary">87</b>명</p>
+          <p class="text-[12px] text-on-surface-variant mt-1">총 <b id="sumAll" class="text-on-surface">-</b>명 · 정상 <b id="sumActive" class="text-primary">-</b>명 · 정지 <b id="sumSuspended" class="text-error">-</b>명</p>
         </div>
         <div class="flex gap-2">
           <button class="text-[12px] bg-white px-3 py-2 rounded-lg ring-1 ring-outline-variant font-semibold flex items-center gap-1.5"><span class="material-symbols-outlined" style="font-size:14px">download</span> 내보내기</button>
@@ -88,14 +89,10 @@
       </div>
 
       <!-- Filter chips -->
-      <div class="flex flex-wrap gap-2 mb-3">
-        <button class="text-[11.5px] font-bold bg-ink text-white px-3 py-1.5 rounded-full">전체 24,182</button>
-        <button class="text-[11.5px] font-semibold bg-white text-on-surface px-3 py-1.5 rounded-full ring-1 ring-black/5">정상 23,108</button>
-        <button class="text-[11.5px] font-semibold bg-white text-secondary px-3 py-1.5 rounded-full ring-1 ring-secondary/30">경고 824</button>
-        <button class="text-[11.5px] font-semibold bg-white text-error px-3 py-1.5 rounded-full ring-1 ring-error/30">정지 187</button>
-        <button class="text-[11.5px] font-semibold bg-white text-on-surface-variant px-3 py-1.5 rounded-full ring-1 ring-black/5">탈퇴 대기 63</button>
-        <button class="text-[11.5px] font-semibold bg-white text-on-surface px-3 py-1.5 rounded-full ring-1 ring-black/5">신규 ⏱ 24h</button>
-        <button class="text-[11.5px] font-semibold bg-white text-on-surface-variant px-3 py-1.5 rounded-full ring-1 ring-black/5 ml-auto flex items-center gap-1">필터 추가 <span class="material-symbols-outlined" style="font-size:14px">tune</span></button>
+      <div id="filterChips" class="flex flex-wrap gap-2 mb-3">
+        <button data-status="" class="chip on text-[11.5px] font-bold bg-ink text-white px-3 py-1.5 rounded-full">전체 <span data-count="all">-</span></button>
+        <button data-status="active" class="chip text-[11.5px] font-semibold bg-white text-on-surface px-3 py-1.5 rounded-full ring-1 ring-black/5">정상 <span data-count="active">-</span></button>
+        <button data-status="suspended" class="chip text-[11.5px] font-semibold bg-white text-error px-3 py-1.5 rounded-full ring-1 ring-error/30">정지 <span data-count="suspended">-</span></button>
       </div>
 
       <!-- Table -->
@@ -122,134 +119,14 @@
                 <th class="py-2.5 pr-4 font-bold tracking-wider text-right">조치</th>
               </tr>
             </thead>
-            <tbody>
-              <tr class="border-b border-black/[.04] hover:bg-surface-container-low/40">
-                <td class="py-3 pl-4"><input type="checkbox" class="rounded"/></td>
-                <td>
-                  <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[11px] font-bold">건</div>
-                    <div>
-                      <p class="font-semibold">건강한이웃</p>
-                      <p class="text-[10.5px] text-on-surface-variant">healthy****@gmail.com</p>
-                    </div>
-                  </div>
-                </td>
-                <td>한들마을 3단지</td>
-                <td><span class="font-bold text-primary">38.2°</span></td>
-                <td>23건</td>
-                <td>—</td>
-                <td class="text-on-surface-variant">2025.09.04</td>
-                <td><span class="text-[10px] font-bold bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full">정상</span></td>
-                <td class="pr-4 text-right"><button class="text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button></td>
-              </tr>
-              <tr class="border-b border-black/[.04] hover:bg-surface-container-low/40">
-                <td class="py-3 pl-4"><input type="checkbox" class="rounded"/></td>
-                <td>
-                  <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-full bg-tertiary-fixed-dim flex items-center justify-center text-on-tertiary-container text-[11px] font-bold">따</div>
-                    <div>
-                      <p class="font-semibold flex items-center gap-1">따뜻한아랫집 <span class="text-[9px] bg-tertiary-fixed text-on-tertiary-container px-1.5 py-0.5 rounded font-bold">호스트</span></p>
-                      <p class="text-[10.5px] text-on-surface-variant">warm****@naver.com</p>
-                    </div>
-                  </div>
-                </td>
-                <td>한들마을 2단지</td>
-                <td><span class="font-bold text-primary">41.2°</span></td>
-                <td>67건</td>
-                <td>—</td>
-                <td class="text-on-surface-variant">2024.11.18</td>
-                <td><span class="text-[10px] font-bold bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full">정상</span></td>
-                <td class="pr-4 text-right"><button class="text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button></td>
-              </tr>
-              <tr class="border-b border-black/[.04] hover:bg-surface-container-low/40 bg-secondary-fixed/15">
-                <td class="py-3 pl-4"><input type="checkbox" class="rounded"/></td>
-                <td>
-                  <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-full bg-secondary-fixed-dim flex items-center justify-center text-on-secondary-fixed-variant text-[11px] font-bold">이</div>
-                    <div>
-                      <p class="font-semibold">이○○</p>
-                      <p class="text-[10.5px] text-on-surface-variant">lee****@gmail.com</p>
-                    </div>
-                  </div>
-                </td>
-                <td>한들마을 1단지</td>
-                <td><span class="font-bold text-secondary">33.1°</span></td>
-                <td>4건</td>
-                <td><span class="text-[10px] font-bold text-error">3건</span></td>
-                <td class="text-on-surface-variant">2026.04.22</td>
-                <td><span class="text-[10px] font-bold bg-secondary-fixed text-on-secondary-fixed-variant px-2 py-0.5 rounded-full">경고 (1)</span></td>
-                <td class="pr-4 text-right"><button class="text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button></td>
-              </tr>
-              <tr class="border-b border-black/[.04] hover:bg-surface-container-low/40">
-                <td class="py-3 pl-4"><input type="checkbox" class="rounded"/></td>
-                <td>
-                  <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[11px] font-bold">민</div>
-                    <div>
-                      <p class="font-semibold">민지 이웃</p>
-                      <p class="text-[10.5px] text-on-surface-variant">minji****@kakao.com</p>
-                    </div>
-                  </div>
-                </td>
-                <td>한들마을 3단지</td>
-                <td><span class="font-bold text-primary">38.6°</span></td>
-                <td>12건</td>
-                <td>—</td>
-                <td class="text-on-surface-variant">2025.07.14</td>
-                <td><span class="text-[10px] font-bold bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full">정상</span></td>
-                <td class="pr-4 text-right"><button class="text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button></td>
-              </tr>
-              <tr class="border-b border-black/[.04] hover:bg-surface-container-low/40 bg-error-container/20">
-                <td class="py-3 pl-4"><input type="checkbox" class="rounded"/></td>
-                <td>
-                  <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-full bg-error-container flex items-center justify-center text-on-error-container text-[11px] font-bold">광</div>
-                    <div>
-                      <p class="font-semibold flex items-center gap-1">광고○○ <span class="text-[9px] bg-error text-white px-1.5 py-0.5 rounded font-bold">정지</span></p>
-                      <p class="text-[10.5px] text-on-surface-variant">ads_***@hotmail.com</p>
-                    </div>
-                  </div>
-                </td>
-                <td>(미인증)</td>
-                <td><span class="font-bold text-error">28.0°</span></td>
-                <td>0건</td>
-                <td><span class="text-[10px] font-bold text-error">12건</span></td>
-                <td class="text-on-surface-variant">2026.05.10</td>
-                <td><span class="text-[10px] font-bold bg-error text-white px-2 py-0.5 rounded-full">7일 정지</span></td>
-                <td class="pr-4 text-right"><button class="text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button></td>
-              </tr>
-              <tr class="hover:bg-surface-container-low/40">
-                <td class="py-3 pl-4"><input type="checkbox" class="rounded"/></td>
-                <td>
-                  <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-full bg-secondary-fixed-dim flex items-center justify-center text-on-secondary-fixed-variant text-[11px] font-bold">빵</div>
-                    <div>
-                      <p class="font-semibold">빵굽는이웃</p>
-                      <p class="text-[10.5px] text-on-surface-variant">bbang****@gmail.com</p>
-                    </div>
-                  </div>
-                </td>
-                <td>한들마을 3단지</td>
-                <td><span class="font-bold text-primary">37.0°</span></td>
-                <td>18건</td>
-                <td>—</td>
-                <td class="text-on-surface-variant">2025.05.22</td>
-                <td><span class="text-[10px] font-bold bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full">정상</span></td>
-                <td class="pr-4 text-right"><button class="text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button></td>
-              </tr>
+            <tbody id="userTbody">
+              <tr><td colspan="9" class="py-8 text-center text-on-surface-variant">불러오는 중…</td></tr>
             </tbody>
           </table>
         </div>
         <div class="px-4 py-3 border-t border-black/[.05] flex items-center justify-between text-[12px] text-on-surface-variant">
-          <p><b class="text-on-surface">1</b> – <b class="text-on-surface">6</b> / 24,182</p>
-          <div class="flex gap-1">
-            <button class="px-2 py-1 rounded-md hover:bg-black/5"><span class="material-symbols-outlined" style="font-size:16px">chevron_left</span></button>
-            <button class="px-2.5 py-1 rounded-md bg-ink text-white font-bold">1</button>
-            <button class="px-2.5 py-1 rounded-md hover:bg-black/5">2</button>
-            <button class="px-2.5 py-1 rounded-md hover:bg-black/5">3</button>
-            <span class="px-2 py-1">…</span>
-            <button class="px-2 py-1 rounded-md hover:bg-black/5"><span class="material-symbols-outlined" style="font-size:16px">chevron_right</span></button>
-          </div>
+          <p id="listFooter">-</p>
+          <p class="text-[11px] text-on-surface-variant/70">최근 200명까지 표시</p>
         </div>
       </section>
 
@@ -257,5 +134,176 @@
   </main>
 </div>
 
+<script>
+(function(){
+  const API = window.location.origin;
+  let ME = null;                 // 로그인한 관리자 (본인 계정 조치 방지용)
+  let currentStatus = '';        // '' | 'active' | 'suspended'
+  let currentQuery  = '';
+
+  function esc(s){ const d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+  function initial(nick){ const s=(nick||'').trim(); return s ? s[0] : '?'; }
+  function fmtDate(iso){ if(!iso) return '-'; const d=new Date(iso.endsWith('Z')||iso.includes('+')?iso:iso+'Z'); return isNaN(d)?'-':d.toLocaleDateString('ko-KR'); }
+  function setText(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
+
+  const STATUS_BADGE = {
+    active:    '<span class="text-[10px] font-bold bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full">정상</span>',
+    suspended: '<span class="text-[10px] font-bold bg-error text-white px-2 py-0.5 rounded-full">정지</span>',
+  };
+
+  // ── 한 행 렌더링 ──
+  function renderRow(u){
+    const isSelf = ME && u.id === ME.id;
+    const temp = (u.trust_score==null) ? '-' : Number(u.trust_score).toFixed(1)+'°';
+    const tempCls = (u.trust_score!=null && u.trust_score < 36.5) ? 'text-error' : 'text-primary';
+    const reportCell = u.report_count > 0
+      ? '<span class="text-[10px] font-bold text-error">'+u.report_count+'건</span>'
+      : '<span class="text-on-surface-variant">—</span>';
+
+    // 조치 메뉴: 상태에 따라 정지/복구, 그리고 role 승격/강등. 본인 계정은 조치 불가.
+    let actions = '';
+    if(!isSelf){
+      if(u.status==='active')
+        actions += '<button data-act="suspend" data-id="'+u.id+'" data-nick="'+esc(u.nickname)+'" class="act-btn block w-full text-left px-3 py-2 text-[12px] text-error hover:bg-error/5">계정 정지</button>';
+      else
+        actions += '<button data-act="activate" data-id="'+u.id+'" data-nick="'+esc(u.nickname)+'" class="act-btn block w-full text-left px-3 py-2 text-[12px] text-primary hover:bg-primary/5">정지 해제</button>';
+      if(u.role!=='admin')
+        actions += '<button data-act="promote" data-id="'+u.id+'" data-nick="'+esc(u.nickname)+'" class="act-btn block w-full text-left px-3 py-2 text-[12px] hover:bg-black/5">운영진 승격</button>';
+      else
+        actions += '<button data-act="demote" data-id="'+u.id+'" data-nick="'+esc(u.nickname)+'" class="act-btn block w-full text-left px-3 py-2 text-[12px] hover:bg-black/5">운영진 해제</button>';
+    } else {
+      actions = '<p class="px-3 py-2 text-[11px] text-on-surface-variant">본인 계정</p>';
+    }
+
+    const roleTag = u.role==='admin'
+      ? ' <span class="text-[9px] bg-ink text-white px-1.5 py-0.5 rounded font-bold align-middle">관리자</span>' : '';
+
+    return ''
+      + '<tr class="border-b border-black/[.04] hover:bg-surface-container-low/40'+(u.status==='suspended'?' bg-error-container/20':'')+'">'
+      + '<td class="py-3 pl-4"><input type="checkbox" class="rounded"/></td>'
+      + '<td><div class="flex items-center gap-2">'
+      +   '<div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[11px] font-bold">'+esc(initial(u.nickname))+'</div>'
+      +   '<div><p class="font-semibold">'+esc(u.nickname||'(이름 없음)')+roleTag+'</p>'
+      +   '<p class="text-[10.5px] text-on-surface-variant">@'+esc(u.login_id)+'</p></div>'
+      + '</div></td>'
+      + '<td>'+esc(u.neighborhood||'(미설정)')+'</td>'
+      + '<td><span class="font-bold '+tempCls+'">'+temp+'</span></td>'
+      + '<td>'+ (u.tx_count>0 ? u.tx_count+'건' : '<span class="text-on-surface-variant">—</span>') +'</td>'
+      + '<td>'+reportCell+'</td>'
+      + '<td class="text-on-surface-variant">'+fmtDate(u.created_at)+'</td>'
+      + '<td>'+(STATUS_BADGE[u.status]||esc(u.status))+'</td>'
+      + '<td class="pr-4 text-right relative">'
+      +   '<button class="menu-toggle text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button>'
+      +   '<div class="menu hidden absolute right-4 top-9 z-20 bg-white rounded-xl shadow-lg ring-1 ring-black/10 py-1 min-w-[130px]">'+actions+'</div>'
+      + '</td>'
+      + '</tr>';
+  }
+
+  // ── 목록 로드 ──
+  async function loadUsers(){
+    const tb = document.getElementById('userTbody');
+    tb.innerHTML = '<tr><td colspan="9" class="py-8 text-center text-on-surface-variant">불러오는 중…</td></tr>';
+    const params = new URLSearchParams();
+    if(currentQuery)  params.set('q', currentQuery);
+    if(currentStatus) params.set('status', currentStatus);
+    let d=null;
+    try{
+      const r = await fetch(API+'/api/admin/users?'+params.toString());
+      if(window.nfHandleAuthError && nfHandleAuthError(r)) return;
+      d = r.ok ? await r.json() : null;
+    }catch(e){}
+    if(!d){ tb.innerHTML='<tr><td colspan="9" class="py-8 text-center text-error">불러오지 못했어요.</td></tr>'; return; }
+
+    // 상단 요약 + 필터칩 카운트
+    setText('sumAll', (d.counts.all||0).toLocaleString());
+    setText('sumActive', (d.counts.active||0).toLocaleString());
+    setText('sumSuspended', (d.counts.suspended||0).toLocaleString());
+    document.querySelectorAll('#filterChips [data-count]').forEach(function(el){
+      const k = el.getAttribute('data-count');
+      el.textContent = (d.counts[k]!=null ? d.counts[k] : 0).toLocaleString();
+    });
+
+    if(!d.items.length){
+      tb.innerHTML = '<tr><td colspan="9" class="py-8 text-center text-on-surface-variant">조건에 맞는 회원이 없습니다.</td></tr>';
+      setText('listFooter','0명');
+    } else {
+      tb.innerHTML = d.items.map(renderRow).join('');
+      setText('listFooter', d.count.toLocaleString()+'명 표시');
+      bindRowMenus();
+    }
+  }
+
+  // ── 행 메뉴 토글 + 액션 바인딩 ──
+  function bindRowMenus(){
+    document.querySelectorAll('.menu-toggle').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        const menu = btn.parentElement.querySelector('.menu');
+        // 다른 메뉴 닫기
+        document.querySelectorAll('.menu').forEach(function(m){ if(m!==menu) m.classList.add('hidden'); });
+        menu.classList.toggle('hidden');
+      });
+    });
+    document.querySelectorAll('.act-btn').forEach(function(b){
+      b.addEventListener('click', function(){ handleAction(b.dataset.act, Number(b.dataset.id), b.dataset.nick); });
+    });
+  }
+  // 바깥 클릭 시 메뉴 닫기
+  document.addEventListener('click', function(){
+    document.querySelectorAll('.menu').forEach(function(m){ m.classList.add('hidden'); });
+  });
+
+  // ── 액션 처리 ──
+  const ACT = {
+    suspend:  { patch:{status:'suspended'}, confirm:function(n){return '"'+n+'" 계정을 정지할까요? 로그인·활동이 제한됩니다.';}, done:'계정을 정지했습니다.' },
+    activate: { patch:{status:'active'},    confirm:function(n){return '"'+n+'" 계정의 정지를 해제할까요?';},                 done:'정지를 해제했습니다.' },
+    promote:  { patch:{role:'admin'},       confirm:function(n){return '"'+n+'" 님을 운영진(관리자)으로 승격할까요?';},        done:'운영진으로 승격했습니다.' },
+    demote:   { patch:{role:'user'},        confirm:function(n){return '"'+n+'" 님의 운영진 권한을 해제할까요?';},            done:'운영진 권한을 해제했습니다.' },
+  };
+  async function handleAction(act, id, nick){
+    const cfg = ACT[act]; if(!cfg) return;
+    if(!confirm(cfg.confirm(nick))) return;
+    try{
+      const r = await fetch(API+'/api/admin/users/'+id, {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(cfg.patch)
+      });
+      if(window.nfHandleAuthError && nfHandleAuthError(r)) return;
+      if(r.ok){ loadUsers(); }
+      else { const e=await r.json().catch(()=>({})); alert((e&&e.detail)||'처리에 실패했어요.'); }
+    }catch(e){ alert('서버에 연결할 수 없어요.'); }
+  }
+
+  // ── 필터칩 클릭 ──
+  document.querySelectorAll('#filterChips .chip').forEach(function(chip){
+    chip.addEventListener('click', function(){
+      currentStatus = chip.getAttribute('data-status') || '';
+      // active 스타일 토글
+      document.querySelectorAll('#filterChips .chip').forEach(function(c){
+        c.classList.remove('bg-ink','text-white','font-bold','on');
+        c.classList.add('bg-white','font-semibold');
+      });
+      chip.classList.add('bg-ink','text-white','font-bold','on');
+      chip.classList.remove('bg-white','font-semibold');
+      loadUsers();
+    });
+  });
+
+  // ── 검색 (디바운스) ──
+  const searchEl = document.getElementById('searchInput');
+  let debounce;
+  if(searchEl) searchEl.addEventListener('input', function(){
+    clearTimeout(debounce);
+    debounce = setTimeout(function(){ currentQuery = searchEl.value.trim(); loadUsers(); }, 300);
+  });
+
+  // ── 가드 통과 후 시작 ──
+  (async function(){
+    ME = await nfRequireAdmin('Admin_Users.html');
+    if(!ME) return;
+    loadUsers();
+  })();
+})();
+</script>
 </body>
 </html>
