@@ -7,6 +7,9 @@
 >
 > **2026-08-12 추가 완료**: `Settlement.html` 완료 후 → `My_Activity.html?tab=history` 리다이렉트 수정,
 > `My_Activity.html` 매너 평가 모달 연동, `Group_Buy_Detail.html` 참여/취소 토글, 게시글 수정 흐름 완성
+>
+> **2026-09-12 추가 완료**: `posts.py` `join_groupbuy` 미납 정산 참여 차단을 `settlement_db.has_unpaid_settlement()` 호출로 리팩터링,
+> 주최자 귀책/먹튀 trust_score 자동 페널티(관리자가 회원 신고를 처리 완료로 확정 시 -2.0 자동 적용) 구현 — §6·§9·§10 참고
 
 ---
 
@@ -177,6 +180,8 @@ if unpaid:
     raise HTTPException(400, "미완료된 정산이 있어 공동구매에 참여할 수 없습니다.")
 ```
 
+> **2026-09-12 리팩터링 완료**: 위 인라인 쿼리를 `settlement_db.has_unpaid_settlement(uid)` 호출로 추출해 `join_groupbuy`에 적용했습니다(동작 동일, 로직 단일화). §9 ⑤, §10 참고.
+
 ---
 
 ## 4. 인증 흐름 — 순차 2단계 GPS → QR (2026-08-06 확정)
@@ -251,8 +256,8 @@ POST /api/settlements/{id}/complete
 | 정상 완료 | shares 전원 paid → completed | 없음 (매너 평가로 별도 반영) | ✅ |
 | 참여자 노쇼 | `POST .../noshow` → share='noshow' + reports 자동 생성 | 참여자 **-1.0** | ✅ |
 | 노쇼 취소(철회) | `DELETE .../noshow` → share='unpaid' 복원 + 신고 삭제 | 참여자 **+1.0** 복원 | ✅ |
-| 주최자 귀책 | 참여자가 일반 신고(`POST /api/reports`) | 관리자 확정 후 **-2.0** + 정지 | 🔶 신고만 |
-| 주최자 먹튀 | 관리자 확정 → 계정 정지 | **-2.0** | 📋 2차 예정 |
+| 주최자 귀책 | 참여자가 일반 신고(`POST /api/reports`, target_type='user') → 관리자 확정 | 관리자 확정 후 **-2.0** + 정지 | ✅ (2026-09-12) |
+| 주최자 먹튀 | 관리자 확정 → 계정 정지 | **-2.0** | ✅ (2026-09-12, 주최자 귀책과 동일 메커니즘) |
 | 참여자 먹튀 | 강화 노쇼 → fraud 상태 | **-2.0** | 📋 2차 예정 |
 | 미납 정산 누적 | 다음 공동구매 참여 자동 차단 | — | ✅ |
 
@@ -265,7 +270,7 @@ POST /api/settlements/{id}/complete
 | 평가 작성 보상 | **+0.1** | `ratings.py` → 평가 작성자에게 지급 |
 | 노쇼 신고 | **-1.0** | `settlements.py POST .../noshow` |
 | 노쇼 취소(복원) | **+1.0** | `settlements.py DELETE .../noshow` |
-| 먹튀/주최자 귀책 | **-2.0** | 관리자 확정 후 자동 적용 (2차 예정) |
+| 먹튀/주최자 귀책 | **-2.0** | `admin.py PATCH /api/admin/reports/{id}` → `target_type='user'` 신고를 `resolved`로 확정 시 자동 적용 (✅ 2026-09-12) |
 
 모든 변경은 `MAX(0, MIN(99, trust_score ± ?)` 원자적 클램프 적용.
 
@@ -341,7 +346,7 @@ Settlement.html?settlementId=456 ← 채팅방 "거래 인증·정산" / Transac
 | 7 | 노쇼 신고 (`POST .../shares/{uid}/noshow`) | 200, trust_score 감소 확인 | ⬜ 미구현/제거됨 · 수동 확인 |
 | 8 | 주최자 완료 처리 | 200, status=completed 확인 | ⬜ 미구현/제거됨 · 수동 확인 |
 | 9 | 완료 후 취소 시도 | 400 | ⬜ 미구현/제거됨 · 수동 확인 |
-| 10 | 미납 정산 있는 사용자 공동구매 참여 시도 | 400 차단 확인 | ⬜ 미구현/제거됨 · 수동 확인 |
+| 10 | 미납 정산 있는 사용자 공동구매 참여 시도 | 400 차단 확인 | ✅ 구현 완료 · 수동 확인 (2026-09-12) |
 
 ### 8-2. 현재 저장소의 자동화 테스트 — `tests/test_receipt_parser_v212.py`
 
@@ -374,7 +379,7 @@ Settlement.html?settlementId=456 ← 채팅방 "거래 인증·정산" / Transac
 ✅ ② settlement_db.py 신규 (CRUD + 인증 함수 일체)
 ✅ ③ settlements.py 라우터 신규 (API 13종 — 노쇼·GPS·QR·약속 포함)
 ✅ ④ main.py 라우터 등록
-⬜ ⑤ posts.py join_groupbuy 참여 차단 로직 — 함수(`has_unpaid_settlement`) 구현 완료, 호출 연결만 누락
+✅ ⑤ posts.py join_groupbuy 참여 차단 로직 — `has_unpaid_settlement()` 호출로 리팩터링 완료 (2026-09-12)
 ✅ ⑥-대체 settlements.py에서 qr_sessions 직접 검증 (qr.py 의존 제거)
 ✅ ⑦ Settlement.html 3단계 버튼 + GPS 폴링 + QR 안내 + 완료 후 매너평가 버튼
 ✅ ⑧ Group_Buy_Detail.html + Transaction_History.html 진입점
@@ -405,7 +410,7 @@ Settlement.html?settlementId=456 ← 채팅방 "거래 인증·정산" / Transac
 | 라우터 재구성 | `location_verify.py` | stub → 완전한 라우터 (5개 엔드포인트, 보안 포함) | ✅ |
 | DB 레이어 수정 | `location_verify_db.py` | DEFAULT_RADIUS_M = 100 | ✅ |
 | 라우터 등록 | `main.py` | settlements import + include_router | ✅ |
-| 기존 라우터 수정 | `posts.py` | `join_groupbuy` 참여 차단 로직 (`has_unpaid_settlement()` 호출 누락) | ⬜ 미적용 |
+| 기존 라우터 수정 | `posts.py` | `join_groupbuy` 참여 차단 로직 (`has_unpaid_settlement()` 호출로 리팩터링) | ✅ (2026-09-12) |
 | 프론트 | `Settlement.html` | 3단계 버튼·GPS 폴링·QR 안내·완료 후 리뷰 버튼 | ✅ |
 | 프론트 | `Group_Chat.html` | 약속 모달(좌표 포함)·정산 시작하기·GPS 이동 버튼 | ✅ |
 | 프론트 | `Local_Verify_Demo.html` | 정산 모드 약속 좌표 자동 로드·100m 기준 | ✅ |
@@ -418,5 +423,5 @@ Settlement.html?settlementId=456 ← 채팅방 "거래 인증·정산" / Transac
 
 **신규 파일**: `settlement_db.py`, `settlements.py` 2개  
 **재구성 파일**: `location_verify.py` 1개  
-**수정 파일**: 12개 (posts.py join_groupbuy 제외) + 2026-08-12 추가 수정 (`Admin_Notices.html`, `Admin_Chat_History.html`, `Group_Buy_Detail.html`, `Settlement.html`, `Help.html`, `Create_Post.html`, `My_Activity.html`, `posts.py`)  
+**수정 파일**: 13개 (2026-09-12: posts.py join_groupbuy 참여 차단 적용 완료로 포함) + 2026-08-12 추가 수정 (`Admin_Notices.html`, `Admin_Chat_History.html`, `Group_Buy_Detail.html`, `Settlement.html`, `Help.html`, `Create_Post.html`, `My_Activity.html`, `posts.py`)  
 **마크다운 업데이트**: 4개 완료 (2026-08-22 재갱신)

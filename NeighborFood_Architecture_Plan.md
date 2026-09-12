@@ -1,6 +1,7 @@
 # NeighborFood FastAPI — 아키텍처 현황 및 개발 이력
 
 > 최종 수정: 2026-09-08 (기술 스택 사용 목적 서술 추가, 디렉토리 구조를 README.md와 정합화 / 존재하지 않는 `receipt_items` 테이블 언급 2곳 정정 — 영수증 품목은 `receipts.items`/`selected_items` JSON 컬럼으로만 저장)
+> 2026-09-12 업데이트: 관리자 기능 실데이터 연동 완료(가드 공용화·회원 관리·신고 상세·운영진 관리·대시보드 통계), 미납 정산 참여 차단 리팩터링, 주최자 귀책/먹튀 trust_score 자동 페널티, `seed_admin.py` 복원, CORS `.env` 동적 분기 준비. 상세는 §7 개발 이력 참고.
 > 상태: **핵심 거래 흐름(채팅→약속→GPS 100m 실검증→QR→납부→정산완료→매너평가) 완성 + 관리자·UX 갭 해소 + 영수증 파서 v2.1 마트형 개선 완료**
 > 서버: 단일 FastAPI / DB: 단일 SQLite(`data/neighborfood.db`)
 
@@ -78,6 +79,7 @@ project_root/
 │   ├── shared/
 │   │   ├── auth.js              토큰 저장·fetch 자동 인증 주입·logout·401 처리
 │   │   ├── guard.js             회원 전용 페이지 접근 가드 (nfRequireMember)
+│   │   ├── adminGuard.js        관리자 전용 페이지 접근 가드 (nfRequireAdmin) [신규 2026-09-12]
 │   │   ├── profile.js           프로필 조회/수정/탈퇴 헬퍼
 │   │   └── tokens.css           디자인 토큰 (CSS 변수)
 │   ├── vendor/
@@ -94,6 +96,7 @@ project_root/
 
 > ⚠️ **문서-저장소 정합성 안내 (2026-09-08 확인, README.md와 동일)**
 > 이전 버전에는 `seed_posts.py`, `seed_admin.py`, `Seed_Account.py`, `Seed_capstone_settlement.py`, `Seed_settlement_verify.py`, `nf_functional_test.py`, `reset_db.py` 7개 루트 스크립트가 있었으나, 저장소 최신 구조 확인 결과 더 이상 존재하지 않아 트리에서 제거함(각 스크립트의 과거 역할은 README.md "폴더 구조" 절의 표 참고). 자동화 테스트는 현재 `tests/test_receipt_parser_v212.py`(영수증 파서 전용) 하나만 존재하며, 정산 등 나머지 기능의 자동화 테스트는 §8(`Settlement_Implementation_Plan.md`) 기준 미구현 상태로 수동 테스트 병행 중.
+> **2026-09-12 갱신**: 위 7개 중 `seed_admin.py`는 관리자 계정 부트스트랩/승격 스크립트로 복원되어 정상 동작합니다 (§10 참고). 나머지 6개는 여전히 저장소에 존재하지 않습니다.
 
 ---
 
@@ -306,8 +309,8 @@ project_root/
 | `Admin_Users.html` | ✅ 연동 | 회원 목록·검색·정지·승격·로그아웃 |
 | `Admin_Notices.html` | ✅ 연동 | 공지 목록·작성·삭제 (예약·푸시는 준비 중 안내) |
 | `Admin_Chat_History.html` | ✅ 연동 | 채팅방 목록 + 메시지 조회 |
-| `Admin_Report_Detail.html` | ✅ 연동 | 신고 단건 로드 + 기각·경고·삭제·정지 액션 |
-| `Admin_Staff_Invite.html` | ⬜ 미연동 | 운영진 목록 하드코딩, 승격 UI 미구현 |
+| `Admin_Report_Detail.html` | ✅ 연동 | 신고 단건 로드 + 기각·삭제·정지 액션 (경고 발송은 스키마 미지원으로 준비 중 안내) |
+| `Admin_Staff_Invite.html` | ✅ 연동 | 회원 검색 → 운영진 승격/권한 해제 (이메일 초대 없이 §9 정책대로 재설계, 2026-09-12) |
 
 ---
 
@@ -391,17 +394,28 @@ project_root/
   - `900ML`, `150g` 같은 용량 토큰은 상품명에 이어 붙이는 처리 추가
   - CLOVA가 한 행을 여러 `inferText` 토큰으로 쪼개도 품목 상태를 유지
 
+### 2026-09-12 관리자 기능 실데이터 연동 + 신뢰 페널티 자동화
+- **공용 관리자 가드**: `frontend/shared/adminGuard.js` 신설(`nfRequireAdmin()`), 6개 `Admin_*.html` 전체에서 중복 가드 로직 통합 + 사이드바 신고 배지·관리자 이름 실데이터화 + 로그아웃 버튼 미연동 3곳 수정
+- **`seed_admin.py` 복원**: README.md에 문서화되어 있었으나 저장소에 없던 관리자 계정 부트스트랩/승격 스크립트를 동일 인터페이스로 재작성
+- **`Admin_Users.html` 실데이터 연동**: `GET /api/admin/users`에 `status` 필터 + `tx_count`/`report_count` 집계 추가, 검색·필터칩·정지/복구/승격/강등 액션 연결
+- **신고 처리 실데이터 연동**: `GET /api/admin/reports/{id}` 신설(신고자·대상 회원/게시글·누적 신고수), `Admin_Report_Detail.html`에서 기각·게시글삭제·계정정지·처리완료 액션 실연결 (증빙 이미지·AI 검토·채팅 연결·관리자 메모·처리 로그는 스키마 미지원으로 준비 중 안내). 대시보드 신고 표 행 클릭 시 상세로 이동하도록 연결
+- **`Admin_Staff_Invite.html` 재설계**: 이메일 초대 mock → §9 정책에 맞춘 회원 검색→승격/권한 해제 UI로 전면 교체 (백엔드 API 재사용, 추가 없음)
+- **대시보드 통계 연동**: `GET /api/admin/stats` 신설(주간 접수/처리 추이, 신고 사유 분포, 최근 7일 처리율). 커뮤니티 건강도(하드코딩 98/100) → 이번 주 신고 처리율로 교체, 최근 운영 활동 로그는 activity log 테이블 미지원으로 준비 중 안내
+- **CORS `.env` 동적 분기**: `main.py`가 `ALLOWED_ORIGINS`(콤마 구분)를 읽어 배포 도메인만 허용, 미설정 시 개발 편의를 위해 `*` 유지. 실제 도메인 입력은 배포 시점으로 유예
+- **미납 정산 참여 차단 리팩터링**: `posts.py`의 인라인 SQL을 `settlement_db.has_unpaid_settlement()` 호출로 교체 (동작 변화 없음, 로직 단일화)
+- **주최자 귀책/먹튀 trust_score 자동 페널티**: `PATCH /api/admin/reports/{id}`에서 `target_type='user'`인 신고가 `pending → resolved`로 확정될 때 자동으로 `-2.0` 적용 (클램프 0~99, 이미 처리된 신고 재처리 시 중복 적용 안 됨). 상세는 `Settlement_Implementation_Plan.md` §6 참고
+- **회원 직접 신고 진입점 신설**: `Product_Detail.html` 작성자 카드 하단에 "이 회원 신고하기" 링크 추가(`targetType=user`, 본인 게시글이면 숨김). 기존 `authorName`이 `author_id`(숫자)를 그대로 표시하던 버그도 함께 수정. `Group_Buy_Detail.html`·`Product_Detail.html`의 "게시글 신고하기" 링크가 대상 정보(targetId 등) 없이 연결되던 버그 수정
+
 ---
 
 ## 8. 잔여 작업 목록
 
 | 우선순위 | 항목 | 상세 |
 |---|---|---|
-| 🔴 **필수** | **미납 정산 참여 차단** | `posts.py`의 `join_groupbuy`에 "진행 중 정산에 미납 share가 있으면 새 공동구매 참여 차단" 로직 적용. `settlement_db.py`의 `has_unpaid_settlement()` 함수 구현 완료, 호출만 누락 |
-| 🟡 **권장** | **`Admin_Staff_Invite.html` 연동** | 운영진 목록 하드코딩 → 실데이터 교체. 기존 계정 검색 후 `PATCH /api/admin/users/{id}` (`role='admin'`)으로 승격하는 UI 구현. 백엔드 API 완비 |
-| 🟡 **권장** | **작성자 매너 평가 표시** | `Product_Detail.html`·`Group_Buy_Detail.html` 작성자 카드에 `GET /api/ratings/received?user_id={authorId}` 연동. API 완비 |
-| 🟢 **개선** | **관리자 사이드바 배지 동적화** | `Admin_Report_Detail.html`·`Admin_Staff_Invite.html` 신고 배지 `"24"` 하드코딩 → `GET /api/admin/dashboard`의 `reportsPending` 값으로 교체 |
-| 🟢 **개선** | **배포 CORS 도메인 제한** | `main.py`의 `allow_origins=["*"]`를 `.env`의 실제 도메인으로 교체 (배포 전 필수) |
+| 🟡 **권장** | **작성자 매너 평가 표시** | `Product_Detail.html`·`Group_Buy_Detail.html` 작성자 카드에 `GET /api/ratings/received?user_id={authorId}` 연동. API 완비, 프런트 연동만 남음 |
+| 🟢 **준비 완료** | **배포 CORS 도메인 제한** | `main.py`가 `.env`의 `ALLOWED_ORIGINS`를 읽어 동적 분기하도록 구현 완료(2026-09-12). 값 미설정 시 개발 편의를 위해 `*` 유지. **배포 시 `.env`에 실제 도메인 값 입력 필요** |
+
+> 완료된 항목(미납 정산 참여 차단, `Admin_Staff_Invite.html` 연동, 관리자 사이드바 배지 동적화)은 §7 "2026-09-12" 절 참고.
 
 ---
 
@@ -441,9 +455,9 @@ http://127.0.0.1:8000/docs
 # 더미 데이터
 python seed_posts.py                  # ⚠️ 2026-09-08 기준 저장소에 미존재 (아래 안내 참고)
 
-# 관리자 계정 생성/승격
-python seed_admin.py                  # ⚠️ 2026-09-08 기준 저장소에 미존재
-python seed_admin.py <login_id>       # ⚠️ 2026-09-08 기준 저장소에 미존재
+# 관리자 계정 생성/승격 [2026-09-12 복원 완료]
+python seed_admin.py                  # 신규 생성 (login_id=Admin, pw=admin0000)
+python seed_admin.py <login_id>       # 기존 계정을 admin 역할로 승격
 
 # 테스트 계정 시드 (정산 수동 테스트용)
 python Seed_Account.py               # ⚠️ 2026-09-08 기준 저장소에 미존재
@@ -459,7 +473,7 @@ python reset_db.py
 python tests/test_receipt_parser_v212.py
 ```
 
-> 위 6개 명령(더미 데이터·관리자 계정·테스트 시드·전체 기능 테스트·DB 초기화)은 대응 스크립트가 저장소에서 제거되어 현재 실행되지 않습니다. §3의 "문서-저장소 정합성 안내" 참고.
+> 위 5개 명령(더미 데이터·테스트 시드·전체 기능 테스트·DB 초기화)은 대응 스크립트가 저장소에서 제거되어 현재 실행되지 않습니다. §3의 "문서-저장소 정합성 안내" 참고. `seed_admin.py`는 2026-09-12 복원되어 정상 동작합니다.
 
 **테스트 계정 기본값:**
 
