@@ -8,6 +8,7 @@ from app.config      import UPLOAD_DIR
 from app.core.deps   import get_current_user
 from app.core.utils  import now_utc, to_iso
 from app.db.auth_db  import get_conn
+from app.db          import settlement_db
 from app.models.post import PostCreate
 from pydantic import BaseModel
 
@@ -396,13 +397,7 @@ async def join_groupbuy(post_id: int, user: dict = Depends(get_current_user)):
             raise HTTPException(status_code=400, detail="공동구매 게시글만 참여할 수 있습니다.")
 
         # 미완료된 정산(미납)이 있으면 새 공동구매 참여를 차단 (신뢰 보완)
-        unpaid = conn.execute("""
-            SELECT 1 FROM settlement_shares ss
-            JOIN settlements s ON s.id = ss.settlement_id
-            WHERE ss.user_id = ? AND ss.status = 'unpaid' AND s.status = 'pending'
-            LIMIT 1
-        """, (user["id"],)).fetchone()
-        if unpaid:
+        if settlement_db.has_unpaid_settlement(user["id"]):
             raise HTTPException(status_code=400,
                                 detail="미완료된 정산이 있어 공동구매에 참여할 수 없습니다.")
 
