@@ -6,6 +6,7 @@
 <title>관리자 대시보드 - NeighborFood</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 <script src="shared/auth.js"></script>
+<script src="shared/adminGuard.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <link href="shared/tokens.css" rel="stylesheet"/>
@@ -72,7 +73,7 @@
         <p id="adminName" class="font-semibold truncate">관리자</p>
         <p class="text-white/50 text-[10px]">슈퍼 관리자</p>
       </div>
-      <span class="material-symbols-outlined text-white/60" style="font-size:18px">logout</span>
+      <span class="material-symbols-outlined text-white/60 cursor-pointer hover:text-white" style="font-size:18px" onclick="nfLogout('Login.html')">logout</span>
     </div>
   </aside>
 
@@ -155,41 +156,16 @@
               <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-error-container"></span>접수</span>
             </div>
           </div>
-          <div class="bar pb-6">
-            <div style="height:50%"><span>월</span></div>
-            <div class="on" style="height:75%"><span>화</span></div>
-            <div style="height:65%"><span>수</span></div>
-            <div class="on" style="height:90%"><span>목</span></div>
-            <div style="height:55%"><span>금</span></div>
-            <div class="on" style="height:80%"><span>토</span></div>
-            <div style="height:70%"><span>일</span></div>
+          <div id="weeklyBar" class="bar pb-6">
+            <div style="height:0%"><span>-</span></div>
           </div>
         </section>
 
         <!-- Top categories -->
         <section class="bg-white rounded-2xl ring-soft p-4">
           <p class="text-[11px] font-bold text-on-surface-variant tracking-wide">신고 사유 분포</p>
-          <ul class="mt-3 space-y-2.5 text-[12.5px]">
-            <li>
-              <div class="flex justify-between mb-1"><span class="font-semibold">위생·식품 위험</span><span class="text-on-surface-variant">38%</span></div>
-              <div class="h-2 bg-surface-container-low rounded-full overflow-hidden"><div class="h-full bg-error rounded-full" style="width:38%"></div></div>
-            </li>
-            <li>
-              <div class="flex justify-between mb-1"><span class="font-semibold">스팸·광고</span><span class="text-on-surface-variant">24%</span></div>
-              <div class="h-2 bg-surface-container-low rounded-full overflow-hidden"><div class="h-full bg-secondary-container rounded-full" style="width:24%"></div></div>
-            </li>
-            <li>
-              <div class="flex justify-between mb-1"><span class="font-semibold">매너 불량</span><span class="text-on-surface-variant">18%</span></div>
-              <div class="h-2 bg-surface-container-low rounded-full overflow-hidden"><div class="h-full bg-tertiary rounded-full" style="width:18%"></div></div>
-            </li>
-            <li>
-              <div class="flex justify-between mb-1"><span class="font-semibold">사기 의심</span><span class="text-on-surface-variant">12%</span></div>
-              <div class="h-2 bg-surface-container-low rounded-full overflow-hidden"><div class="h-full bg-primary rounded-full" style="width:12%"></div></div>
-            </li>
-            <li>
-              <div class="flex justify-between mb-1"><span class="font-semibold">기타</span><span class="text-on-surface-variant">8%</span></div>
-              <div class="h-2 bg-surface-container-low rounded-full overflow-hidden"><div class="h-full bg-outline rounded-full" style="width:8%"></div></div>
-            </li>
+          <ul id="reasonList" class="mt-3 space-y-2.5 text-[12.5px]">
+            <li class="text-on-surface-variant text-center py-4">불러오는 중…</li>
           </ul>
         </section>
       </div>
@@ -256,32 +232,18 @@
       <!-- Bottom row -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3 pb-8">
         <section class="bg-gradient-to-br from-primary to-[#004510] text-white rounded-2xl p-5 relative overflow-hidden">
-          <span class="material-symbols-outlined absolute right-3 bottom-3 opacity-10" style="font-size:110px;font-variation-settings:'FILL' 1;">eco</span>
-          <p class="text-[11px] font-bold text-primary-fixed-dim tracking-wide">커뮤니티 건강도</p>
-          <p class="text-[36px] font-bold leading-none mt-2">98<span class="text-[16px] ml-0.5">/100</span></p>
-          <p class="text-[12.5px] text-white/85 mt-2 leading-relaxed">신고 처리율 97%, 평균 응답시간 2시간 18분. <b>안정적</b>으로 운영 중이에요.</p>
+          <span class="material-symbols-outlined absolute right-3 bottom-3 opacity-10" style="font-size:110px;font-variation-settings:'FILL' 1;">task_alt</span>
+          <p class="text-[11px] font-bold text-primary-fixed-dim tracking-wide">이번 주 신고 처리율</p>
+          <p class="text-[36px] font-bold leading-none mt-2"><span id="resolveRate">-</span><span class="text-[16px] ml-0.5">%</span></p>
+          <p id="resolveDetail" class="text-[12.5px] text-white/85 mt-2 leading-relaxed">최근 7일간 접수된 신고 중 처리 완료·반려된 비율이에요.</p>
         </section>
 
         <section class="bg-white rounded-2xl ring-soft p-4">
           <p class="text-[11px] font-bold text-on-surface-variant tracking-wide">최근 운영 활동</p>
-          <ul class="mt-3 space-y-3 text-[12.5px]">
-            <li class="flex gap-2.5">
-              <span class="w-7 h-7 rounded-full bg-primary-fixed flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary-fixed-variant" style="font-size:14px">check</span></span>
-              <div><b>박운영</b>이 신고 R-2837를 처리했습니다 <span class="text-on-surface-variant ml-1">10분 전</span></div>
-            </li>
-            <li class="flex gap-2.5">
-              <span class="w-7 h-7 rounded-full bg-tertiary-fixed-dim flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-tertiary-container" style="font-size:14px">campaign</span></span>
-              <div>새 공지 "5월 모임 안내"가 게시됨 <span class="text-on-surface-variant ml-1">1시간 전</span></div>
-            </li>
-            <li class="flex gap-2.5">
-              <span class="w-7 h-7 rounded-full bg-secondary-fixed flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-secondary-fixed-variant" style="font-size:14px">person_add</span></span>
-              <div>이지수님이 운영진으로 초대됨 <span class="text-on-surface-variant ml-1">3시간 전</span></div>
-            </li>
-            <li class="flex gap-2.5">
-              <span class="w-7 h-7 rounded-full bg-error-container flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-error-container" style="font-size:14px">block</span></span>
-              <div>이○○ 계정이 7일 정지됨 <span class="text-on-surface-variant ml-1">어제</span></div>
-            </li>
-          </ul>
+          <div class="mt-3 flex items-center gap-2.5 text-on-surface-variant">
+            <span class="material-symbols-outlined shrink-0" style="font-size:20px">construction</span>
+            <p class="text-[12px] leading-relaxed">운영 활동 로그는 현재 데이터 모델 미지원으로 준비 중이에요. 신고 처리·공지·정지 등 관리 액션 기록이 이곳에 표시될 예정입니다.</p>
+          </div>
         </section>
       </div>
     </div>
@@ -300,18 +262,13 @@
   const stCls = {pending:'bg-secondary-fixed text-on-secondary-fixed-variant', resolved:'bg-primary-fixed text-on-primary-fixed-variant', dismissed:'bg-black/10 text-on-surface-variant'};
 
   (async function(){
-    let me=null;
-    try{ me = await fetch(API_BASE+'/api/users/me').then(r=>r.ok?r.json():null); }catch(e){}
-    if(!me){ location.replace('Login.html?next='+encodeURIComponent('Admin_Dashboard.html')); return; }
-    if(me.role!=='admin'){ alert('관리자만 접근할 수 있어요.'); location.replace('Home.html'); return; }
-    setText('adminName', me.nickname||'관리자');
-    setText('adminGreet', me.nickname||'관리자');
+    const me = await nfRequireAdmin('Admin_Dashboard.html');
+    if(!me) return;
 
     try{
       const d = await fetch(API_BASE+'/api/admin/dashboard').then(r=>r.ok?r.json():null);
       if(d){
         setText('kpiReports', fmt(d.reportsPending));
-        setText('navReportBadge', d.reportsPending);
         setText('kpiToday', fmt(d.todaySignups));
         setText('kpiOngoing', fmt(d.ongoingTransactions));
         setText('kpiUsers', fmt(d.users));
@@ -326,7 +283,7 @@
           tb.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-on-surface-variant">접수된 신고가 없습니다.</td></tr>';
         } else {
           tb.innerHTML = r.items.slice(0,6).map(function(it){
-            return '<tr class="border-b border-black/[.04] hover:bg-surface-container-low/40">'
+            return '<tr onclick="location.href=\'Admin_Report_Detail.html?id='+it.id+'\'" class="border-b border-black/[.04] hover:bg-surface-container-low/40 cursor-pointer">'
               + '<td class="py-2.5 font-mono text-on-surface-variant">R-'+it.id+'</td>'
               + '<td><span class="text-[10px] font-bold bg-error-container text-on-error-container px-1.5 py-0.5 rounded">'+(it.target_type==='post'?'게시글':'회원')+'</span> <span class="ml-1">'+esc((it.reason||'').slice(0,24))+'</span></td>'
               + '<td>'+esc(it.target_label||'-')+'</td>'
@@ -338,7 +295,57 @@
         }
       }
     }catch(e){}
+
+    // ── 통계(차트/사유분포/처리율) ──
+    try{
+      const s = await fetch(API_BASE+'/api/admin/stats').then(r=>r.ok?r.json():null);
+      if(s){ renderWeekly(s.weekly); renderReasons(s.reasons); renderResolve(s); }
+    }catch(e){}
   })();
+
+  // 주간 접수/처리 막대: 접수량을 최대값 기준 높이로, 처리분은 green(on)으로 표시
+  const WEEKDAY = ['일','월','화','수','목','금','토'];
+  function renderWeekly(weekly){
+    const box = document.getElementById('weeklyBar');
+    if(!box || !weekly) return;
+    const maxV = Math.max(1, ...weekly.map(w => w.received));
+    box.innerHTML = weekly.map(function(w){
+      const label = WEEKDAY[new Date(w.day+'T00:00:00').getDay()];
+      const recvH = Math.round(w.received / maxV * 100);
+      const handH = w.received ? Math.round(w.handled / w.received * recvH) : 0;
+      // 바깥(접수) 막대 위에 처리분 막대를 겹쳐 표현
+      return '<div style="height:'+Math.max(recvH,3)+'%" title="'+w.day+' 접수 '+w.received+' · 처리 '+w.handled+'">'
+        + (handH>0 ? '<div class="on" style="position:absolute;left:0;right:0;bottom:0;height:'+Math.min(100,Math.round(w.handled/Math.max(1,w.received)*100))+'%;border-radius:6px 6px 0 0;"></div>' : '')
+        + '<span>'+label+'</span></div>';
+    }).join('');
+  }
+
+  const REASON_COLORS = ['bg-error','bg-secondary-container','bg-tertiary','bg-primary','bg-outline'];
+  function renderReasons(reasons){
+    const ul = document.getElementById('reasonList');
+    if(!ul) return;
+    if(!reasons || !reasons.length){
+      ul.innerHTML = '<li class="text-on-surface-variant text-center py-4">아직 신고 데이터가 없어요.</li>';
+      return;
+    }
+    ul.innerHTML = reasons.map(function(r,i){
+      const color = REASON_COLORS[i % REASON_COLORS.length];
+      return '<li>'
+        + '<div class="flex justify-between mb-1"><span class="font-semibold truncate pr-2">'+esc(r.reason)+'</span><span class="text-on-surface-variant shrink-0">'+r.percent+'%</span></div>'
+        + '<div class="h-2 bg-surface-container-low rounded-full overflow-hidden"><div class="h-full '+color+' rounded-full" style="width:'+r.percent+'%"></div></div>'
+        + '</li>';
+    }).join('');
+  }
+
+  function renderResolve(s){
+    setText('resolveRate', s.resolveRate);
+    const detail = document.getElementById('resolveDetail');
+    if(detail){
+      detail.textContent = (s.weekTotal>0)
+        ? ('최근 7일 접수 '+s.weekTotal+'건 중 '+s.weekHandled+'건 처리 완료.')
+        : '최근 7일간 접수된 신고가 없어요.';
+    }
+  }
 })();
 </script>
 </body>

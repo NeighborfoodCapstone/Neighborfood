@@ -6,6 +6,7 @@
 <title>신고 상세 (관리자) - NeighborFood</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 <script src="shared/auth.js"></script>
+<script src="shared/adminGuard.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <link href="shared/tokens.css" rel="stylesheet"/>
@@ -36,159 +37,324 @@
     <button onclick="history.back()" class="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center"><span class="material-symbols-outlined">arrow_back</span></button>
     <div class="ml-1 flex items-center gap-2">
       <span class="badge-admin text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded">ADMIN</span>
-      <h1 class="text-[15px] font-bold">신고 상세 #R-2841</h1>
+      <h1 id="reportTitle" class="text-[15px] font-bold">신고 상세</h1>
     </div>
-    <div class="ml-auto flex items-center gap-1">
-      <button class="text-[11px] px-2.5 py-1.5 rounded-lg ring-1 ring-white/20 hover:bg-white/10">이전</button>
-      <button class="text-[11px] px-2.5 py-1.5 rounded-lg ring-1 ring-white/20 hover:bg-white/10">다음</button>
-    </div>
+    <div class="ml-auto flex items-center gap-1"></div>
   </div>
 </header>
 
 <main class="max-w-3xl mx-auto px-4 pt-4">
 
-  <!-- Header card -->
-  <section class="bg-white rounded-2xl ring-soft p-4">
-    <div class="flex items-start gap-3">
-      <div class="w-12 h-12 rounded-xl bg-error/15 flex items-center justify-center shrink-0">
-        <span class="material-symbols-outlined text-error" style="font-variation-settings:'FILL' 1;">flag</span>
-      </div>
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-1.5 flex-wrap">
-          <span class="text-[10px] font-bold bg-error text-white px-1.5 py-0.5 rounded uppercase tracking-wider">긴급</span>
-          <span class="text-[10px] font-bold bg-error-container text-on-error-container px-1.5 py-0.5 rounded">식품 신선도</span>
-          <span class="text-[10px] font-bold bg-secondary-fixed text-on-secondary-fixed-variant px-1.5 py-0.5 rounded">위생 위험</span>
-        </div>
-        <p class="text-[15.5px] font-bold mt-1.5">식품 신선도 불만족 및 비위생적 교환</p>
-        <p class="text-[11.5px] text-on-surface-variant mt-1">접수 · 2026.05.13 14:22 · SLA 마감까지 <b class="text-error">8시간 4분</b></p>
-      </div>
-      <div class="text-right">
-        <p class="text-[10px] text-on-surface-variant">신고 누적</p>
-        <p class="text-[18px] font-bold">3<span class="text-[11px] font-medium text-on-surface-variant ml-0.5">건</span></p>
-      </div>
-    </div>
-  </section>
+  <!-- 로딩/에러 상태 -->
+  <div id="loadState" class="bg-white rounded-2xl ring-soft p-8 text-center text-[13px] text-on-surface-variant">신고 내용을 불러오는 중…</div>
 
-  <!-- People row -->
-  <section class="grid grid-cols-2 gap-3 mt-3">
-    <div class="bg-white rounded-2xl ring-soft p-3">
-      <p class="text-[10px] font-bold text-on-surface-variant tracking-wider">REPORTER · 신고자</p>
-      <div class="flex items-center gap-2 mt-2">
-        <div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[12px] font-bold">김</div>
+  <!-- 실데이터 컨테이너 (로드 성공 시 표시) -->
+  <div id="detailWrap" class="hidden">
+
+    <!-- Header card -->
+    <section class="bg-white rounded-2xl ring-soft p-4">
+      <div class="flex items-start gap-3">
+        <div class="w-12 h-12 rounded-xl bg-error/15 flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-error" style="font-variation-settings:'FILL' 1;">flag</span>
+        </div>
         <div class="flex-1 min-w-0">
-          <p class="text-[13px] font-semibold truncate">김지연 · 매너 39.8°</p>
-          <p class="text-[10.5px] text-on-surface-variant">한들마을 3단지 · 가입 11개월</p>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span id="hdrTargetType" class="text-[10px] font-bold bg-error-container text-on-error-container px-1.5 py-0.5 rounded">대상</span>
+            <span id="hdrStatus" class="text-[10px] font-bold bg-secondary-fixed text-on-secondary-fixed-variant px-1.5 py-0.5 rounded">검토 중</span>
+          </div>
+          <p id="hdrReason" class="text-[15.5px] font-bold mt-1.5">-</p>
+          <p id="hdrMeta" class="text-[11.5px] text-on-surface-variant mt-1">-</p>
+        </div>
+        <div class="text-right">
+          <p class="text-[10px] text-on-surface-variant">신고 누적</p>
+          <p class="text-[18px] font-bold"><span id="hdrTotal">-</span><span class="text-[11px] font-medium text-on-surface-variant ml-0.5">건</span></p>
         </div>
       </div>
-      <div class="mt-2 flex flex-wrap gap-1 text-[10px]">
-        <span class="bg-surface-container-low px-1.5 py-0.5 rounded text-on-surface-variant">신고 이력 1회</span>
-        <span class="bg-primary-fixed/40 text-on-primary-fixed-variant px-1.5 py-0.5 rounded font-semibold">정상 활동</span>
+    </section>
+
+    <!-- People row -->
+    <section class="grid grid-cols-2 gap-3 mt-3">
+      <div class="bg-white rounded-2xl ring-soft p-3">
+        <p class="text-[10px] font-bold text-on-surface-variant tracking-wider">REPORTER · 신고자</p>
+        <div class="flex items-center gap-2 mt-2">
+          <div id="reporterAvatar" class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[12px] font-bold">?</div>
+          <div class="flex-1 min-w-0">
+            <p id="reporterName" class="text-[13px] font-semibold truncate">-</p>
+            <p id="reporterSub" class="text-[10.5px] text-on-surface-variant">-</p>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="bg-white rounded-2xl ring-soft p-3">
-      <p class="text-[10px] font-bold text-on-surface-variant tracking-wider">REPORTED · 신고 대상</p>
-      <div class="flex items-center gap-2 mt-2">
-        <div class="w-10 h-10 rounded-full bg-secondary-fixed-dim flex items-center justify-center text-on-secondary-fixed-variant text-[12px] font-bold">이</div>
+      <div class="bg-white rounded-2xl ring-soft p-3">
+        <p class="text-[10px] font-bold text-on-surface-variant tracking-wider">REPORTED · 신고 대상</p>
+        <div class="flex items-center gap-2 mt-2">
+          <div id="targetAvatar" class="w-10 h-10 rounded-full bg-secondary-fixed-dim flex items-center justify-center text-on-secondary-fixed-variant text-[12px] font-bold">?</div>
+          <div class="flex-1 min-w-0">
+            <p id="targetName" class="text-[13px] font-semibold truncate">-</p>
+            <p id="targetSub" class="text-[10.5px] text-on-surface-variant">-</p>
+          </div>
+        </div>
+        <div class="mt-2 flex flex-wrap gap-1 text-[10px]">
+          <span id="targetTag" class="bg-error-container text-on-error-container px-1.5 py-0.5 rounded font-bold">누적 신고 -건</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Subject (게시글 신고일 때만 표시) -->
+    <section id="subjectPostSec" class="mt-3 bg-white rounded-2xl ring-soft overflow-hidden hidden">
+      <div class="px-4 py-2.5 border-b border-black/[.05] flex items-center justify-between">
+        <p class="text-[12.5px] font-bold">신고된 게시글</p>
+        <a id="postOriginLink" class="text-[11px] font-bold text-primary" href="#">원본 보기 →</a>
+      </div>
+      <div class="p-3 flex gap-3">
+        <div id="postThumb" class="w-20 h-20 rounded-xl ph relative shrink-0 bg-cover bg-center"></div>
         <div class="flex-1 min-w-0">
-          <p class="text-[13px] font-semibold truncate">이○○ · 매너 33.1°</p>
-          <p class="text-[10.5px] text-on-surface-variant">한들마을 1단지 · 가입 22일</p>
+          <p id="postTitle" class="text-[13.5px] font-semibold leading-snug">-</p>
+          <p id="postDesc" class="text-[11.5px] text-on-surface-variant mt-1 line-clamp-2">-</p>
+          <p id="postMeta" class="text-[10.5px] text-on-surface-variant mt-1">-</p>
         </div>
       </div>
-      <div class="mt-2 flex flex-wrap gap-1 text-[10px]">
-        <span class="bg-error-container text-on-error-container px-1.5 py-0.5 rounded font-bold">누적 신고 3건</span>
-        <span class="bg-secondary-fixed text-on-secondary-fixed-variant px-1.5 py-0.5 rounded font-semibold">신규 가입자</span>
+    </section>
+
+    <!-- 신고 사유 전문 -->
+    <section class="mt-3 bg-white rounded-2xl ring-soft p-4">
+      <p class="text-[12.5px] font-bold mb-2">신고 사유 상세</p>
+      <p id="reasonFull" class="text-[13px] text-on-surface leading-relaxed whitespace-pre-wrap">-</p>
+      <p id="reasonBy" class="text-[10.5px] text-on-surface-variant mt-2">-</p>
+    </section>
+
+    <!-- 준비 중 안내 (스키마 미지원 영역) -->
+    <section class="mt-3 bg-surface-container-low rounded-2xl p-4 flex gap-2.5">
+      <span class="material-symbols-outlined text-on-surface-variant shrink-0" style="font-size:20px">construction</span>
+      <div>
+        <p class="text-[11.5px] font-bold text-on-surface-variant">준비 중인 기능</p>
+        <p class="text-[12px] text-on-surface-variant mt-1 leading-relaxed">증빙 이미지 첨부, AI 검토 제안, 관련 채팅 자동 연결, 관리자 메모, 처리 로그는 현재 데이터 모델 미지원으로 준비 중입니다.</p>
       </div>
-    </div>
-  </section>
-
-  <!-- Subject post -->
-  <section class="mt-3 bg-white rounded-2xl ring-soft overflow-hidden">
-    <div class="px-4 py-2.5 border-b border-black/[.05] flex items-center justify-between">
-      <p class="text-[12.5px] font-bold">신고된 게시글</p>
-      <a class="text-[11px] font-bold text-primary">원본 보기 →</a>
-    </div>
-    <div class="p-3 flex gap-3">
-      <div class="w-20 h-20 rounded-xl ph relative shrink-0">
-        <span class="absolute top-1.5 left-1.5 text-[9px] font-bold bg-secondary-container text-white px-1.5 py-0.5 rounded">교환</span>
-      </div>
-      <div class="flex-1 min-w-0">
-        <p class="text-[13.5px] font-semibold leading-snug">남는 우유 1팩 / 계란 6알 교환해요</p>
-        <p class="text-[11.5px] text-on-surface-variant mt-1 line-clamp-2">유통기한 임박이라 빨리 가져가실 분 환영합니다. 오늘 안 픽업 가능하신 분만 연락 주세요.</p>
-        <p class="text-[10.5px] text-on-surface-variant mt-1">2026.05.13 12:08 · 조회 87 · 채팅 4</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Evidence -->
-  <section class="mt-3 bg-white rounded-2xl ring-soft p-4">
-    <p class="text-[12.5px] font-bold mb-2">증빙 자료 (3장)</p>
-    <div class="grid grid-cols-3 gap-2">
-      <div class="aspect-square ph2 rounded-xl ring-1 ring-black/5"></div>
-      <div class="aspect-square ph rounded-xl ring-1 ring-black/5"></div>
-      <div class="aspect-square ph2 rounded-xl ring-1 ring-black/5"></div>
-    </div>
-    <p class="text-[12px] text-on-surface mt-3 leading-relaxed">
-      "직접 만나보니 우유 유통기한이 이미 2일 지나있었고, 보관 상태도 비위생적이었습니다. 답변도 일관성이 없어 다른 이웃 분들이 피해보지 않으셨으면 합니다."
-    </p>
-    <p class="text-[10.5px] text-on-surface-variant mt-2">— 김지연 · 2026.05.13 14:22</p>
-  </section>
-
-  <!-- Chat excerpt -->
-  <section class="mt-3 bg-white rounded-2xl ring-soft overflow-hidden">
-    <div class="px-4 py-2.5 border-b border-black/[.05] flex items-center justify-between">
-      <p class="text-[12.5px] font-bold">관련 채팅 내역 (요약)</p>
-      <a class="text-[11px] font-bold text-primary">전체 보기 →</a>
-    </div>
-    <div class="p-4 space-y-2">
-      <div class="flex justify-start"><div class="bubble bubble-other"><b>이○○:</b> 오늘 안에만 가져가시면 돼요</div></div>
-      <div class="flex justify-end"><div class="bubble bg-primary-fixed/70"><b>김지연:</b> 유통기한 언제까지인가요?</div></div>
-      <div class="flex justify-start"><div class="bubble bubble-other"><b>이○○:</b> 며칠 안 지났어요 ㅎㅎ 괜찮아요</div></div>
-      <div class="flex justify-end"><div class="bubble bg-primary-fixed/70"><b>김지연:</b> 정확한 날짜 알 수 있을까요?</div></div>
-    </div>
-  </section>
-
-  <!-- AI -->
-  <section class="mt-3 bg-gradient-to-br from-tertiary-fixed/50 to-primary-fixed/30 rounded-2xl ring-soft p-4 flex gap-2.5">
-    <span class="material-symbols-outlined text-tertiary shrink-0" style="font-size:20px;font-variation-settings:'FILL' 1;">auto_awesome</span>
-    <div>
-      <p class="text-[11.5px] font-bold tracking-wide text-tertiary">AI 검토 제안</p>
-      <p class="text-[12.5px] mt-1 leading-relaxed text-on-surface">
-        과거 신고 패턴 + 채팅 내용 분석 결과, 위반 가능성 <b class="text-error">82%</b>. <b>식품 위생 가이드 §4-2</b> 위반 의심. <b>경고 + 게시글 삭제</b>를 추천합니다.
-      </p>
-    </div>
-  </section>
-
-  <!-- Admin note -->
-  <section class="mt-3 bg-white rounded-2xl ring-soft p-4">
-    <p class="text-[12.5px] font-bold mb-2">관리자 메모 <span class="text-on-surface-variant font-medium text-[11px]">(내부 전용)</span></p>
-    <textarea rows="3" class="w-full bg-surface-container-low rounded-xl px-3 py-2.5 text-[13px] resize-none focus:bg-white focus:ring-2 focus:ring-primary outline-none" placeholder="처리 사유, 참고사항 등을 기록해 주세요"></textarea>
-  </section>
-
-  <!-- Activity log -->
-  <section class="mt-3 bg-white rounded-2xl ring-soft p-4">
-    <p class="text-[12.5px] font-bold mb-2">처리 로그</p>
-    <ol class="text-[11.5px] space-y-2 text-on-surface-variant">
-      <li><b class="text-on-surface">박운영</b> 케이스 배정 — 2026.05.13 14:25</li>
-      <li><b class="text-on-surface">시스템</b> AI 사전 검토 완료 — 2026.05.13 14:23</li>
-      <li><b class="text-on-surface">시스템</b> 신고 접수 — 2026.05.13 14:22</li>
-    </ol>
-  </section>
+    </section>
+  </div>
 </main>
+
 
 <!-- Sticky admin actions -->
 <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-black/[.08] z-40 shadow-[0_-6px_24px_rgba(0,0,0,.08)]">
   <div class="max-w-3xl mx-auto px-4 py-3 pb-6">
     <div class="grid grid-cols-4 gap-2">
-      <button class="rounded-xl ring-1 ring-outline-variant bg-white py-3 text-[12.5px] font-bold">기각</button>
-      <button class="rounded-xl bg-secondary-fixed text-on-secondary-fixed-variant py-3 text-[12.5px] font-bold">경고 발송</button>
-      <button class="rounded-xl bg-error text-white py-3 text-[12.5px] font-bold">게시글 삭제</button>
-      <button class="rounded-xl bg-[#2c322b] text-white py-3 text-[12.5px] font-bold">계정 정지</button>
+      <button id="actDismiss" class="rounded-xl ring-1 ring-outline-variant bg-white py-3 text-[12.5px] font-bold">기각</button>
+      <button id="actWarn" class="rounded-xl bg-secondary-fixed text-on-secondary-fixed-variant py-3 text-[12.5px] font-bold">경고 발송</button>
+      <button id="actDeletePost" class="rounded-xl bg-error text-white py-3 text-[12.5px] font-bold">게시글 삭제</button>
+      <button id="actSuspend" class="rounded-xl bg-[#2c322b] text-white py-3 text-[12.5px] font-bold">계정 정지</button>
     </div>
-    <button class="w-full mt-2 text-[11.5px] text-on-surface-variant flex items-center justify-center gap-1">
-      더 많은 조치 <span class="material-symbols-outlined" style="font-size:14px">expand_more</span>
+    <button id="actResolve" class="w-full mt-2 text-[11.5px] text-primary font-bold flex items-center justify-center gap-1">
+      <span class="material-symbols-outlined" style="font-size:14px">check_circle</span> 처리 완료로 표시
     </button>
   </div>
 </div>
 
+<script>
+(function(){
+  const API = window.location.origin;
+  const qs = new URLSearchParams(location.search);
+  const reportId = qs.get('id');
+  let REPORT = null;
+
+  function esc(s){ const d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+  function initial(s){ s=(s||'').trim(); return s ? s[0] : '?'; }
+  function setText(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
+  function fmtDateTime(iso){ if(!iso) return '-'; const d=new Date(iso.endsWith('Z')||iso.includes('+')?iso:iso+'Z'); return isNaN(d)?'-':d.toLocaleString('ko-KR'); }
+  function firstImage(imagesJson){
+    try{ const arr=JSON.parse(imagesJson||'[]'); return arr.length?arr[0]:null; }catch(e){ return null; }
+  }
+
+  const STATUS_KO  = { pending:'검토 중', resolved:'처리 완료', dismissed:'반려' };
+  const STATUS_CLS = {
+    pending:'bg-secondary-fixed text-on-secondary-fixed-variant',
+    resolved:'bg-primary-fixed text-on-primary-fixed-variant',
+    dismissed:'bg-black/10 text-on-surface-variant'
+  };
+
+  function render(r){
+    REPORT = r;
+    document.getElementById('loadState').classList.add('hidden');
+    document.getElementById('detailWrap').classList.remove('hidden');
+
+    setText('reportTitle', '신고 상세 #R-' + r.id);
+
+    // 헤더
+    const tt = document.getElementById('hdrTargetType');
+    tt.textContent = (r.target_type==='post') ? '게시글 신고' : '회원 신고';
+    const st = document.getElementById('hdrStatus');
+    st.textContent = STATUS_KO[r.status] || r.status;
+    st.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded ' + (STATUS_CLS[r.status]||'bg-black/10');
+    // 사유는 "사유 — 상세" 형태로 저장되므로 앞부분만 헤더 제목에
+    const reasonHead = (r.reason||'').split(' — ')[0];
+    setText('hdrReason', reasonHead || '(사유 없음)');
+    setText('hdrMeta', '접수 · ' + fmtDateTime(r.created_at));
+    setText('hdrTotal', r.target_report_total);
+
+    // 신고자
+    setText('reporterName', (r.reporter_nickname||'(알 수 없음)') + (r.reporter_trust!=null ? ' · 매너 '+Number(r.reporter_trust).toFixed(1)+'°' : ''));
+    document.getElementById('reporterAvatar').textContent = initial(r.reporter_nickname);
+    setText('reporterSub', r.reporter_neighborhood || '동네 미설정');
+
+    // 신고 대상
+    const t = r.target;
+    if(r.target_type==='user'){
+      if(t){
+        setText('targetName', (t.nickname||'(이름 없음)') + (t.trust_score!=null?' · 매너 '+Number(t.trust_score).toFixed(1)+'°':''));
+        document.getElementById('targetAvatar').textContent = initial(t.nickname);
+        setText('targetSub', (t.neighborhood||'동네 미설정') + (t.status==='suspended'?' · 정지됨':''));
+      } else {
+        setText('targetName','(삭제된 회원)'); setText('targetSub','-');
+      }
+    } else {
+      // 게시글 신고: 대상 카드에는 게시글 작성자를 표시
+      if(t){
+        setText('targetName', (t.author_nickname||'(작성자 미상)'));
+        document.getElementById('targetAvatar').textContent = initial(t.author_nickname);
+        setText('targetSub', '게시글 작성자');
+      } else {
+        setText('targetName','(삭제된 게시글)'); setText('targetSub','-');
+      }
+    }
+    setText('targetTag', '누적 신고 '+r.target_report_total+'건');
+
+    // 신고된 게시글 섹션 (post일 때만)
+    if(r.target_type==='post' && t){
+      const sec = document.getElementById('subjectPostSec');
+      sec.classList.remove('hidden');
+      setText('postTitle', t.title || '-');
+      setText('postDesc', t.description || '');
+      setText('postMeta', fmtDateTime(t.created_at) + ' · 상태: ' + (t.status||'-'));
+      const img = firstImage(t.images);
+      if(img){
+        const thumb=document.getElementById('postThumb');
+        thumb.style.backgroundImage = 'url("'+API+'/uploads/'+img+'")';
+        thumb.classList.remove('ph');
+      }
+      // 원본 보기: 공동구매/일반 상세 분기
+      const dest = (t.type==='groupbuy') ? 'Group_Buy_Detail.html?id='+t.id : 'Product_Detail.html?id='+t.id;
+      document.getElementById('postOriginLink').href = dest;
+    }
+
+    // 신고 사유 전문
+    setText('reasonFull', r.reason || '-');
+    setText('reasonBy', '— ' + (r.reporter_nickname||'신고자') + ' · ' + fmtDateTime(r.created_at));
+
+    // 액션 버튼 활성/비활성 컨텍스트 적용
+    applyActionContext();
+  }
+
+  function applyActionContext(){
+    const r = REPORT;
+    const delBtn = document.getElementById('actDeletePost');
+    const suspendBtn = document.getElementById('actSuspend');
+
+    // 게시글 삭제: post 신고이고 대상 게시글이 살아있을 때만
+    const canDeletePost = (r.target_type==='post' && r.target && r.target.status!=='deleted');
+    delBtn.disabled = !canDeletePost;
+    delBtn.classList.toggle('opacity-40', !canDeletePost);
+    delBtn.classList.toggle('cursor-not-allowed', !canDeletePost);
+
+    // 계정 정지: 정지 대상 회원을 특정할 수 있을 때만
+    //  - user 신고: 대상 회원
+    //  - post 신고: 게시글 작성자
+    const suspendTargetId = (r.target_type==='user')
+      ? (r.target && r.target.id)
+      : (r.target && r.target.author_id);
+    const canSuspend = !!suspendTargetId;
+    suspendBtn.disabled = !canSuspend;
+    suspendBtn.classList.toggle('opacity-40', !canSuspend);
+    suspendBtn.classList.toggle('cursor-not-allowed', !canSuspend);
+    suspendBtn.dataset.suspendId = suspendTargetId || '';
+
+    // 이미 처리된 신고면 기각/완료 비활성 안내
+    if(r.status!=='pending'){
+      document.getElementById('actDismiss').disabled = true;
+      document.getElementById('actResolve').disabled = true;
+      document.getElementById('actDismiss').classList.add('opacity-40');
+      document.getElementById('actResolve').classList.add('opacity-40');
+    }
+  }
+
+  // ── 신고 상태 변경 (resolved/dismissed) ──
+  async function patchReport(status, okMsg){
+    try{
+      const r = await fetch(API+'/api/admin/reports/'+reportId, {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({status})
+      });
+      if(window.nfHandleAuthError && nfHandleAuthError(r)) return;
+      if(r.ok){ alert(okMsg); location.reload(); }
+      else { const e=await r.json().catch(()=>({})); alert((e&&e.detail)||'처리에 실패했어요.'); }
+    }catch(e){ alert('서버에 연결할 수 없어요.'); }
+  }
+
+  // ── 이벤트 바인딩 ──
+  function bindActions(){
+    document.getElementById('actDismiss').addEventListener('click', function(){
+      if(this.disabled) return;
+      if(confirm('이 신고를 기각(반려)할까요?')) patchReport('dismissed','신고를 기각했습니다.');
+    });
+    document.getElementById('actResolve').addEventListener('click', function(){
+      if(this.disabled) return;
+      if(confirm('이 신고를 처리 완료로 표시할까요?')) patchReport('resolved','처리 완료로 표시했습니다.');
+    });
+    document.getElementById('actWarn').addEventListener('click', function(){
+      alert('경고 발송은 현재 데이터 모델 미지원으로 준비 중이에요. 계정 정지 또는 게시글 삭제로 조치해 주세요.');
+    });
+    document.getElementById('actDeletePost').addEventListener('click', async function(){
+      if(this.disabled) return;
+      const pid = REPORT.target && REPORT.target.id;
+      if(!pid) return;
+      if(!confirm('신고된 게시글을 삭제할까요? (소프트 삭제)')) return;
+      try{
+        const r = await fetch(API+'/posts/'+pid, { method:'DELETE' });
+        if(window.nfHandleAuthError && nfHandleAuthError(r)) return;
+        if(r.ok){
+          // 게시글 삭제 후 신고도 처리 완료 처리
+          await patchReport('resolved','게시글을 삭제하고 신고를 처리 완료했습니다.');
+        } else { const e=await r.json().catch(()=>({})); alert((e&&e.detail)||'게시글 삭제에 실패했어요.'); }
+      }catch(e){ alert('서버에 연결할 수 없어요.'); }
+    });
+    document.getElementById('actSuspend').addEventListener('click', async function(){
+      if(this.disabled) return;
+      const uid = this.dataset.suspendId;
+      if(!uid) return;
+      if(!confirm('해당 계정을 정지할까요? 로그인·활동이 제한됩니다.')) return;
+      try{
+        const r = await fetch(API+'/api/admin/users/'+uid, {
+          method:'PATCH', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({status:'suspended'})
+        });
+        if(window.nfHandleAuthError && nfHandleAuthError(r)) return;
+        if(r.ok){
+          await patchReport('resolved','계정을 정지하고 신고를 처리 완료했습니다.');
+        } else { const e=await r.json().catch(()=>({})); alert((e&&e.detail)||'계정 정지에 실패했어요.'); }
+      }catch(e){ alert('서버에 연결할 수 없어요.'); }
+    });
+  }
+
+  // ── 시작 ──
+  (async function(){
+    const me = await nfRequireAdmin('Admin_Report_Detail.html' + (reportId?('?id='+reportId):''));
+    if(!me) return;
+
+    if(!reportId){
+      document.getElementById('loadState').innerHTML =
+        '신고 ID가 지정되지 않았습니다. <a href="Admin_Dashboard.html" class="text-primary font-bold underline">대시보드</a>에서 신고를 선택해 주세요.';
+      return;
+    }
+    let d=null;
+    try{
+      const r = await fetch(API+'/api/admin/reports/'+reportId);
+      if(window.nfHandleAuthError && nfHandleAuthError(r)) return;
+      if(r.status===404){ document.getElementById('loadState').textContent='존재하지 않는 신고입니다.'; return; }
+      d = r.ok ? await r.json() : null;
+    }catch(e){}
+    if(!d){ document.getElementById('loadState').textContent='신고를 불러오지 못했어요.'; return; }
+    render(d);
+    bindActions();
+  })();
+})();
+</script>
 </body>
 </html>

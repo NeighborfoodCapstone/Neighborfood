@@ -255,7 +255,7 @@
     </div>
   </section>
 
-  <a href="Report.html" class="text-[12px] text-on-surface-variant flex items-center gap-1.5 px-2 py-3 mt-3">
+  <a id="reportLink" href="Report.html" class="text-[12px] text-on-surface-variant flex items-center gap-1.5 px-2 py-3 mt-3">
     <span class="material-symbols-outlined" style="font-size:16px">flag</span>
     이 게시물 신고하기
   </a>
@@ -322,6 +322,13 @@
       document.getElementById('hostName').textContent = post.author_nickname || post.author_id || '이웃';
       document.getElementById('hostSub').textContent  =
         (post.address || '동네 미설정') + ' · 호스트';
+
+      // ── 신고 링크에 신고 대상 정보 채우기 (targetType/targetId/targetName 없으면 Report.html에서 대상 식별 불가) ──
+      const reportLink = document.getElementById('reportLink');
+      if (reportLink) {
+        reportLink.href = 'Report.html?targetType=post&targetId=' + encodeURIComponent(post.id || id)
+          + '&targetName=' + encodeURIComponent(post.title || '게시물');
+      }
 
       // 정산 진입점: 작성자에게 항상, 참여자에게는 정산이 존재할 때 표시
       window._gbPostAuthorId = post.author_id;

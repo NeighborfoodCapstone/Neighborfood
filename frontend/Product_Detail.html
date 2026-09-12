@@ -175,9 +175,13 @@
 
   <!-- Report -->
   <section class="mt-5">
-    <a href="Report.html" class="text-[12px] text-on-surface-variant flex items-center gap-1.5 px-2 py-2">
+    <a id="reportLink" href="Report.html" class="text-[12px] text-on-surface-variant flex items-center gap-1.5 px-2 py-2">
       <span class="material-symbols-outlined" style="font-size:16px">flag</span>
       이 게시글 신고하기
+    </a>
+    <a id="authorReportLink" href="Report.html" class="hidden text-[12px] text-on-surface-variant flex items-center gap-1.5 px-2 py-2 border-t border-black/[.04]">
+      <span class="material-symbols-outlined" style="font-size:16px">person_off</span>
+      이 회원 신고하기
     </a>
   </section>
 
@@ -241,7 +245,8 @@
       document.getElementById('descText').textContent  = post.description || '';
       document.getElementById('locationText').textContent = post.address || '동네 미설정';
 
-      document.getElementById('authorName').textContent = post.author_id;
+      document.getElementById('authorName').textContent =
+        post.author_nickname || ('이웃' + post.author_id);
       document.getElementById('authorSub').textContent  =
         (post.address || '') + (post.address ? ' · ' : '') + '도보 5분';
 
@@ -297,12 +302,35 @@
       // Reservation.html로 게시글 ID 전달
       document.getElementById('joinBtn').href = `Reservation.html?id=${id}`;
 
-      // ── 작성자 본인이면 수정/삭제 버튼 표시 ──
+      // 현재 postId를 전역에 저장 (삭제/수정 함수에서 사용)
+      window._currentPostId = post.id || postId;
+      window._currentPost   = post;
+
+      // ── 신고 링크에 신고 대상 정보 채우기 (targetType/targetId/targetName 없으면 Report.html에서 대상 식별 불가) ──
+      const reportLink = document.getElementById('reportLink');
+      if (reportLink) {
+        reportLink.href = 'Report.html?targetType=post&targetId=' + encodeURIComponent(post.id || postId)
+          + '&targetName=' + encodeURIComponent(post.title || '게시글');
+      }
+
+      // ── 회원 신고 링크: 작성자 카드 하단. 본인 게시글이면 숨김 처리 ──
+      const authorReportLink = document.getElementById('authorReportLink');
+      if (authorReportLink && post.author_id) {
+        authorReportLink.href = 'Report.html?targetType=user&targetId='
+          + encodeURIComponent(post.author_id)
+          + '&targetName=' + encodeURIComponent(post.author_nickname || ('이웃' + post.author_id));
+        authorReportLink.classList.remove('hidden');  // 기본 표시 후 본인이면 아래서 숨김
+      }
+
+      // ── 작성자 본인이면 수정/삭제 버튼 표시, 회원 신고 링크 숨김 ──
+      // (authorReportLink 표시 설정 이후에 실행해야 숨김이 덮어씌워지지 않음)
       if (window.nfGetCurrentUserId) {
         const myId = nfGetCurrentUserId();
         if (myId && String(myId) === String(post.author_id)) {
           document.getElementById('editBtn').classList.remove('hidden');
           document.getElementById('deleteBtn').classList.remove('hidden');
+          const arl = document.getElementById('authorReportLink');
+          if (arl) arl.classList.add('hidden');
         }
       } else {
         // nfGetCurrentUserId 없을 경우 — /api/users/me 호출로 확인
@@ -314,13 +342,12 @@
               if (me && String(me.id) === String(post.author_id)) {
                 document.getElementById('editBtn').classList.remove('hidden');
                 document.getElementById('deleteBtn').classList.remove('hidden');
+                const arl = document.getElementById('authorReportLink');
+                if (arl) arl.classList.add('hidden');
               }
             }).catch(() => {});
         }
       }
-      // 현재 postId를 전역에 저장 (삭제/수정 함수에서 사용)
-      window._currentPostId = post.id || postId;
-      window._currentPost   = post;
 
       // ── 지도 (Kakao Maps) ──
       // 좌표가 있으면 그 위치, 없으면 구의1동 기본 좌표

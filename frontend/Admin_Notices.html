@@ -6,6 +6,7 @@
 <title>공지 관리 - NeighborFood</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 <script src="shared/auth.js"></script>
+<script src="shared/adminGuard.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <link href="shared/tokens.css" rel="stylesheet"/>
@@ -44,7 +45,7 @@
       <p class="group-label">개요</p>
       <a href="Admin_Dashboard.html"><span class="material-symbols-outlined" style="font-size:18px">dashboard</span> 대시보드</a>
       <p class="group-label">운영</p>
-      <a href="Admin_Report_Detail.html"><span class="material-symbols-outlined" style="font-size:18px">flag</span> 신고 처리 <span class="ml-auto text-[10px] bg-error text-white px-1.5 rounded">24</span></a>
+      <a href="Admin_Report_Detail.html"><span class="material-symbols-outlined" style="font-size:18px">flag</span> 신고 처리 <span id="navReportBadge" class="ml-auto text-[10px] bg-error text-white px-1.5 rounded">0</span></a>
       <a href="Admin_Chat_History.html"><span class="material-symbols-outlined" style="font-size:18px">chat</span> 채팅 기록</a>
       <a class="on" href="Admin_Notices.html"><span class="material-symbols-outlined" style="font-size:18px">campaign</span> 공지 관리</a>
       <p class="group-label">사용자</p>
@@ -200,13 +201,10 @@
   function esc(s){ const d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
   function fmtDate(iso){ if(!iso) return ''; const d=new Date(iso.endsWith('Z')||iso.includes('+')?iso:iso+'Z'); return isNaN(d)?'':d.toLocaleString('ko-KR'); }
 
-  // 관리자 가드 + 이름 표시
-  (async function guard(){
-    let me=null;
-    try{ me = await fetch(API+'/api/users/me').then(r=>r.ok?r.json():null); }catch(e){}
-    if(!me){ location.replace('Login.html?next='+encodeURIComponent('Admin_Notices.html')); return; }
-    if(me.role!=='admin'){ alert('관리자만 접근할 수 있어요.'); location.replace('Home.html'); return; }
-    const nm=document.getElementById('adminName'); if(nm) nm.textContent = me.nickname||'관리자';
+  // 관리자 가드 (공용 shared/adminGuard.js) + 이름/배지 표시
+  (async function(){
+    const me = await nfRequireAdmin('Admin_Notices.html');
+    if(!me) return;
     loadNotices();
   })();
 

@@ -6,6 +6,7 @@
 <title>운영진 초대 - NeighborFood</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 <script src="shared/auth.js"></script>
+<script src="shared/adminGuard.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <link href="shared/tokens.css" rel="stylesheet"/>
@@ -46,7 +47,7 @@
       <p class="group-label">개요</p>
       <a href="Admin_Dashboard.html"><span class="material-symbols-outlined" style="font-size:18px">dashboard</span> 대시보드</a>
       <p class="group-label">운영</p>
-      <a href="Admin_Report_Detail.html"><span class="material-symbols-outlined" style="font-size:18px">flag</span> 신고 처리 <span class="ml-auto text-[10px] bg-error text-white px-1.5 rounded">24</span></a>
+      <a href="Admin_Report_Detail.html"><span class="material-symbols-outlined" style="font-size:18px">flag</span> 신고 처리 <span id="navReportBadge" class="ml-auto text-[10px] bg-error text-white px-1.5 rounded">0</span></a>
       <a href="Admin_Chat_History.html"><span class="material-symbols-outlined" style="font-size:18px">chat</span> 채팅 기록</a>
       <a href="Admin_Notices.html"><span class="material-symbols-outlined" style="font-size:18px">campaign</span> 공지 관리</a>
       <p class="group-label">사용자</p>
@@ -57,8 +58,8 @@
     </nav>
     <div class="mt-auto bg-white/5 rounded-xl p-2.5 flex gap-2.5 items-center mt-6">
       <div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[11px] font-bold">박</div>
-      <div class="text-[11.5px] min-w-0 flex-1"><p class="font-semibold truncate">박운영</p><p class="text-white/50 text-[10px]">슈퍼 관리자</p></div>
-      <span class="material-symbols-outlined text-white/60" style="font-size:18px">logout</span>
+      <div class="text-[11.5px] min-w-0 flex-1"><p id="adminName" class="font-semibold truncate">관리자</p><p class="text-white/50 text-[10px]">슈퍼 관리자</p></div>
+      <span class="material-symbols-outlined text-white/60 cursor-pointer hover:text-white" style="font-size:18px" onclick="nfLogout('Login.html')">logout</span>
     </div>
   </aside>
 
@@ -74,141 +75,161 @@
     <div class="p-5 md:p-6 max-w-[1100px]">
 
       <p class="text-[11px] font-bold text-on-surface-variant tracking-wide">STAFF · ROLES</p>
-      <h1 class="text-[24px] font-bold mt-0.5">운영진 초대</h1>
-      <p class="text-[12px] text-on-surface-variant mt-1">현재 활동 중 <b class="text-on-surface">8</b>명 · 초대 대기 <b class="text-on-surface">2</b>명</p>
+      <h1 class="text-[24px] font-bold mt-0.5">운영진 관리</h1>
+      <p class="text-[12px] text-on-surface-variant mt-1">현재 운영진 <b id="staffCount" class="text-on-surface">-</b>명 · 기존 회원을 검색해 운영진(관리자)으로 승격하거나 권한을 해제할 수 있어요.</p>
 
       <div class="grid grid-cols-1 lg:grid-cols-5 gap-3 mt-5">
 
-        <!-- Invite form -->
+        <!-- 계정 검색 → 승격 -->
         <section class="lg:col-span-3 bg-white rounded-2xl ring-soft p-5">
-          <h2 class="text-[15px] font-bold">새 운영진 초대</h2>
-          <p class="text-[12px] text-on-surface-variant mt-0.5">이메일로 초대장을 보내거나 기존 사용자를 권한 부여할 수 있어요.</p>
+          <h2 class="text-[15px] font-bold">회원 검색 후 운영진 승격</h2>
+          <p class="text-[12px] text-on-surface-variant mt-0.5">닉네임 또는 아이디로 기존 회원을 찾아 관리자 권한을 부여합니다.</p>
 
-          <!-- Email -->
-          <div class="mt-4">
-            <p class="text-[11.5px] font-bold text-on-surface-variant mb-1.5">이메일 (최대 5명, 쉼표로 구분)</p>
-            <div class="bg-surface-container-low rounded-xl px-3 py-2.5 flex items-center gap-2 ring-1 ring-outline-variant focus-within:ring-primary">
-              <span class="text-[10.5px] font-bold bg-primary text-white px-2 py-1 rounded-full flex items-center gap-1">jisoo@gmail.com <button class="hover:opacity-70"><span class="material-symbols-outlined" style="font-size:12px">close</span></button></span>
-              <span class="text-[10.5px] font-bold bg-primary text-white px-2 py-1 rounded-full flex items-center gap-1">minji@kakao.com <button class="hover:opacity-70"><span class="material-symbols-outlined" style="font-size:12px">close</span></button></span>
-              <input class="flex-1 bg-transparent outline-none text-[13px] min-w-[120px]" placeholder="이메일 추가..."/>
-            </div>
+          <div class="mt-4 bg-surface-container-low rounded-xl px-3 py-2.5 flex items-center gap-2 ring-1 ring-outline-variant focus-within:ring-primary">
+            <span class="material-symbols-outlined text-on-surface-variant" style="font-size:18px">search</span>
+            <input id="staffSearch" class="flex-1 bg-transparent outline-none text-[13px]" placeholder="닉네임 또는 아이디 검색..."/>
           </div>
 
-          <!-- Roles -->
-          <div class="mt-4">
-            <p class="text-[11.5px] font-bold text-on-surface-variant mb-2">역할 선택</p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-              <label class="role-card cursor-pointer block bg-white rounded-xl p-3 ring-1 ring-outline-variant">
-                <input type="radio" name="role" class="sr-only"/>
-                <div class="flex items-center justify-between">
-                  <span class="material-symbols-outlined text-tertiary" style="font-variation-settings:'FILL' 1;">support_agent</span>
-                  <span class="w-4 h-4 rounded-full ring-2 ring-outline-variant"></span>
-                </div>
-                <p class="text-[13.5px] font-bold mt-2">CS 매니저</p>
-                <p class="text-[10.5px] text-on-surface-variant mt-0.5">고객 문의 응대, 신고 1차 검토</p>
-              </label>
-
-              <label class="role-card on cursor-pointer block bg-white rounded-xl p-3 ring-1 ring-outline-variant">
-                <input type="radio" name="role" checked class="sr-only"/>
-                <div class="flex items-center justify-between">
-                  <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">verified_user</span>
-                  <span class="w-4 h-4 rounded-full bg-primary ring-2 ring-primary flex items-center justify-center"><span class="material-symbols-outlined text-white" style="font-size:11px">check</span></span>
-                </div>
-                <p class="text-[13.5px] font-bold mt-2">운영자 <span class="text-[9px] bg-primary-fixed/60 text-on-primary-fixed-variant px-1.5 py-0.5 rounded font-bold ml-1">기본</span></p>
-                <p class="text-[10.5px] text-on-surface-variant mt-0.5">신고 처리, 공지 게시, 사용자 경고</p>
-              </label>
-
-              <label class="role-card cursor-pointer block bg-white rounded-xl p-3 ring-1 ring-outline-variant">
-                <input type="radio" name="role" class="sr-only"/>
-                <div class="flex items-center justify-between">
-                  <span class="material-symbols-outlined text-error" style="font-variation-settings:'FILL' 1;">shield_person</span>
-                  <span class="w-4 h-4 rounded-full ring-2 ring-outline-variant"></span>
-                </div>
-                <p class="text-[13.5px] font-bold mt-2">슈퍼 관리자</p>
-                <p class="text-[10.5px] text-on-surface-variant mt-0.5">모든 권한 + 운영진 관리, 정책</p>
-              </label>
-            </div>
+          <div id="searchResults" class="mt-3 divide-y divide-black/[.05]">
+            <p class="text-[12px] text-on-surface-variant py-6 text-center">검색어를 입력하면 회원 목록이 표시됩니다.</p>
           </div>
 
-          <!-- Permissions detail -->
-          <div class="mt-4 bg-surface-container-low rounded-xl p-3.5">
-            <p class="text-[11.5px] font-bold text-on-surface-variant mb-2">‘운영자’ 기본 권한</p>
-            <ul class="text-[12px] grid grid-cols-1 md:grid-cols-2 gap-y-1.5 gap-x-3">
-              <li class="flex items-center gap-1.5"><span class="material-symbols-outlined text-primary" style="font-size:14px">check</span> 신고 케이스 검토·처리</li>
-              <li class="flex items-center gap-1.5"><span class="material-symbols-outlined text-primary" style="font-size:14px">check</span> 게시글 숨김·삭제</li>
-              <li class="flex items-center gap-1.5"><span class="material-symbols-outlined text-primary" style="font-size:14px">check</span> 사용자 경고·정지 (≤7일)</li>
-              <li class="flex items-center gap-1.5"><span class="material-symbols-outlined text-primary" style="font-size:14px">check</span> 공지 작성·게시</li>
-              <li class="flex items-center gap-1.5"><span class="material-symbols-outlined text-outline" style="font-size:14px">close</span> <span class="text-on-surface-variant">계정 영구 정지</span></li>
-              <li class="flex items-center gap-1.5"><span class="material-symbols-outlined text-outline" style="font-size:14px">close</span> <span class="text-on-surface-variant">운영진 관리</span></li>
-            </ul>
-          </div>
-
-          <!-- Note -->
-          <div class="mt-4">
-            <p class="text-[11.5px] font-bold text-on-surface-variant mb-1.5">개인 메시지 <span class="text-on-surface-variant/60 font-medium">(선택)</span></p>
-            <textarea rows="3" class="w-full px-3 py-2.5 rounded-xl ring-1 ring-outline-variant text-[13px] outline-none focus:ring-primary resize-none" placeholder="초대 메일에 함께 보낼 메시지">안녕하세요! NeighborFood 운영팀 박운영입니다. 함께해 주시면 큰 힘이 될 거예요 :)</textarea>
-          </div>
-
-          <div class="flex justify-end gap-2 mt-4">
-            <button class="text-[12.5px] px-4 py-2.5 rounded-xl ring-1 ring-outline-variant bg-white font-semibold">미리보기</button>
-            <button class="text-[13px] bg-ink text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-1.5"><span class="material-symbols-outlined" style="font-size:16px">send</span> 초대장 발송 (2명)</button>
+          <div class="mt-4 bg-[#fff7ec] border border-[#ffe4bd] rounded-xl p-3.5 flex gap-2">
+            <span class="material-symbols-outlined text-secondary shrink-0" style="font-size:18px;font-variation-settings:'FILL' 1;">info</span>
+            <p class="text-[11.5px] text-on-surface leading-relaxed">운영진(관리자)은 신고 처리·공지 게시·회원 정지 등 모든 관리 기능에 접근할 수 있어요. 신뢰할 수 있는 회원만 승격해 주세요. 이메일 초대 방식은 지원하지 않습니다.</p>
           </div>
         </section>
 
-        <!-- Active staff list -->
+        <!-- 현재 운영진 목록 -->
         <aside class="lg:col-span-2 flex flex-col gap-3">
           <section class="bg-white rounded-2xl ring-soft overflow-hidden">
             <div class="px-4 py-3 flex items-center justify-between border-b border-black/[.05]">
-              <p class="text-[12.5px] font-bold">현재 운영진 <span class="text-on-surface-variant font-medium">8명</span></p>
-              <button class="text-[11px] text-primary font-bold">관리</button>
+              <p class="text-[12.5px] font-bold">현재 운영진 <span id="staffCount2" class="text-on-surface-variant font-medium">-명</span></p>
             </div>
-            <ul class="divide-y divide-black/[.04]">
-              <li class="flex items-center gap-3 px-4 py-3">
-                <div class="w-9 h-9 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[12px] font-bold">박</div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-[13px] font-semibold truncate flex items-center gap-1.5">박운영 <span class="text-[9px] font-bold bg-error text-white px-1.5 py-0.5 rounded">슈퍼</span></p>
-                  <p class="text-[10.5px] text-on-surface-variant">park@neighborfood.com</p>
-                </div>
-                <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
-              </li>
-              <li class="flex items-center gap-3 px-4 py-3">
-                <div class="w-9 h-9 rounded-full bg-tertiary-fixed-dim flex items-center justify-center text-on-tertiary-container text-[12px] font-bold">이</div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-[13px] font-semibold truncate flex items-center gap-1.5">이지수 <span class="text-[9px] font-bold bg-primary-fixed text-on-primary-fixed-variant px-1.5 py-0.5 rounded">운영자</span></p>
-                  <p class="text-[10.5px] text-on-surface-variant">jisoo@neighborfood.com · 3시간 전</p>
-                </div>
-                <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
-              </li>
-              <li class="flex items-center gap-3 px-4 py-3">
-                <div class="w-9 h-9 rounded-full bg-secondary-fixed-dim flex items-center justify-center text-on-secondary-fixed-variant text-[12px] font-bold">김</div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-[13px] font-semibold truncate flex items-center gap-1.5">김다은 <span class="text-[9px] font-bold bg-tertiary-fixed text-on-tertiary-container px-1.5 py-0.5 rounded">CS</span></p>
-                  <p class="text-[10.5px] text-on-surface-variant">daeun@neighborfood.com · 어제</p>
-                </div>
-                <span class="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>
-              </li>
-              <li class="flex items-center gap-3 px-4 py-3 bg-secondary-fixed/15">
-                <div class="w-9 h-9 rounded-full ring-2 ring-dashed ring-secondary flex items-center justify-center text-secondary text-[12px] font-bold">?</div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-[13px] font-semibold truncate flex items-center gap-1.5">민지 이웃 <span class="text-[9px] font-bold bg-secondary-fixed text-on-secondary-fixed-variant px-1.5 py-0.5 rounded">초대 대기</span></p>
-                  <p class="text-[10.5px] text-on-surface-variant">minji@kakao.com · 2일 전 발송</p>
-                </div>
-                <button class="text-[10.5px] font-bold text-primary px-2 py-1 rounded hover:bg-primary/10">재발송</button>
-              </li>
-            </ul>
-          </section>
-
-          <section class="bg-tertiary-fixed/40 ring-1 ring-tertiary-fixed-dim/40 rounded-2xl p-4 flex gap-2">
-            <span class="material-symbols-outlined text-tertiary shrink-0" style="font-variation-settings:'FILL' 1;">tips_and_updates</span>
-            <div>
-              <p class="text-[12.5px] font-bold text-on-tertiary-container">운영진 안전 수칙</p>
-              <p class="text-[11.5px] text-on-tertiary-container/90 mt-1 leading-relaxed">모든 조치는 로그에 기록돼요. 본인 동네에서 활동하는 사용자에게는 직접 조치하지 말고 다른 운영진에게 위임해 주세요.</p>
+            <div id="staffList" class="divide-y divide-black/[.05]">
+              <p class="text-[12px] text-on-surface-variant py-6 text-center">불러오는 중…</p>
             </div>
           </section>
         </aside>
       </div>
     </div>
+
   </main>
 </div>
+
+<script>
+(function(){
+  const API = window.location.origin;
+  let ME = null;
+
+  function esc(s){ const d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+  function initial(s){ s=(s||'').trim(); return s ? s[0] : '?'; }
+  function setText(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
+
+  // ── 현재 운영진 목록 (role=admin) ──
+  async function loadStaff(){
+    const box = document.getElementById('staffList');
+    box.innerHTML = '<p class="text-[12px] text-on-surface-variant py-6 text-center">불러오는 중…</p>';
+    let d=null;
+    try{
+      const r = await fetch(API+'/api/admin/users');
+      if(window.nfHandleAuthError && nfHandleAuthError(r)) return;
+      d = r.ok ? await r.json() : null;
+    }catch(e){}
+    if(!d){ box.innerHTML='<p class="text-[12px] text-error py-6 text-center">불러오지 못했어요.</p>'; return; }
+
+    const staff = d.items.filter(u => u.role==='admin');
+    setText('staffCount', staff.length);
+    setText('staffCount2', staff.length+'명');
+
+    box.innerHTML = staff.length
+      ? staff.map(u => {
+          const isSelf = ME && u.id===ME.id;
+          return '<div class="px-4 py-3 flex items-center gap-3">'
+            + '<div class="w-9 h-9 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant text-[12px] font-bold">'+esc(initial(u.nickname))+'</div>'
+            + '<div class="flex-1 min-w-0">'
+            +   '<p class="text-[13px] font-semibold truncate flex items-center gap-1.5">'+esc(u.nickname||'(이름 없음)')
+            +     (isSelf?' <span class="text-[9px] font-bold bg-ink text-white px-1.5 py-0.5 rounded">나</span>':'')+'</p>'
+            +   '<p class="text-[10.5px] text-on-surface-variant">@'+esc(u.login_id)+'</p>'
+            + '</div>'
+            + (isSelf
+                ? '<span class="text-[10.5px] text-on-surface-variant">본인</span>'
+                : '<button data-demote="'+u.id+'" data-nick="'+esc(u.nickname)+'" class="demote-btn text-[11px] font-bold text-error px-2.5 py-1.5 rounded-lg hover:bg-error/10">권한 해제</button>')
+            + '</div>';
+        }).join('')
+      : '<p class="text-[12px] text-on-surface-variant py-6 text-center">운영진이 없습니다.</p>';
+
+    box.querySelectorAll('.demote-btn').forEach(b => b.addEventListener('click', () =>
+      changeRole(Number(b.dataset.demote), 'user', '"'+b.dataset.nick+'" 님의 운영진 권한을 해제할까요?', '운영진 권한을 해제했습니다.')));
+  }
+
+  // ── 검색 결과 ──
+  async function search(q){
+    const box = document.getElementById('searchResults');
+    if(!q){ box.innerHTML='<p class="text-[12px] text-on-surface-variant py-6 text-center">검색어를 입력하면 회원 목록이 표시됩니다.</p>'; return; }
+    box.innerHTML = '<p class="text-[12px] text-on-surface-variant py-6 text-center">검색 중…</p>';
+    let d=null;
+    try{
+      const r = await fetch(API+'/api/admin/users?q='+encodeURIComponent(q));
+      if(window.nfHandleAuthError && nfHandleAuthError(r)) return;
+      d = r.ok ? await r.json() : null;
+    }catch(e){}
+    if(!d){ box.innerHTML='<p class="text-[12px] text-error py-6 text-center">검색에 실패했어요.</p>'; return; }
+
+    box.innerHTML = d.items.length
+      ? d.items.map(u => {
+          const isSelf = ME && u.id===ME.id;
+          const isAdmin = u.role==='admin';
+          let right;
+          if(isSelf) right = '<span class="text-[10.5px] text-on-surface-variant">본인</span>';
+          else if(isAdmin) right = '<span class="text-[10px] font-bold bg-primary-fixed text-on-primary-fixed-variant px-2 py-1 rounded-full">이미 운영진</span>';
+          else right = '<button data-promote="'+u.id+'" data-nick="'+esc(u.nickname)+'" class="promote-btn text-[11px] font-bold bg-ink text-white px-2.5 py-1.5 rounded-lg">운영진 승격</button>';
+          return '<div class="py-3 flex items-center gap-3">'
+            + '<div class="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface text-[12px] font-bold">'+esc(initial(u.nickname))+'</div>'
+            + '<div class="flex-1 min-w-0">'
+            +   '<p class="text-[13px] font-semibold truncate">'+esc(u.nickname||'(이름 없음)')+(isAdmin?' <span class="text-[9px] bg-ink text-white px-1.5 py-0.5 rounded font-bold align-middle">관리자</span>':'')+'</p>'
+            +   '<p class="text-[10.5px] text-on-surface-variant">@'+esc(u.login_id)+' · '+esc(u.neighborhood||'동네 미설정')+'</p>'
+            + '</div>' + right + '</div>';
+        }).join('')
+      : '<p class="text-[12px] text-on-surface-variant py-6 text-center">검색 결과가 없습니다.</p>';
+
+    box.querySelectorAll('.promote-btn').forEach(b => b.addEventListener('click', () =>
+      changeRole(Number(b.dataset.promote), 'admin', '"'+b.dataset.nick+'" 님을 운영진(관리자)으로 승격할까요?', '운영진으로 승격했습니다.')));
+  }
+
+  // ── 역할 변경 (승격/해제 공통) ──
+  async function changeRole(id, role, confirmMsg, doneMsg){
+    if(!confirm(confirmMsg)) return;
+    try{
+      const r = await fetch(API+'/api/admin/users/'+id, {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({role})
+      });
+      if(window.nfHandleAuthError && nfHandleAuthError(r)) return;
+      if(r.ok){
+        alert(doneMsg);
+        loadStaff();
+        const q=(document.getElementById('staffSearch').value||'').trim();
+        if(q) search(q);   // 검색 결과도 갱신
+      } else { const e=await r.json().catch(()=>({})); alert((e&&e.detail)||'처리에 실패했어요.'); }
+    }catch(e){ alert('서버에 연결할 수 없어요.'); }
+  }
+
+  // ── 검색 입력 (디바운스) ──
+  const searchEl = document.getElementById('staffSearch');
+  let debounce;
+  if(searchEl) searchEl.addEventListener('input', function(){
+    clearTimeout(debounce);
+    debounce = setTimeout(function(){ search(searchEl.value.trim()); }, 300);
+  });
+
+  // ── 시작 ──
+  (async function(){
+    ME = await nfRequireAdmin('Admin_Staff_Invite.html');
+    if(!ME) return;
+    loadStaff();
+  })();
+})();
+</script>
 </body>
-</html>
+</html>v
