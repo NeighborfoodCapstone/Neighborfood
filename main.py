@@ -1,4 +1,4 @@
-# 마지막 수정 : 2026.08.03
+# 마지막 수정 : 2026.09.12
 # 깃헙 저장소  : https://github.com/NeighborfoodCapstone/Neighborfood.git
 # API 문서    : http://127.0.0.1:8000/docs
 #
@@ -61,9 +61,19 @@ app.mount("/frontend", StaticFiles(directory=PAGE_DIR),   name="frontend")
 app.mount("/shared",   StaticFiles(directory=os.path.join(PAGE_DIR, "shared")), name="shared")
 
 # ── CORS ──────────────────────────────────────────────────────────────────
+# .env의 ALLOWED_ORIGINS(콤마 구분)가 있으면 그 도메인만 허용하고, 없으면 개발 편의를
+# 위해 "*"로 전체 허용합니다. 배포 시에는 반드시 .env에 실제 도메인을 지정하세요.
+#   예) ALLOWED_ORIGINS=https://neighborfood.com,https://www.neighborfood.com
+_origins_raw = os.getenv("ALLOWED_ORIGINS", "").strip()
+_allowed_origins = [o.strip() for o in _origins_raw.split(",") if o.strip()] or ["*"]
+if _allowed_origins == ["*"]:
+    print("[CORS] ALLOWED_ORIGINS 미설정 → 모든 출처 허용(*). 배포 전 .env에 도메인을 지정하세요.")
+else:
+    print(f"[CORS] 허용 출처: {_allowed_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins = ["*"],   # 배포 시 실제 도메인으로 교체
+    allow_origins = _allowed_origins,
     allow_methods = ["*"],
     allow_headers = ["*"],
 )
