@@ -3,8 +3,9 @@
 동네 식재료 나눔·공동구매·교환 플랫폼의 데이터베이스 구조 및 프로젝트 디렉토리 문서입니다.
 3개로 분리돼 있던 SQLite(`auth.db` / `qr_auth.db` / `receipt_auth.db`)를 **단일 SQLite 파일(`data/neighborfood.db`)** 로 통합하고, 회원 기능 도입에 맞춰 `users`·`sessions`·`transactions`·`groupbuy_participants`를 추가한 현행 구조를 정리합니다.
  
-> 최종 갱신: 2026-08-22
-> 2026-09-08 문서-저장소 정합성 검토: `seed_admin.py` 등 7개 스크립트 + `posts.json`이 저장소에 미존재 확인(§0 참고), `frontend/vendor/html5-qrcode.min.js`·`tests/test_receipt_parser_v212.py` 신규 반영, 테이블 수 18→19 정정(`manner_ratings` 누락 보완, §9-7 신설), 프런트 목록의 `QR_Create` 제거(실존 파일 아님), §11 정산 API 개수 오기재 정정(9종→13종).
+> 최종 갱신: 2026-09-19
+> 2026-09-19 문서-소스 정합성 점검: `settlements` 약속 컬럼 4개(`appointment_place/at/lat/lng`) 누락 보완(다이어그램·§9-6), `seed_admin.py` 복원·`reset_db.py` 존재 반영(§0·§10.5), `adminGuard.js`·`frontend-react/`·`Neighborfood_React_실행_안내.md` 트리 반영, §11 정산 DB 레이어 설명 정정(GPS 자동확인은 제거된 기능). **DB 스키마 자체의 변경은 없음**(2026-09-12 관리자 연동·2026-09-14 React 추가는 기존 테이블/API 재사용).
+> 2026-09-08 문서-저장소 정합성 검토: `seed_admin.py` 등 7개 스크립트 + `posts.json`이 저장소에 미존재 확인(§0 참고 — ⚠️ 2026-09-19 정정: `seed_admin.py`·`reset_db.py`는 존재), `frontend/vendor/html5-qrcode.min.js`·`tests/test_receipt_parser_v212.py` 신규 반영, 테이블 수 18→19 정정(`manner_ratings` 누락 보완, §9-7 신설), 프런트 목록의 `QR_Create` 제거(실존 파일 아님), §11 정산 API 개수 오기재 정정(9종→13종).
 > · 영수증 파서 v2.1 — 마트형 구조(`순번→품목명→바코드→단가→수량→금액`) 파싱 추가, 용량 토큰(900ML/150g) 상품명 결합, PLU·바코드 가격 오인 방지 정규식 강화 (2026-08-22)
 > · 영수증 `RC_NOISE_KW` 키워드 보강 — 카페형 메타 문구(POS/카카오페이/번호 등) 품목 오인식 방지 (2026-08-17)
 > · UX 갭 감사·해소 — Admin 연동(Notices·Chat_History), 참여/취소 토글, 게시글 수정 흐름, 공개 공지 아코디언, 매너 평가 리다이렉트, `messages.is_system` 컬럼 추가 (2026-08-12)
@@ -72,10 +73,16 @@ NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 │   ├── shared/                       공통 자산 (JS · CSS)
 │   │   ├── auth.js                   토큰 저장(localStorage) + fetch 자동 인증 주입
 │   │   ├── guard.js                  회원 전용 페이지 접근 가드 (nfRequireMember())
+│   │   ├── adminGuard.js             관리자 전용 페이지 접근 가드 (nfRequireAdmin(), 신규 2026-09-12)
 │   │   ├── profile.js                프로필 조회/수정/탈퇴 호출 헬퍼
 │   │   └── tokens.css                디자인 토큰(CSS 변수)
 │   └── vendor/                       외부 라이브러리 로컬 사본 [신규]
 │       └── html5-qrcode.min.js       QR/바코드 스캔 — CDN 장애 대비 1차 로드 경로
+│
+├── frontend-react/                 ▶ React(Vite) 프런트엔드 [신규 2026-09-14] — 홈 화면 부분 마이그레이션 (DB 변경 없음)
+│   ├── src/neighborfood/             api.ts(GET /posts 재사용·legacy() 헬퍼) · AppLayout.tsx · HomePage.tsx · home.css · Icon.tsx
+│   ├── src/                          App.tsx · main.tsx · App.css · index.css
+│   └── package.json · vite.config.ts · tsconfig*.json · .oxlintrc.json   (Vite 8 + React 19 + TypeScript, Oxlint)
 │
 ├── sql/                            ▶ 현재 프로젝트 스키마
 │   └── neighborfood_schema.sql       전체 테이블 DDL (단일 진실 소스)
@@ -91,17 +98,21 @@ NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 ├── .vscode/  __pycache__/          에디터 설정 / 바이트코드 캐시
 │
 ├── main.py                         FastAPI 엔트리포인트 (미들웨어·정적 마운트·라우터 등록)
+├── seed_admin.py                   관리자 계정 생성/승격 (2026-09-12 복원)
+├── reset_db.py                     DB 초기화 — 전체 데이터 삭제 + Admin 재생성
 ├── neighborfood_ERD.md             (이 문서) DB 구조 + 디렉토리
 ├── README.md                       프로젝트 개요·실행 가이드
 ├── NeighborFood_Architecture_Plan.md  아키텍처 현황 및 개발 이력
 ├── Settlement_Implementation_Plan.md  정산 시스템 구현 계획
 ├── Capstone.md                     개발 컨텍스트·제약사항 요약
+├── Neighborfood_React_실행_안내.md  백엔드 + React 로컬 실행 안내서
 ├── requirements.txt                파이썬 의존성
 ├── .env  .env.example  .gitignore  환경 변수 / 템플릿 / 제외 목록
 ```
  
 > ⚠️ **문서-저장소 정합성 안내 (2026-09-08 확인, README.md·NeighborFood_Architecture_Plan.md·Capstone.md와 동일 사안)**
-> 이전 버전 트리에는 `seed_admin.py`(관리자 계정 부트스트랩), `seed_posts.py`(더미 게시글 시드), `Seed_Account.py`(테스트 계정+완료 거래 시드), `Seed_capstone_settlement.py`(정산 수동 테스트 시드), `Seed_settlement_verify.py`(정산 API 자동 검증), `nf_functional_test.py`(전체 기능 자동 테스트), `reset_db.py`(DB 초기화), `posts.json`(초기 게시글 시드 데이터) 총 8개 파일이 있었으나, 저장소 최신 구조 확인 결과 더 이상 존재하지 않아 제거함. 10.5의 `seed_admin.py` 안내는 스크립트 재도입 전까지 실행되지 않는다.
+> 이전 버전 트리에는 `seed_admin.py`(관리자 계정 부트스트랩), `seed_posts.py`(더미 게시글 시드), `Seed_Account.py`(테스트 계정+완료 거래 시드), `Seed_capstone_settlement.py`(정산 수동 테스트 시드), `Seed_settlement_verify.py`(정산 API 자동 검증), `nf_functional_test.py`(전체 기능 자동 테스트), `reset_db.py`(DB 초기화), `posts.json`(초기 게시글 시드 데이터) 총 8개 파일이 있었으나, 저장소 최신 구조 확인 결과 더 이상 존재하지 않아 제거함. 
+> **2026-09-19 정정**: 위 8개 중 `seed_admin.py`(2026-09-12 복원)와 `reset_db.py`는 저장소에 **존재**하며 정상 사용 가능합니다. 나머지 6개(`seed_posts.py`, `Seed_Account.py`, `Seed_capstone_settlement.py`, `Seed_settlement_verify.py`, `nf_functional_test.py`, `posts.json`)만 여전히 없습니다. §10.5의 `seed_admin.py` 안내는 유효합니다.
  
 > `data/`, `uploads/`, `venv/`, `.venv/`, `__pycache__/`, `.env`는 `.gitignore` 대상입니다.
 > 정적 서빙: `main.py`가 `/frontend`(화면)·`/shared`(공통 JS)·`/uploads`를 마운트하며, 카메라 화면(QR/영수증)은 `/QR_Scan.html` 등 루트 라우트로도 서빙합니다.
@@ -254,6 +265,10 @@ erDiagram
         INTEGER total_amount "정산 총 금액(원)"
         TEXT account_info "주최자 계좌(평문, 선택)"
         TEXT status "pending / completed / canceled"
+        TEXT appointment_place "약속 장소 (posts에서 승계)"
+        TEXT appointment_at "약속 일시 (ISO)"
+        REAL appointment_lat "약속 위도 — GPS 100m 검증 기준"
+        REAL appointment_lng "약속 경도 — GPS 100m 검증 기준"
         TEXT created_at
         TEXT completed_at
     }
@@ -694,6 +709,10 @@ Step 2: QR 대면 인증 (주최자가 참여자 QR 스캔)
 | `total_amount` | `INTEGER` | NOT NULL | 주최자가 입력한 총 정산 금액(원) |
 | `account_info` | `TEXT` | | 주최자 계좌 정보(평문, 선택) |
 | `status` | `TEXT` | NOT NULL, 기본 `pending` (CHECK) | `pending` / `completed` / `canceled` |
+| `appointment_place` | `TEXT` | | 거래 약속 장소 (`posts.appointment_*`에서 승계 또는 정산 화면에서 변경) |
+| `appointment_at` | `TEXT` | | 거래 약속 일시(ISO-8601) |
+| `appointment_lat` | `REAL` | | 약속 위도 — 참여자 GPS 100m 서버 검증 기준 |
+| `appointment_lng` | `REAL` | | 약속 경도 — 참여자 GPS 100m 서버 검증 기준 |
 | `created_at` | `TEXT` | NOT NULL | 정산 생성 시각(ISO) |
 | `completed_at` | `TEXT` | | 완료 처리 시각(ISO) |
  
@@ -755,7 +774,7 @@ Step 2: QR 대면 인증 (주최자가 참여자 QR 스캔)
 가입은 `/api/auth/register`(ID·비밀번호·휴대폰 입력, OTP 검증 없음), 로그인은 `/api/auth/login`(ID·비밀번호)으로 수행하고 세션 토큰을 발급합니다. 휴대폰 OTP(`/request-auth` → `/reset-password`)는 **비밀번호 재설정에만** 사용하며, 가입된 번호에만 발송됩니다. 비밀번호는 표준 라이브러리 PBKDF2-SHA256(`salt$hash`, 20만회 반복)으로 저장합니다. 탈퇴는 행 삭제 대신 `status='withdrawn'` 소프트삭제로 거래 이력 무결성을 보존합니다. 로그인 시 `role=admin`이면 `Admin_Dashboard.html`로 분기합니다.
  
 ### 10.5 접근 정책 — 비회원/회원/관리자 3단계
-비회원은 게시판(목록·상세)·지도 열람만 가능하고, 글 작성·거래·채팅·찜·내 활동·마이페이지·동네 인증은 회원 전용입니다(서버: `get_current_user` 의존성 / 프런트: `shared/guard.js`의 `nfRequireMember()`). **관리자 기능**은 `get_current_admin` 가드로 보호되는 `/api/admin/*`로 구현되어 있습니다. 관리자 계정은 일반 가입으로 만들 수 없고 ~~`seed_admin.py`(1회성 시드, 전화번호 충돌 자동 회피·기존 계정 승격 지원)로만~~ 생성/승격합니다 (⚠️ 해당 스크립트는 2026-09-08 기준 저장소에 미존재, §0 참고 — 대체 절차 필요).
+비회원은 게시판(목록·상세)·지도 열람만 가능하고, 글 작성·거래·채팅·찜·내 활동·마이페이지·동네 인증은 회원 전용입니다(서버: `get_current_user` 의존성 / 프런트: `shared/guard.js`의 `nfRequireMember()`). **관리자 기능**은 `get_current_admin` 가드로 보호되는 `/api/admin/*`로 구현되어 있습니다. 관리자 계정은 일반 가입으로 만들 수 없고 `seed_admin.py`(전화번호 충돌 자동 회피·기존 계정 승격 지원, 멱등)로만 생성/승격합니다 (2026-09-12 복원, `python seed_admin.py` / `python seed_admin.py <login_id>`). 관리자 전용 화면은 `frontend/shared/adminGuard.js`의 `nfRequireAdmin()`으로 보호합니다(6개 `Admin_*.html` 공통, 2026-09-12). 전체 데이터 초기화는 `reset_db.py`를 사용합니다.
  
 ### 10.6 동시성 주의 사항
 - `gb_current` 갱신: 반드시 `SET gb_current = gb_current + 1` 원자적 UPDATE 사용.
@@ -771,13 +790,13 @@ Step 2: QR 대면 인증 (주최자가 참여자 QR 스캔)
 | `data/neighborfood.db` | 단일 SQLite 데이터 파일 (startup 시 자동 생성) |
 | `app/db/base.py` | 연결 팩토리(WAL+busy_timeout), `init_all_databases()` |
 | `app/db/auth_db.py` | `users`·`sessions`·`auth_codes`·`posts` |
-| `app/db/transaction_db.py` | `transactions`·`groupbuy_participants`·`manner_ratings` |
+| `app/db/transaction_db.py` | `transactions`·`groupbuy_participants`·`manner_ratings`·`settlements`·`settlement_shares` (DDL·멱등 마이그레이션) |
 | `app/db/member_db.py` | `wishlists`·`conversations`(+`kind`)·`messages`·`conversation_members` |
 | `app/db/fridge_db.py` | `fridge_items` (내 냉장고) |
 | `app/db/admin_db.py` | `notices`·`reports` |
 | `app/db/qr_db.py` / `receipt_db.py` | `qr_sessions` / `receipts` |
 | `app/db/location_verify_db.py` | `location_verify_sessions` (GPS 위치 인증, 지연 초기화) |
-| `app/db/settlement_db.py` | `settlements` · `settlement_shares` CRUD, GPS 자동확인, QR 품질동의 연동 |
+| `app/db/settlement_db.py` | `settlements` · `settlement_shares` CRUD, GPS 100m 서버 검증, QR 인증(quality_agreed) 연동, 노쇼 처리, 완료→`transactions` 생성, `has_unpaid_settlement()` (GPS+24h 자동 납부 확인은 2026-08-06 제거) |
 | `app/routers/settlements.py` | 정산 API (`/api/settlements/*`) — 노쇼 취소 `DELETE` 포함 13종 |
 | `app/core/deps.py` | 세션 토큰 인증/인가 (`get_current_user`, `get_current_admin`) |
 | `app/routers/users.py` | 회원 프로필/탈퇴 API |
@@ -789,4 +808,7 @@ Step 2: QR 대면 인증 (주최자가 참여자 QR 스캔)
 | `app/routers/ratings.py` | 매너 평가 API (`/api/ratings/*`) |
 | `frontend/shared/auth.js` | 토큰 저장 + fetch 자동 인증 주입 |
 | `frontend/shared/guard.js` | 회원 전용 페이지 접근 가드 (`nfRequireMember()`) |
+| `frontend/shared/adminGuard.js` | 관리자 전용 페이지 접근 가드 (`nfRequireAdmin()`) — 6개 `Admin_*.html` 공통 |
+| `frontend-react/` | React(Vite) 홈 화면 — DB 접근 없이 `GET /posts`만 사용 |
+| `seed_admin.py` / `reset_db.py` | 관리자 계정 생성·승격 / DB 데이터 전체 초기화 |
 | `main.py` | FastAPI 서버 본체 (정적 마운트·라우터 등록) |
