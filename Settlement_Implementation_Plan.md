@@ -1,7 +1,8 @@
 # NeighborFood — 정산 시스템 구현 계획 (A+ 안)
 
 > 작성: 2026-08-03  
-> 최종 수정: 2026-09-08 (§8 테스트 시나리오 현황 재정리 — nf_functional_test.py 부재 반영)  
+> 최종 수정: 2026-09-19 (문서-소스 정합성 점검 — §3 자동 납부 확인 블록 제거 표기, 마크다운 개수 정정)  
+> 이전 수정: 2026-09-08 (§8 테스트 시나리오 현황 재정리 — nf_functional_test.py 부재 반영)  
 > 상태: **전체 흐름 구현 완료 + UX 갭 해소 완료** — 채팅→약속→GPS(100m)→QR→납부→정산완료→매너평가 end-to-end 동작 확인  
 > 참조 화면: `Settlement.html` · `Group_Chat.html` · `Local_Verify_Demo.html` · `My_Activity.html` (모두 실데이터 연동)
 >
@@ -140,16 +141,13 @@ groupbuy_participants 에서 참여자 목록 조회
 settlement_shares를 참여자 수만큼 일괄 INSERT (status='unpaid')
 ```
 
-**자동 납부 확인 판단 (`GET /api/settlements/{id}` 조회 시)**
+**~~자동 납부 확인 판단~~ → 제거됨 (2026-08-06 설계 결정, 2026-09-19 문서 정정)**
 ```
-각 share에 대해:
-  share.status == 'unpaid' AND
-  location_verify_sessions에 해당 user_id(subject_id)의
-    LOCATION_VERIFIED 기록이 있음 AND
-  해당 세션의 verified_at 으로부터 24시간 초과
-    → share.status = 'paid', auto_confirmed = 1, paid_at = now
+과거 설계: GET 조회 시 GPS 인증 후 24시간 경과한 unpaid share를 서버가 자동으로 paid 처리.
+현재: 자동 납부 확인 로직 없음. 납부는 §4의 순차 2단계(GPS → QR) 완료 후
+      참여자가 POST /api/settlements/{id}/shares/me/pay 로 직접 표시한다.
 ```
-별도 스케줄러 없이 조회 시점에 서버가 판단.
+`settlement_shares.auto_confirmed` 컬럼과 상세 응답의 `autoConfirmed` 필드는 하위호환을 위해 남아 있으나 더 이상 세팅되지 않는다(§2-2, §5 참고).
 
 **노쇼 신고 (`POST .../shares/{user_id}/noshow`)**
 ```
@@ -392,7 +390,7 @@ Settlement.html?settlementId=456 ← 채팅방 "거래 인증·정산" / Transac
 ✅ ⑮ location_verify.py 전체 라우터 재구성 (stub→완전한 파일)
 ✅ ⑯ location_verify_db.py DEFAULT_RADIUS_M = 100
 ⬜ ⑰ ~~nf_functional_test.py 시나리오 추가~~ (⚠️ 2026-09-08 확인: 해당 스크립트 저장소에서 제거됨 — §8 참고)
-✅ ⑱ 마크다운 4개 파일 업데이트 (2026-08-06)
+✅ ⑱ 마크다운 문서 업데이트 (2026-08-06 최초 4개 → 2026-09-19 기준 6개 문서 정합성 점검 완료)
 ```
 
 ---
@@ -424,4 +422,4 @@ Settlement.html?settlementId=456 ← 채팅방 "거래 인증·정산" / Transac
 **신규 파일**: `settlement_db.py`, `settlements.py` 2개  
 **재구성 파일**: `location_verify.py` 1개  
 **수정 파일**: 13개 (2026-09-12: posts.py join_groupbuy 참여 차단 적용 완료로 포함) + 2026-08-12 추가 수정 (`Admin_Notices.html`, `Admin_Chat_History.html`, `Group_Buy_Detail.html`, `Settlement.html`, `Help.html`, `Create_Post.html`, `My_Activity.html`, `posts.py`)  
-**마크다운 업데이트**: 4개 완료 (2026-08-22 재갱신)
+**마크다운 업데이트**: 6개 문서(README·Capstone·Architecture Plan·ERD·본 문서·React 실행 안내) — 2026-09-19 재점검 완료
