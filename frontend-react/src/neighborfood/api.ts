@@ -1,6 +1,6 @@
 // Public backend origin only. Never put a secret in VITE_* variables.
-export const backend = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')
-export function legacy(page: string) { return `${backend}/frontend/${page}` }
+export const backend = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+export function legacy(page: string) { return `#/${page.replace(/\.html(?=\?|$)/, "")}` }
 
 export interface Post {
   id: number

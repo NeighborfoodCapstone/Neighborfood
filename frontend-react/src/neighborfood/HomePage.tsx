@@ -1,3 +1,5 @@
+import { Autocomplete } from "../migration/autocomplete"
+import { LoadingState, useLoadingTask } from "../migration/loading"
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { backend, getPosts, legacy } from './api'
@@ -28,6 +30,7 @@ function PostCard({ post }: { post: Post }) {
 }
 
 export function HomePage() {
+  const begin=useLoadingTask()
   const [category, setCategory] = useState('전체')
   const [draft, setDraft] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -38,25 +41,26 @@ export function HomePage() {
 
   useEffect(() => {
     const controller = new AbortController()
+    const done=begin()
     setLoading(true)
     setError('')
     getPosts(category, keyword, controller.signal).then(items => {
       if (!controller.signal.aborted) setPosts(items)
     }).catch(reason => {
       if (!controller.signal.aborted) setError(reason instanceof TypeError ? '서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.' : reason.message || '게시글을 불러오지 못했어요.')
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
-    return () => controller.abort()
-  }, [category, keyword, retry])
+    }).finally(() => { done(); if (!controller.signal.aborted) setLoading(false) })
+    return () => {controller.abort();done()}
+  }, [category, keyword, retry, begin])
 
   function search(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setKeyword(draft.trim()) }
   return <>
     <section className="nf-intro" aria-labelledby="home-title">
       <p className="nf-eyebrow">우리 동네 식재료 나눔</p>
       <h1 id="home-title">조금 남은 식재료,<br /><span>이웃에겐 필요한 한 끼.</span></h1>
-      <p className="nf-intro-copy">나누고, 바꾸고, 함께 사요.</p>
+      
       <form className="nf-search" onSubmit={search} role="search">
         <Icon name="search" /><label className="nf-sr-only" htmlFor="food-search">식재료 검색</label>
-        <input id="food-search" value={draft} onChange={e => setDraft(e.target.value)} placeholder="어떤 식재료를 찾으세요?" type="search" maxLength={100} />
+        <Autocomplete id="food-search" label="식재료 검색" value={draft} onChange={setDraft} onSelect={item=>setKeyword(item.value)} placeholder="어떤 식재료를 찾으세요?" />
         <button type="submit">검색</button>
       </form>
     </section>
@@ -69,12 +73,12 @@ export function HomePage() {
       <div className="nf-categories" role="group" aria-label="식재료 카테고리">{categories.map(item => <button key={item} aria-pressed={item === category} onClick={() => setCategory(item)}>{item}</button>)}</div>
       {keyword && <div className="nf-query"><span>“{keyword}” 검색 결과</span><button onClick={() => {setKeyword(''); setDraft('')}}>검색 해제 ×</button></div>}
       <div aria-live="polite" aria-busy={loading}>
-        {loading ? <div className="nf-state" role="status">식재료를 불러오는 중이에요…</div>
+        {loading ? <LoadingState label="식재료를 불러오는 중…"/>
           : error ? <div className="nf-state" role="alert"><p>{error}</p><button className="nf-retry" onClick={() => setRetry(v => v + 1)}>다시 불러오기</button></div>
           : posts.length === 0 ? <div className="nf-state"><Icon name="leaf" /><p>아직 등록된 식재료가 없어요.</p><span>다른 카테고리를 보거나 첫 나눔을 시작해 보세요.</span><a className="nf-retry" href={legacy('Create_Post.html')}>식재료 등록하기</a></div>
           : <div className="nf-post-grid">{posts.map(post => <PostCard key={`${post.id}-${post.images?.[0]}`} post={post} />)}</div>}
       </div>
     </section>
-    <footer className="nf-footer">가까운 이웃과, 조금 더 알뜰한 식탁.<span>NEIGHBORFOOD</span></footer>
+    
   </>
 }
