@@ -3,12 +3,13 @@
 동네 식재료 나눔·공동구매·교환 플랫폼의 데이터베이스 구조 및 프로젝트 디렉토리 문서입니다.
 3개로 분리돼 있던 SQLite(`auth.db` / `qr_auth.db` / `receipt_auth.db`)를 **단일 SQLite 파일(`data/neighborfood.db`)** 로 통합하고, 회원 기능 도입에 맞춰 `users`·`sessions`·`transactions`·`groupbuy_participants`를 추가한 현행 구조를 정리합니다.
  
-> 최종 갱신: 2026-09-19
+> 최종 갱신: 2026-09-21
+> 2026-09-21 React 전체 화면 이전 반영: §0 디렉토리 트리의 `frontend-react/`를 전체 이전 구조(`src/migration/`, `docs/`)로 갱신, 공개 공지 API(`GET /api/notices`) 미구현 정정. **DB 스키마 변경 없음**(React 화면은 기존 테이블·API 재사용).
 > 2026-09-19 문서-소스 정합성 점검: `settlements` 약속 컬럼 4개(`appointment_place/at/lat/lng`) 누락 보완(다이어그램·§9-6), `seed_admin.py` 복원·`reset_db.py` 존재 반영(§0·§10.5), `adminGuard.js`·`frontend-react/`·`Neighborfood_React_실행_안내.md` 트리 반영, §11 정산 DB 레이어 설명 정정(GPS 자동확인은 제거된 기능). **DB 스키마 자체의 변경은 없음**(2026-09-12 관리자 연동·2026-09-14 React 추가는 기존 테이블/API 재사용).
 > 2026-09-08 문서-저장소 정합성 검토: `seed_admin.py` 등 7개 스크립트 + `posts.json`이 저장소에 미존재 확인(§0 참고 — ⚠️ 2026-09-19 정정: `seed_admin.py`·`reset_db.py`는 존재), `frontend/vendor/html5-qrcode.min.js`·`tests/test_receipt_parser_v212.py` 신규 반영, 테이블 수 18→19 정정(`manner_ratings` 누락 보완, §9-7 신설), 프런트 목록의 `QR_Create` 제거(실존 파일 아님), §11 정산 API 개수 오기재 정정(9종→13종).
 > · 영수증 파서 v2.1 — 마트형 구조(`순번→품목명→바코드→단가→수량→금액`) 파싱 추가, 용량 토큰(900ML/150g) 상품명 결합, PLU·바코드 가격 오인 방지 정규식 강화 (2026-08-22)
 > · 영수증 `RC_NOISE_KW` 키워드 보강 — 카페형 메타 문구(POS/카카오페이/번호 등) 품목 오인식 방지 (2026-08-17)
-> · UX 갭 감사·해소 — Admin 연동(Notices·Chat_History), 참여/취소 토글, 게시글 수정 흐름, 공개 공지 아코디언, 매너 평가 리다이렉트, `messages.is_system` 컬럼 추가 (2026-08-12)
+> · UX 갭 감사·해소 — Admin 연동(Notices·Chat_History), 참여/취소 토글, 게시글 수정 흐름, 공개 공지 아코디언(⚠️ 2026-09-21 정정: 호출 대상인 공개 공지 API는 코드에 없음), 매너 평가 리다이렉트, `messages.is_system` 컬럼 추가 (2026-08-12)
 > · `posts` 테이블에 약속 좌표(`appointment_lat/lng`) 4개 컬럼 추가, `POST /posts/{id}/appointment` 신규 (2026-08-07)
 > · **정산 시스템** 구현 완료 — `settlements` + `settlement_shares` 2개 테이블 추가, `settlement_db.py` 신규 (2026-08-04)
 > · GPS 위치 인증 보안 강화 — 전 API Bearer 인증·소유자 검증, `list_sessions(subject_id)` 필터, QR 인증 성공 시 `QR_VERIFIED` 연동 실호출 (2026-08-03)
@@ -79,11 +80,15 @@ NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 │   └── vendor/                       외부 라이브러리 로컬 사본 [신규]
 │       └── html5-qrcode.min.js       QR/바코드 스캔 — CDN 장애 대비 1차 로드 경로
 │
-├── frontend-react/                 ▶ React(Vite) 프런트엔드 [신규 2026-09-14] — 홈 화면 부분 마이그레이션 (DB 변경 없음)
-│   ├── src/neighborfood/             api.ts(GET /posts 재사용·legacy() 헬퍼) · AppLayout.tsx · HomePage.tsx · home.css · Icon.tsx
-│   ├── src/                          App.tsx · main.tsx · App.css · index.css
-│   └── package.json · vite.config.ts · tsconfig*.json · .oxlintrc.json   (Vite 8 + React 19 + TypeScript, Oxlint)
+├── frontend-react/                 ▶ React(Vite) 프런트엔드 [2026-09-14 신규 → 2026-09-20~21 화면 39개 전체 이전] (DB 변경 없음)
+│   ├── docs/                         DESIGN_CONTEXT.md(공통 디자인·로딩·자동완성 기준) · MIGRATION_REPORT.md(화면 매핑·검증 범위)
+│   ├── src/neighborfood/             api.ts(백엔드 주소·getPosts()·legacy() 해시 경로) · AppLayout.tsx · HomePage.tsx · home.css · Icon.tsx
+│   ├── src/migration/                routes.tsx · core.tsx · design.css · loading.tsx · autocomplete.tsx · PostGallery.tsx ·
+│   │                                 auth.tsx · posts.tsx · fridge.tsx · trades.tsx · location.tsx · qr.tsx · receipt.tsx · admin.tsx
+│   ├── src/                          App.tsx(해시 라우팅) · main.tsx · App.css · index.css
+│   └── package.json · vite.config.ts(개발/preview API 프록시) · tsconfig*.json · .oxlintrc.json   (Vite 8 + React 19 + TypeScript, Oxlint, qrcode·jsqr)
 │
+
 ├── sql/                            ▶ 현재 프로젝트 스키마
 │   └── neighborfood_schema.sql       전체 테이블 DDL (단일 진실 소스)
 │
@@ -105,7 +110,7 @@ NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 ├── NeighborFood_Architecture_Plan.md  아키텍처 현황 및 개발 이력
 ├── Settlement_Implementation_Plan.md  정산 시스템 구현 계획
 ├── Capstone.md                     개발 컨텍스트·제약사항 요약
-├── Neighborfood_React_실행_안내.md  백엔드 + React 로컬 실행 안내서
+├── Neighborfood_React_실행_안내.md  백엔드 + React 로컬 실행 안내서 (2026-09-21 갱신)
 ├── requirements.txt                파이썬 의존성
 ├── .env  .env.example  .gitignore  환경 변수 / 템플릿 / 제외 목록
 ```

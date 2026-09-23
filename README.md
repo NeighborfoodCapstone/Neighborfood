@@ -1,9 +1,10 @@
 # NeighborFood
 
-지역 기반 식재료 공동구매 플랫폼 — FastAPI + SQLite 백엔드, 정적 HTML 프런트엔드 + React(Vite) 프런트엔드(홈 화면, 부분 마이그레이션 진행 중)
+지역 기반 식재료 공동구매 플랫폼 — FastAPI + SQLite 백엔드, React(Vite) 프런트엔드(기존 화면 39개 전체 이전 구현) + 기존 정적 HTML 프런트엔드(병행 보존)
 
 버전: **v2.1.0** (2026-08-22)
-문서 최종 갱신: 2026-09-19 (문서-소스 정합성 점검 반영: `reset_db.py` 존재 확인, 라우터 경로 정정, 미구현 API(비밀번호 변경) 표기, 관련 문서 목록 추가)
+문서 최종 갱신: 2026-09-21 (React 전체 화면 이전·공통 디자인·로딩·자동완성·게시글 상세 개선 반영, 공개 공지 API 미구현 정정, 게시글 수정 범위 정정, `frontend-react/docs/` 문서 추가)
+이전 갱신: 2026-09-19 (문서-소스 정합성 점검 반영: `reset_db.py` 존재 확인, 라우터 경로 정정, 미구현 API(비밀번호 변경) 표기, 관련 문서 목록 추가)
 이전 갱신: 2026-09-14 (`frontend-react/`(Vite + React 19 + TypeScript) 신규 추가 — 홈 화면 부분 마이그레이션 반영)
 
 ---
@@ -23,7 +24,7 @@
 - GPS 위치 인증 (Haversine 100m 서버 재검증)
 - 카카오맵 연동 (`.env` 동적 로드, 소스코드 키 하드코딩 금지)
 - 관리자 대시보드 (회원·신고·공지·채팅 모니터링)
-- **(신규 2026-09-14) React(Vite) 홈 화면** — 기존 정적 `Home.html`과 별도로 `frontend-react/`에 SPA 홈 피드 구현. 나머지 화면은 정적 HTML로 하드 네비게이션하는 하이브리드 구조 (§"React 프런트엔드" 절 참고)
+- **(2026-09-20~21) React(Vite) 프런트엔드** — `frontend-react/`에 기존 정적 HTML 39개 화면 식별자를 React(TypeScript)로 이전(인증·게시글·냉장고·거래·채팅·정산·위치·QR·영수증·관리자). 공통 디자인·공통 로딩·자동완성·게시글 상세 개선 적용. 기존 정적 HTML은 최종 점검이 끝나기 전까지 병행 보존 (§5 및 "React 프런트엔드" 안내 참고)
 
 ---
 
@@ -94,9 +95,9 @@ uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 
 > DB 파일(`data/neighborfood.db`)은 서버 첫 실행 시 자동으로 생성됩니다.
 
-### 5. (선택, 신규 2026-09-14) React 프런트엔드 실행 — 홈 화면
+### 5. (선택) React 프런트엔드 실행 — 전체 화면 (2026-09-20~21)
 
-`frontend-react/`에 Vite + React 19 + TypeScript 기반의 홈 화면이 추가되었습니다. 기존 정적 HTML(`frontend/Home.html`)을 완전히 대체하는 것이 아니라 **홈 피드 화면만 React로 재구현한 하이브리드 구조**입니다 — 지도·등록·내 활동·마이페이지 등 나머지 화면은 여전히 기존 정적 HTML로 이동합니다.
+`frontend-react/`(Vite + React 19 + TypeScript)에 기존 정적 HTML 39개 화면 식별자가 React 화면으로 이전되어 있습니다(구현 완료 — 실제 브라우저·모바일·기기 검증은 진행 중). 기존 정적 HTML(`frontend/`)은 삭제하지 않고 병행 보존하며, 최종 점검이 끝나기 전까지 유지합니다. 백엔드(FastAPI·SQLite)와 API는 변경하지 않았습니다.
 
 ```bash
 cd frontend-react
@@ -104,16 +105,21 @@ npm ci
 npm run dev
 ```
 
-- 기본 접속: [http://localhost:5173](http://localhost:5173) (Vite 기본 포트)
-- 백엔드 API 주소는 `VITE_API_BASE_URL` 환경변수로 지정합니다(미설정 시 `http://127.0.0.1:8000` 기본값 사용). 필요 시 `frontend-react/.env.local`을 새로 만들어 추가하세요(`.env.local`은 Vite 기본 gitignore 항목이므로 Git에 올라가지 않습니다):
-  ```
-  VITE_API_BASE_URL=http://127.0.0.1:8000
-  ```
-- 백엔드(`uvicorn main:app`)가 먼저 실행 중이어야 홈 피드(`GET /posts`)가 정상 로드됩니다.
-- CORS: `main.py`의 `ALLOWED_ORIGINS` 미설정 시 전체 허용(`*`)이므로 로컬 개발 중에는 별도 설정이 필요 없습니다. 배포 시 React 앱이 서빙되는 도메인을 `.env`의 `ALLOWED_ORIGINS`에 반드시 추가하세요.
+- 기본 접속: [http://localhost:5173](http://localhost:5173) (Vite 기본 포트, 포트가 사용 중이면 터미널에 표시된 실제 `Local` 주소 사용). 화면 이동은 해시 경로입니다(예: `/#/Fridge`, `/#/Product_Detail?id=1`).
+- 백엔드(`uvicorn main:app`, 8000번 포트)가 먼저 실행 중이어야 합니다. Vite 개발 서버·preview가 `/api`, `/posts`, `/uploads`, `/upload-images`, `/logout`, `/request-auth`, `/reset-password` 요청을 FastAPI(기본 `http://127.0.0.1:8000`)로 전달합니다. 프록시 대상은 환경변수 `NEIGHBORFOOD_BACKEND`로 바꿀 수 있습니다.
+- 공개 API 주소를 직접 쓰려면 `VITE_API_BASE_URL`을 지정합니다(미설정 시 상대경로 + 프록시). 필요 시 `frontend-react/.env.local`에 추가하세요(`.env.local`은 Git에 올라가지 않습니다).
+- 로그인: React(`localhost:5173`)와 정적 HTML(`127.0.0.1:8000`)은 접속 출처가 달라 브라우저 `localStorage`가 공유되지 않습니다. React 화면에서는 React 로그인 화면으로 별도 로그인합니다.
+- CORS: `main.py`의 `ALLOWED_ORIGINS` 미설정 시 전체 허용(`*`)이므로 로컬 개발 중에는 별도 설정이 필요 없습니다. 배포 시 React 앱이 서빙되는 도메인을 `.env`의 `ALLOWED_ORIGINS`에 반드시 추가하세요. 정적 빌드(`dist`) 배포 시에는 Vite 프록시가 없으므로 같은 API 프록시를 배포 서버에 구성하거나 `VITE_API_BASE_URL`로 공개 API 주소를 지정해야 합니다.
 - 기타 명령: `npm run build`(`tsc -b && vite build`), `npm run lint`(oxlint), `npm run preview`
+- 상세 실행·문제 해결은 `Neighborfood_React_실행_안내.md`, 화면 매핑·검증 범위는 `frontend-react/docs/MIGRATION_REPORT.md`, 디자인 기준은 `frontend-react/docs/DESIGN_CONTEXT.md`를 참고하세요.
 
-> ⚠️ **알려진 미비 사항 (2026-09-14 확인)**: 루트 `.env.example`에는 아직 `VITE_API_BASE_URL` 템플릿 항목이 없습니다(위 값을 수동으로 추가해야 함). `frontend-react/README.md`는 Vite 기본 템플릿 문서 그대로이며 프로젝트 설명으로 아직 교체되지 않았습니다.
+> ⚠️ **알려진 미비·제한 사항 (2026-09-21 기준)**
+> - `frontend-react/README.md`는 Vite 기본 템플릿 문서 그대로이며 프로젝트 설명으로 아직 교체되지 않았습니다.
+> - 실제 브라우저의 시각 확인·모바일 터치·키보드 탐색, 카메라(QR)·GPS·Kakao SDK·CLOVA OCR 동작은 실제 환경에서 확인이 필요합니다. 기존 HTML과 세부 동작·레이아웃이 1:1 동일하다고 확정하지 않았습니다.
+> - 기존 게시글 수정 API(`PATCH /posts/{id}`)는 사진·거래 유형·목표 인원·1인 금액을 수정하지 못해 React 화면에서도 해당 필드 편집을 제한했습니다.
+> - 공개 공지 API(`GET /api/notices`)는 코드에 없어 React 화면은 관리자 공지를 일반 회원 화면에 노출하지 않습니다.
+> - PWA 설치·오프라인 기능은 구현되지 않았습니다(PWA 전환을 위한 프런트 구조 정비 단계).
+> - 정산의 "납부 표시"는 결제 승인이나 자동 송금이 아닙니다. 외부 결제 연동은 기본적으로 예정되어 있지 않으며 여유가 있을 경우에 한해 추가 검토합니다.
 
 ### 6. 관리자 계정 생성
 
@@ -215,39 +221,59 @@ Neighborfood/
 │   ├── Login.html
 │   ├── Signup.html
 │   └── ...
-├── frontend-react/          # React(Vite) 프런트엔드 [신규 2026-09-14] — 홈 화면 부분 마이그레이션
+├── frontend-react/          # React(Vite) 프런트엔드 [2026-09-20~21] — 화면 39개 전체 이전(구현), 정적 HTML은 병행 보존
+│   ├── docs/
+│   │   ├── DESIGN_CONTEXT.md     # React 공통 디자인·로딩·자동완성·게시글 상세 기준
+│   │   └── MIGRATION_REPORT.md   # 화면 39개 이전 매핑·검증 범위·미검증 범위
 │   ├── public/
 │   │   ├── favicon.svg
 │   │   └── icons.svg
 │   ├── src/
 │   │   ├── assets/               # hero.png, react.svg, vite.svg
-│   │   ├── neighborfood/         # 프로젝트 전용 코드
-│   │   │   ├── api.ts            # 백엔드 연동 (getPosts, legacy() 헬퍼) — VITE_API_BASE_URL 사용
+│   │   ├── neighborfood/         # 승인된 메인(홈) 화면·공통 레이아웃
+│   │   │   ├── api.ts            # 백엔드 주소(VITE_API_BASE_URL, 미설정 시 상대경로+Vite 프록시)·getPosts()·legacy()(→ #/화면명 해시 경로)
 │   │   │   ├── AppLayout.tsx     # 헤더 + 하단 네비게이션 공통 레이아웃
 │   │   │   ├── HomePage.tsx      # 홈 피드 (카테고리·검색·게시글 카드, GET /posts 연동)
 │   │   │   ├── home.css          # HomePage 전용 스타일
 │   │   │   └── Icon.tsx          # 인라인 SVG 아이콘 컴포넌트
+│   │   ├── migration/            # 나머지 화면 React 모듈 (2026-09-20~21)
+│   │   │   ├── routes.tsx        # 화면 목록·라우팅·접근 제어(회원/관리자)·도움말·진입 화면
+│   │   │   ├── core.tsx          # 공통 API 요청·인증 토큰·오류·상태 처리·공통 UI
+│   │   │   ├── design.css        # 공통 디자인 토큰·폼·버튼·리스트·대화상자
+│   │   │   ├── loading.tsx       # 화면 전환·최초 조회 공통 로딩
+│   │   │   ├── autocomplete.tsx  # 검색·회원·주소 공통 자동완성
+│   │   │   ├── PostGallery.tsx   # 게시글 상세 사진 갤러리
+│   │   │   ├── auth.tsx          # 로그인·가입·비밀번호 재설정·프로필·탈퇴
+│   │   │   ├── posts.tsx         # 검색·찜·게시글 상세·등록/수정·거래 신청·신고
+│   │   │   ├── fridge.tsx        # 내 냉장고
+│   │   │   ├── trades.tsx        # 채팅·그룹 채팅·내 활동·거래 내역·정산·매너 평가
+│   │   │   ├── location.tsx      # Kakao 지도·동네 설정·GPS 위치 인증
+│   │   │   ├── qr.tsx            # QR 발급·카메라 스캔·토큰 검증
+│   │   │   ├── receipt.tsx       # 영수증 OCR·품목 편집·인증·냉장고 등록
+│   │   │   └── admin.tsx         # 관리자 대시보드·회원·공지·신고·채팅 기록
 │   │   ├── App.css
-│   │   ├── App.tsx               # AppLayout + HomePage 조합
+│   │   ├── App.tsx               # 해시 라우팅 + AppLayout + 접근 가드 (홈은 HomePage)
 │   │   ├── index.css
 │   │   └── main.tsx              # React 진입점 (StrictMode)
 │   ├── index.html             # Vite 진입 HTML (#root, /src/main.tsx 로드)
-│   ├── package.json           # react 19.2, react-dom 19.2 / devDeps: vite 8, typescript, oxlint 등
+│   ├── package.json           # react 19.2, react-dom 19.2, qrcode, jsqr / devDeps: vite 8, typescript, oxlint 등
 │   ├── package-lock.json
 │   ├── tsconfig.json  tsconfig.app.json  tsconfig.node.json
-│   ├── vite.config.ts         # @vitejs/plugin-react 플러그인 등록
+│   ├── vite.config.ts         # @vitejs/plugin-react + 개발/preview API 프록시 (NEIGHBORFOOD_BACKEND)
 │   ├── .oxlintrc.json         # Oxlint 설정 (ESLint 대체 린터)
 │   ├── .gitignore
 │   └── README.md              # ⚠️ Vite 템플릿 기본 문서 — 아직 프로젝트 설명으로 미교체
+
 ├── tests/
 │   └── test_receipt_parser_v212.py  # 영수증 파서 회귀·유닛 테스트 [신규] — pytest 없이 단독 실행 가능
 ├── README.md  Capstone.md  NeighborFood_Architecture_Plan.md  neighborfood_ERD.md
 ├── Settlement_Implementation_Plan.md  Neighborfood_React_실행_안내.md   # 프로젝트 문서 (아래 "관련 문서" 참고)
 ```
 
-> ℹ️ **React 프런트엔드 추가 안내 (2026-09-14, 신규)**
-> `frontend-react/`가 신규 추가되었습니다(Vite 8 + React 19 + TypeScript, 린터는 ESLint 대신 **Oxlint** 사용). 현재는 홈 화면(`HomePage.tsx`)만 React로 구현되어 있고, 지도·등록·내 활동·마이페이지·상세 화면 등 나머지 이동은 `src/neighborfood/api.ts`의 `legacy(page)` 헬퍼(`${backend}/frontend/${page}`)를 통해 기존 정적 HTML로 **하드 네비게이션**(SPA 라우팅 아님)합니다. 신규 백엔드 API는 추가되지 않았으며, 기존 `GET /posts` 목록 API를 그대로 재사용합니다.
-> **후속 필요 작업**: ① `.env.example`에 `VITE_API_BASE_URL` 템플릿 항목 추가, ② `frontend-react/README.md`를 Vite 기본 템플릿에서 프로젝트 설명으로 교체, ③ 배포 시 `.env`의 `ALLOWED_ORIGINS`에 React 앱 서빙 도메인 추가.
+> ℹ️ **React 프런트엔드 안내 (2026-09-14 추가 → 2026-09-20~21 전체 화면 이전 반영)**
+> `frontend-react/`(Vite 8 + React 19 + TypeScript, 린터는 ESLint 대신 **Oxlint**)는 2026-09-14 홈 화면으로 시작해, 2026-09-20 기존 HTML 39개 화면 식별자를 React 경로로 매핑·이전했고(`src/migration/`), 2026-09-21 공통 로딩·자동완성·게시글 상세 개선을 보강했습니다. 화면 이동은 해시 경로(`#/화면명`)이며, 39개 화면이 39개의 독립 TSX 파일은 아니고 같은 그룹의 화면은 하나의 컴포넌트와 props를 공유합니다. 신규 백엔드 API는 추가되지 않았고 기존 FastAPI API를 그대로 사용합니다.
+> **후속 필요 작업**: ① `frontend-react/README.md`를 Vite 기본 템플릿에서 프로젝트 설명으로 교체, ② 실제 브라우저·모바일·기기(카메라·GPS·OCR) 검증, ③ 공개 공지 API 미구현 대응, ④ 배포 시 `.env`의 `ALLOWED_ORIGINS`에 React 앱 서빙 도메인 추가 및 정적 빌드 배포 방식(API 프록시 또는 공개 API 주소) 결정, ⑤ 정적 HTML(`frontend/`)의 최종 처리(현재는 최종 점검 전까지 유지).
+
 
 > ⚠️ **문서-저장소 정합성 안내 (2026-09-08 확인, 2026-09-12 갱신)**
 > 이전 버전 문서에는 아래 7개 루트 스크립트가 명시되어 있었고, 2026-09-08 확인 시 모두 없는 것으로 보고 트리에서 제거했습니다. **2026-09-19 재확인 결과 `seed_admin.py`(2026-09-12 복원)와 `reset_db.py`는 저장소에 존재**하며, 나머지 5개는 여전히 없습니다.
@@ -276,7 +302,7 @@ Bearer 토큰 세션 인증을 사용합니다.
 
 토큰 유효기간은 `config.py`의 `SESSION_TTL_DAYS`로 조정합니다 (기본 **30일**).
 
-> `frontend-react/`는 현재 로그인 필요 화면을 구현하지 않았으므로(홈 피드만 존재) 별도의 토큰 저장·주입 로직이 없습니다. 회원 전용 기능은 `legacy()`로 이동한 기존 정적 HTML에서 `auth.js`가 계속 처리합니다.
+> `frontend-react/`는 자체 로그인 화면(`src/migration/auth.tsx`)과 토큰 처리(`src/migration/core.tsx`, `nf_token` 등)를 가집니다. React(`localhost:5173`)와 정적 HTML(`127.0.0.1:8000`)은 접속 출처가 달라 `localStorage`가 공유되지 않으므로 React 화면에서는 React에서 로그인합니다. 회원 전용 화면은 토큰이 없으면 로그인 안내를 표시하고, 관리자 화면(`Admin_*`)은 `GET /api/users/me`의 role이 admin일 때만 열리며 서버에서도 권한을 검사합니다.
 
 ---
 
@@ -310,10 +336,10 @@ Bearer 토큰 세션 인증을 사용합니다.
 | `/api/admin` | 관리자 | 회원·신고·공지 관리, 채팅 모니터링, 대시보드 통계(`/stats`) |
 | `/api/reports` | 신고 | 게시글·회원 신고 접수·취소, 내 신고 목록(`GET /my`) |
 | `/api/location-verify` | GPS 위치 인증 | 위치 인증 세션 생성·검증 (Haversine 100m) |
-| `/api/notices` | 공개 공지 | 비인증 공지 조회 (Help.html 아코디언 표시) |
+| `/api/notices` | 공개 공지 | ⚠️ **미구현 (2026-09-21 정정)** — 문서에는 비인증 공지 조회로 기재되어 있었으나 코드에 대응 라우터가 없고 관리자 전용 `/api/admin/notices`만 존재합니다. 정적 `Help.html`은 이 경로를 호출하며, React 화면은 관리자 공지를 일반 회원 화면에 노출하지 않습니다 |
 | `/api/config/kakao-key` | 설정 | 카카오 JS 키 반환 (프론트 동적 로드용) |
 
-> `frontend-react/`는 신규 API를 추가하지 않았으며 위 목록의 `GET /posts`(게시글 목록)만 재사용합니다.
+> React 화면은 신규 API를 추가하지 않았으며 위 목록의 기존 API를 그대로 사용합니다. 게시글 수정 `PATCH /posts/{id}`는 제목·설명·카테고리·상태·교환 희망·주소·좌표만 반영하며 사진·거래 유형·목표 인원·1인 금액은 수정할 수 없습니다(정적 `Create_Post.html`이 인원·가격을 전송해도 서버가 반영하지 않음).
 
 ---
 
@@ -337,3 +363,5 @@ Bearer 토큰 세션 인증을 사용합니다.
 | `neighborfood_ERD.md` | DB 구조(ERD)와 디렉토리 구조 |
 | `Settlement_Implementation_Plan.md` | 공동구매 정산 시스템 설계·구현 계획 |
 | `Neighborfood_React_실행_안내.md` | 백엔드 + React(`frontend-react/`) 로컬 실행 안내서 |
+| `frontend-react/docs/DESIGN_CONTEXT.md` | React 공통 디자인·로딩·자동완성·게시글 상세 기준 |
+| `frontend-react/docs/MIGRATION_REPORT.md` | 화면 39개 React 이전 매핑·검증 범위·미검증 범위 |
