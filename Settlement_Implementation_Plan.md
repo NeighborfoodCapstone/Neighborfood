@@ -1,10 +1,12 @@
 # NeighborFood — 정산 시스템 구현 계획 (A+ 안)
 
 > 작성: 2026-08-03  
-> 최종 수정: 2026-09-19 (문서-소스 정합성 점검 — §3 자동 납부 확인 블록 제거 표기, 마크다운 개수 정정)  
+> 최종 수정: 2026-09-21 (React 전체 화면 이전 반영 — §7-4 React 화면 대응 추가, 정산 납부 표시·외부 결제 연동 방침 명시)  
+> 이전 수정: 2026-09-19 (문서-소스 정합성 점검 — §3 자동 납부 확인 블록 제거 표기, 마크다운 개수 정정)  
 > 이전 수정: 2026-09-08 (§8 테스트 시나리오 현황 재정리 — nf_functional_test.py 부재 반영)  
 > 상태: **전체 흐름 구현 완료 + UX 갭 해소 완료** — 채팅→약속→GPS(100m)→QR→납부→정산완료→매너평가 end-to-end 동작 확인  
-> 참조 화면: `Settlement.html` · `Group_Chat.html` · `Local_Verify_Demo.html` · `My_Activity.html` (모두 실데이터 연동)
+> 참조 화면: `Settlement.html` · `Group_Chat.html` · `Local_Verify_Demo.html` · `My_Activity.html` (모두 실데이터 연동)  
+> React 대응(2026-09-20~21): `frontend-react/src/migration/`의 `trades.tsx`(정산·채팅·내 활동)·`location.tsx`(GPS 인증)·`qr.tsx`(QR) — §7-4 참고
 >
 > **2026-08-12 추가 완료**: `Settlement.html` 완료 후 → `My_Activity.html?tab=history` 리다이렉트 수정,
 > `My_Activity.html` 매너 평가 모달 연동, `Group_Buy_Detail.html` 참여/취소 토글, 게시글 수정 흐름 완성
@@ -323,6 +325,21 @@ Settlement.html?settlementId=456 ← 채팅방 "거래 인증·정산" / Transac
 - `Transaction_History.html` — "정산 보기" 링크
 - `My_Activity.html` — 완료 거래 "매너 평가하기" 버튼
 
+### 7-4. React 화면 대응 (2026-09-20~21, 신규)
+`frontend-react/`(기존 화면 39개 전체 이전)에서 정산 흐름은 아래 모듈이 담당합니다. 백엔드 정산 API(13종)·DB·판정 규칙은 변경하지 않았습니다.
+
+| 기존 정적 화면 | React 모듈 |
+|---|---|
+| `Settlement.html` | `migration/trades.tsx` — 정산 생성·약속·인증·납부 표시·불참·완료/취소 |
+| `Group_Chat.html` · `Chat_Detail.html` · `Chat_List.html` | `trades.tsx` — 채팅·그룹 채팅·메시지 폴링 |
+| `My_Activity.html` · `Transaction_History.html` | `trades.tsx` — 게시글·거래·신고·매너 평가 |
+| `Local_Verify_Demo.html` | `migration/location.tsx` — 서버 GPS 검증(100m)·정산·QR 연결 |
+| `QR_Scan.html` | `migration/qr.tsx` — QR 발급·카메라 스캔·토큰 검증·정산 연결 |
+
+- **검증 범위**: 별도 테스트 DB에서 두 계정의 공동구매 참여·그룹 채팅과 정산 생성→약속→GPS→QR→납부 표시→완료 흐름을 API로 확인했습니다(테스트용 데이터·계정·DB는 저장소에 포함하지 않음). GPS 테스트는 테스트 좌표로 서버 연결을 검증한 것이며, 실제 카메라 스캔·위치 정확도는 실제 기기에서 확인해야 합니다.
+- **납부 표시의 의미**: 정산의 납부 표시는 사용자가 입금 사실을 표시하는 기능이며 결제 승인이나 자동 송금이 아닙니다. 기존 GPS/QR 권한·신뢰 모델 자체를 개선하는 백엔드 변경은 포함하지 않았습니다.
+- **외부 결제 연동**: 기본 미예정이며 여유가 있을 경우에 한해 추가 검토합니다.
+
 ---
 
 ## 8. 테스트 시나리오
@@ -422,4 +439,4 @@ Settlement.html?settlementId=456 ← 채팅방 "거래 인증·정산" / Transac
 **신규 파일**: `settlement_db.py`, `settlements.py` 2개  
 **재구성 파일**: `location_verify.py` 1개  
 **수정 파일**: 13개 (2026-09-12: posts.py join_groupbuy 참여 차단 적용 완료로 포함) + 2026-08-12 추가 수정 (`Admin_Notices.html`, `Admin_Chat_History.html`, `Group_Buy_Detail.html`, `Settlement.html`, `Help.html`, `Create_Post.html`, `My_Activity.html`, `posts.py`)  
-**마크다운 업데이트**: 6개 문서(README·Capstone·Architecture Plan·ERD·본 문서·React 실행 안내) — 2026-09-19 재점검 완료
+**마크다운 업데이트**: 6개 문서(README·Capstone·Architecture Plan·ERD·본 문서·React 실행 안내) — 2026-09-21 React 전체 화면 이전 반영 갱신 완료 (이전 재점검: 2026-09-19)
