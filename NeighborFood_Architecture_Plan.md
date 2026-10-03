@@ -1,11 +1,12 @@
 # NeighborFood FastAPI — 아키텍처 현황 및 개발 이력
 
-> 최종 수정: 2026-09-21 (React 전체 화면 이전(`frontend-react/`, 화면 39개)·공통 디자인·로딩·자동완성·게시글 상세 개선 반영, 공개 공지 API 미구현·게시글 수정 범위 정정. 상세는 §2·§3·§5·§6·§7·§8·§9·§10·§11 참고)
+> 최종 수정: 2026-09-30 (배포 서버 백엔드 배치·도메인 연결 반영, 코드 변경 없음 — §7·§8 참고. 이전 수정 2026-09-21: React 전체 화면 이전(`frontend-react/`, 화면 39개)·공통 디자인·로딩·자동완성·게시글 상세 개선 반영, 공개 공지 API 미구현·게시글 수정 범위 정정. 상세는 §2·§3·§5·§6·§7·§8·§9·§10·§11 참고)
 > 2026-09-08 수정: 기술 스택 사용 목적 서술 추가, 디렉토리 구조를 README.md와 정합화 / 존재하지 않는 `receipt_items` 테이블 언급 2곳 정정 — 영수증 품목은 `receipts.items`/`selected_items` JSON 컬럼으로만 저장
 > 2026-09-12 업데이트: 관리자 기능 실데이터 연동 완료(가드 공용화·회원 관리·신고 상세·운영진 관리·대시보드 통계), 미납 정산 참여 차단 리팩터링, 주최자 귀책/먹튀 trust_score 자동 페널티, `seed_admin.py` 복원, CORS `.env` 동적 분기 준비. 상세는 §7 개발 이력 참고.
 > 2026-09-14 업데이트: `frontend-react/` 워크스페이스 신규 추가 — 홈 화면(`HomePage.tsx`)만 React로 재구현한 부분 마이그레이션. 기존 정적 HTML 프런트엔드(`frontend/`)와 하이브리드로 병행 운영하며, 신규 백엔드 API는 없음(기존 `GET /posts` 재사용). 상세는 §7 개발 이력 참고.
 > 2026-09-19 업데이트: 문서-소스 정합성 점검 — `reset_db.py` 존재 확인, `users` 동네 인증 저장 항목 정정(좌표 미저장), 비밀번호 변경 API 미구현 표기, §5 API 표 누락 4건(admin stats·정산 약속·내 신고·거래별 내 평가) 추가. 코드 변경 없음.
 > 2026-09-20~21 업데이트: `frontend-react/`가 기존 HTML 39개 화면 식별자를 모두 React(TypeScript)로 이전(§6·§7 참고, 구현 완료 — 실제 브라우저·기기 검증은 진행 중). 기존 정적 HTML은 최종 점검 전까지 병행 보존. 신규 백엔드 API·DB 변경 없음. 문서 정정: 공개 공지 API(`GET /api/notices`)는 코드에 없음, `PATCH /posts/{id}`는 인원·가격을 반영하지 않음.
+> 2026-09-30 업데이트: 배포 환경 구성 착수 — Oracle Cloud Micro 서버에 저장소 클론·가상환경·`.env`·systemd 서비스(`127.0.0.1:8000`)로 백엔드를 배치하고 도메인 `neighborfood.duckdns.org`를 연결. Nginx 리버스 프록시·HTTPS·`dist/` 서빙은 미완료. 신규 API·DB 변경 없음. 상세는 §7·§8 참고.
 > 상태: **핵심 거래 흐름(채팅→약속→GPS 100m 실검증→QR→납부→정산완료→매너평가) 완성 + 관리자·UX 갭 해소 + 영수증 파서 v2.1 마트형 개선 + React 전체 화면 이전(구현 완료, 실제 환경 검증 진행 중)**
 > 서버: 단일 FastAPI / DB: 단일 SQLite(`data/neighborfood.db`) / 프런트엔드: React·Vite(`frontend-react/`, 화면 39개 이전) + 정적 HTML(`frontend/`, 최종 점검 전까지 병행 보존)
 
@@ -519,6 +520,13 @@ project_root/
 - **문서 정정**: 공개 공지 API(`GET /api/notices`) 미구현 확인(관리자 전용 `/api/admin/notices`만 존재), `PATCH /posts/{id}`가 인원·가격을 반영하지 않음을 확인
 - **미검증·미구현**: 실제 브라우저·모바일·기기 검증 미완료, PWA 설치·오프라인 기능 미구현
 
+### 2026-09-30 배포 서버 구성 착수 (서버·도메인, 코드 변경 없음)
+- **서버 배치**: Oracle Cloud(Osaka) Micro 인스턴스(Ubuntu 24.04)에 저장소를 클론(`e221dc9`)하고 Python 3.12 가상환경에 `requirements.txt` 설치. 서버 `.env`에는 CLOVA·Kakao·`ALLOWED_ORIGINS=https://neighborfood.duckdns.org`를 기입(값은 저장소에 없음, 권한 600, `.env` 파서는 줄 끝 주석을 제거하지 않으므로 `KEY=값`만 기입)
+- **실행 방식**: systemd 서비스 `neighborfood`가 `uvicorn main:app --host 127.0.0.1 --port 8000`(`--reload` 없음, worker 1개 — SQLite 사용)을 상시 실행. 재시작 후 `active`, `GET /docs` 200 확인. 시작 시 `data/neighborfood.db`가 자동 생성됨
+- **도메인**: DuckDNS `neighborfood.duckdns.org`를 서버 Public IP에 연결(IP는 문서에 기재하지 않음). 현재는 Nginx 기본 화면만 응답하며, 앱은 `127.0.0.1`에만 열려 있어 외부 접속은 Nginx 프록시 설정 이후 가능
+- **점검**: `.env`·DB·키 파일이 저장소 추적 대상·커밋 이력에 없음, `.gitignore`에 `.env`·`*.db`·`venv/`·`dist/` 포함, 하드코딩된 키 없음 확인(2026-09-30). 이 시점 GitHub `main`에는 팀원의 React 잔여 화면·결제 관련 후속 작업이 포함되어 있지 않음
+- **미완료**: Nginx 리버스 프록시, HTTPS(certbot), `dist/` 업로드와 `main.py`의 SPA 마운트, 관리자 계정 생성(앱에 비밀번호 변경 API가 없어 기본 비밀번호 계정 대신 일반 가입 후 `python seed_admin.py <login_id>`로 승격 권장), 실환경 검증, PWA
+
 ---
 
 ## 8. 잔여 작업 목록
@@ -526,7 +534,8 @@ project_root/
 | 우선순위 | 항목 | 상세 |
 |---|---|---|
 | 🟡 **권장** | **작성자 매너 평가 표시** | `Product_Detail.html`·`Group_Buy_Detail.html`(및 React `posts.tsx` 상세 작성자 카드) 작성자 카드에 `GET /api/ratings/received?user_id={authorId}` 연동. API 완비, 프런트 연동만 남음 |
-| 🟢 **준비 완료** | **배포 CORS 도메인 제한** | `main.py`가 `.env`의 `ALLOWED_ORIGINS`를 읽어 동적 분기하도록 구현 완료(2026-09-12). 값 미설정 시 개발 편의를 위해 `*` 유지. **배포 시 `.env`에 실제 도메인 값 입력 필요**(React 앱이 서빙될 도메인 포함). 정적 빌드(`dist`) 배포 시에는 Vite 프록시가 없으므로 API 프록시를 배포 서버에 구성하거나 `VITE_API_BASE_URL`로 공개 API 주소를 지정해야 함 |
+| 🟢 **준비 완료** | **배포 CORS 도메인 제한** | `main.py`가 `.env`의 `ALLOWED_ORIGINS`를 읽어 동적 분기하도록 구현 완료(2026-09-12). 값 미설정 시 개발 편의를 위해 `*` 유지. **2026-09-30: 배포 서버 `.env`에 `ALLOWED_ORIGINS=https://neighborfood.duckdns.org` 반영 완료**(다른 도메인에서 서빙하게 되면 값을 함께 수정해야 함). 정적 빌드(`dist`) 배포 시에는 Vite 프록시가 없으므로 API 프록시를 배포 서버에 구성하거나 `VITE_API_BASE_URL`로 공개 API 주소를 지정해야 함 |
+| 🟡 **권장 (신규 2026-09-30)** | **배포 서버 잔여 구성** | 백엔드는 systemd로 실행 중이나 Nginx 리버스 프록시·HTTPS(certbot)·`dist/` 서빙(`main.py` SPA 마운트)이 남아 있음. 관리자 계정은 기본 비밀번호(`admin0000`) 계정 생성 대신 일반 가입 후 `seed_admin.py <login_id>` 승격 권장(비밀번호 변경 API 미구현) |
 | 🟢 **선택 (2026-09-21 갱신)** | **`VITE_API_BASE_URL` 템플릿 정리** | React는 미설정 시 상대경로 + Vite 프록시를 사용하므로 필수 아님. 공개 API 주소를 직접 쓰는 경우에만 `frontend-react/.env.local`에 지정. 템플릿 항목 추가는 선택 사항 |
 | 🟡 **권장 (미완료)** | **`frontend-react/README.md` 교체** | 현재 Vite 생성 시 기본 제공되는 템플릿 문서 그대로임 — 프로젝트 설명(실행 방법·구조·전체 이전 안내)으로 교체 필요 |
 | 🟡 **권장 (신규 2026-09-19)** | **로그인 상태 비밀번호 변경 API** | 문서상 `PATCH /api/users/me/password`(현재 비밀번호 검증, 현재 세션 유지·타 세션 폐기)가 설계되어 있으나 `users.py`에 미구현. 구현하거나 정책에서 제외 결정 필요 |

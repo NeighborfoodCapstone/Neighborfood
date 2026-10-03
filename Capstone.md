@@ -1,7 +1,7 @@
 # Role: Senior Full-stack Engineer Assistant
 당신은 '1인 가구 지역 식재료 공동구매 플랫폼(NeighborFood)' 프로젝트의 전담 개발자입니다. 아래의 컨텍스트와 제약 사항을 완벽히 숙지하고 개발을 수행하십시오.
  
-> 최종 갱신: 2026-09-21 · React 전체 화면 이전·공통 디자인·로딩·자동완성 반영(아래 참고). 이전 갱신: 2026-09-19 문서-소스 정합성 점검. 이전 주요 갱신: 2026-08-12 · UX 갭 감사·해소 완료 (관리자 연동·참여 취소·게시글 수정·공지 표시·매너 평가 리다이렉트)
+> 최종 갱신: 2026-09-30 · 배포 서버 백엔드 배치·도메인 연결 반영(코드 변경 없음, '잠재 이슈'의 배포 보안 참고). 이전 갱신: 2026-09-21 · React 전체 화면 이전·공통 디자인·로딩·자동완성 반영(아래 참고). 이전 갱신: 2026-09-19 문서-소스 정합성 점검. 이전 주요 갱신: 2026-08-12 · UX 갭 감사·해소 완료 (관리자 연동·참여 취소·게시글 수정·공지 표시·매너 평가 리다이렉트)
 > 2026-09-08 문서-저장소 정합성 검토: `seed_admin.py`·`seed_posts.py`·`posts.json`이 실제 저장소에 더 이상 존재하지 않는 것으로 확인됨 (아래 §4 "문서-저장소 정합성 안내" 참고). `frontend/vendor/html5-qrcode.min.js`, `tests/test_receipt_parser_v212.py` 신규 반영. 정산 API 개수 오기재(9종→13종) 2곳 정정, "## Included" 목록의 자기모순(이미 완료된 매너평가·참여취소 흐름이 잔여로 중복 기재) 정정.
 > 2026-09-12 관리자 기능 실데이터 연동 완료: `seed_admin.py` 복원, `adminGuard.js` 신설, `Admin_Users.html`·`Admin_Report_Detail.html`·`Admin_Staff_Invite.html`·`Admin_Dashboard.html` 전면 실연동, 미납 정산 참여 차단 리팩터링, 주최자 귀책/먹튀 trust_score 자동 페널티, 회원 직접 신고 진입점 신설.
 > 2026-09-19 문서-소스 정합성 점검: 루트 스크립트 중 `reset_db.py`가 저장소에 존재함을 확인하고 트리·§6 Commands에 반영, 트리의 문서 파일명 오타(`Cpastone.md`→`Capstone.md`) 정정, `Neighborfood_React_실행_안내.md` 추가 반영. 코드 변경 없음.
@@ -73,6 +73,7 @@
 - 게시글 수정 API 확장 여부 — 사진·거래 유형·목표 인원·1인 금액 수정 불가(React 편집 제한 중)
 - PWA 전환 — 설치·오프라인 기능 미구현
 - 정적 HTML(`frontend/`) 최종 처리 — 최종 점검이 끝나기 전까지 유지, 이후 처리 방식과 정식 배포 서빙 방식 결정 필요
+- 배포 서버 잔여 구성 — 백엔드는 배포 서버에서 실행 중(2026-09-30). Nginx 리버스 프록시·HTTPS(certbot)·`dist/` 서빙(`main.py` SPA 마운트)·관리자 계정 생성 남음
 완료로 전환된 기존 잔여 항목:
 - ~~상호 매너 평가~~ → ✅ `ratings.py` + `manner_ratings` 테이블 + `trust_score` 원자적 UPDATE 구현 완료 (2026-08 이전)
 - ~~공동구매 참여 취소 흐름~~ → ✅ `DELETE /posts/{id}/join` (백엔드), 프론트 토글·시스템 메시지 모두 완료 (2026-08-12)
@@ -87,7 +88,7 @@
 - (해결됨) **공동구매 인원 정합성**: `posts.py`의 `join_groupbuy`가 `SET gb_current = gb_current + 1 WHERE ... AND gb_current < gb_target` 원자적 UPDATE로 전환 완료(2026-07-09). 단, 참여 취소(cancel) 흐름은 아직 미정의.
 - (해결됨) **trust_score 레이스**: `ratings.py`에서 `SET trust_score = MIN(99, MAX(0, trust_score + ?))` 원자적 UPDATE 적용 완료. 매너 평가 기능 자체도 구현 완료.
 - **SQLite 동시성**: 채팅 폴링(4초) + 정산·평가 쓰기 경합 시 `database is locked` 드물게 발생 가능. WAL + `busy_timeout`으로 완화 중.
-- **배포 보안**: 도메인 제한·토큰 취급 정책은 시연/개발 수준. `main.py`가 `.env`의 `ALLOWED_ORIGINS`로 CORS를 동적 분기하도록 준비 완료(2026-09-12, 미설정 시 `*` 유지) — **배포 시 실제 도메인 값 입력 필요**(2026-09-14: `frontend-react/`가 서빙되는 도메인도 함께 추가해야 함. 2026-09-21: 정적 빌드(`dist`) 배포 시에는 Vite 프록시가 없으므로 같은 API 프록시를 배포 서버에 구성하거나 `VITE_API_BASE_URL`로 공개 API 주소를 지정해야 함). `seed_admin.py` 기본 비밀번호(`admin0000`)도 배포 전 변경 권장.
+- **배포 보안**: 도메인 제한·토큰 취급 정책은 시연/개발 수준. `main.py`가 `.env`의 `ALLOWED_ORIGINS`로 CORS를 동적 분기하도록 준비 완료(2026-09-12, 미설정 시 `*` 유지) — **배포 시 실제 도메인 값 입력 필요**(2026-09-14: `frontend-react/`가 서빙되는 도메인도 함께 추가해야 함. 2026-09-21: 정적 빌드(`dist`) 배포 시에는 Vite 프록시가 없으므로 같은 API 프록시를 배포 서버에 구성하거나 `VITE_API_BASE_URL`로 공개 API 주소를 지정해야 함). **2026-09-30 진행**: 배포 서버(Oracle Cloud Micro)에 백엔드를 systemd 서비스로 배치하고 서버 `.env`에 `ALLOWED_ORIGINS=https://neighborfood.duckdns.org`를 반영함(도메인 `neighborfood.duckdns.org` 확정). Nginx 프록시·HTTPS·`dist/` 서빙은 미완료. `seed_admin.py` 기본 비밀번호(`admin0000`)는 앱에 비밀번호 변경 API가 없어 바꾸기 어려우므로, 기본 계정을 만들지 말고 일반 가입 후 `python seed_admin.py <login_id>`로 승격하는 방식을 권장.
 - **OCR 환경 의존**: 실제 OCR 구동을 위해 서버에 `tesseract` 설치 필요. 미설치 시 데모 폴백.
 - (해결됨) **Kakao 키 하드코딩**: 전 화면 `/api/config/kakao-key` 동적 로드로 전환 완료(2026-08-03). 단, 이미 노출된 이력이 있는 키라면 GitHub 공개 전 카카오 개발자 콘솔에서 키 재발급 권장.
 - (해결됨) **GPS 위치 인증 무인증 공개**: 전 API 인증 필수 + 소유자 검증 + 이력 본인 필터로 전환 완료(2026-08-03).

@@ -1,4 +1,4 @@
-# 마지막 수정 : 2026.09.12
+# 마지막 수정 : 2026.10.01 (React 빌드 dist 서빙 추가)
 # 깃헙 저장소  : https://github.com/NeighborfoodCapstone/Neighborfood.git
 # API 문서    : http://127.0.0.1:8000/docs
 #
@@ -37,6 +37,14 @@ def _load_local_env_once() -> None:
 
 _load_local_env_once()
 KAKAO_JS_KEY = os.getenv("KAKAO_JS_KEY", "")
+
+# ── React 프런트엔드 빌드(dist) 위치 ──────────────────────────────────────
+# 로컬에서 `npm run build`한 frontend-react/dist 를 서버에 올리면 이 앱이 "/"에서 서빙합니다.
+# 위치를 바꾸려면 .env에 FRONTEND_DIST_DIR=<절대경로> 를 지정하세요.
+# index.html이 없으면(미배포·로컬 개발) 기존 임시 안내 페이지를 그대로 사용합니다.
+_DIST_DIR  = Path(os.getenv("FRONTEND_DIST_DIR", "").strip()
+                  or Path(__file__).resolve().parent / "frontend-react" / "dist")
+_SERVE_SPA = (_DIST_DIR / "index.html").is_file()
 
 
 # ── 수명주기(lifespan): 시작 시 모든 DB 초기화 ────────────────────────────
@@ -102,7 +110,6 @@ app.include_router(ratings.router,          prefix="/api/ratings",      tags=["�
 app.include_router(settlements.router,      prefix="/api/settlements",  tags=["정산"])
 
 # ── 인증 HTML 페이지 직접 서빙 (카메라 사용 화면 — localhost 보안 컨텍스트 필요) ─
-@app.get("/", response_class=HTMLResponse)
 def index():
     return HTMLResponse("""
     <!doctype html><html lang="ko"><head><meta charset="utf-8">
@@ -119,6 +126,9 @@ def index():
     </div></body></html>
     """, headers=NO_CACHE)
 
+if not _SERVE_SPA:
+    app.get("/", response_class=HTMLResponse)(index)   # dist 미배포 시에만 임시 안내 페이지
+
 @app.get("/QR_Scan.html",        response_class=HTMLResponse)
 def serve_qr_scan():
     return FileResponse(os.path.join(PAGE_DIR, "QR_Scan.html"), headers=NO_CACHE)
@@ -126,6 +136,26 @@ def serve_qr_scan():
 @app.get("/Receipt_Verify.html", response_class=HTMLResponse)
 def serve_receipt_verify():
     return FileResponse(os.path.join(PAGE_DIR, "Receipt_Verify.html"), headers=NO_CACHE)
+
+# ── React 앱(dist) 서빙 ────────────────────────────────────────────────────
+# React는 해시 라우팅(#/화면)이라 SPA 폴백 라우트가 필요 없습니다.
+# "/" 마운트는 위에서 등록한 API·/uploads·/frontend·/shared 등 모든 경로보다 뒤에서만 매칭됩니다.
+class _SPAStaticFiles(StaticFiles):
+    """index.html은 재배포가 바로 반영되도록 no-cache, 해시가 붙은 assets/는 장기 캐시."""
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            immutable = path.replace("\\", "/").startswith("assets/")
+            response.headers["Cache-Control"] = (
+                "public, max-age=31536000, immutable" if immutable else "no-cache"
+            )
+        return response
+
+if _SERVE_SPA:
+    print(f"[SPA] React 빌드 서빙: {_DIST_DIR}")
+    app.mount("/", _SPAStaticFiles(directory=str(_DIST_DIR), html=True), name="spa")
+else:
+    print(f"[SPA] dist 없음({_DIST_DIR}) → 임시 안내 페이지 사용. 배포 시 frontend-react/dist 를 업로드하세요.")
 
 # ── 로컬 실행 진입점 ───────────────────────────────────────────────────────
 if __name__ == "__main__":

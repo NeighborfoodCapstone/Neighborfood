@@ -639,6 +639,10 @@
 .rx-post-author small {
   display: block;
 }
+.rx-post-author .rx-manner {
+  margin-top: 4px;
+  color: var(--rx-muted);
+}
 .nf-app .rx-post-information .rx-post-heading {
   font-size: clamp(24px, 2.2vw, 32px);
   line-height: 1.4;
