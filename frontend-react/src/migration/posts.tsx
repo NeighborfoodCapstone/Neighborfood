@@ -21,6 +21,7 @@ import {
   types,
   money,
   uid,
+  token,
   status,
 } from "./core";
 import type { Row } from "./core";
@@ -77,6 +78,23 @@ export function Wishlist() {
     </Page>
   );
 }
+// 작성자 매너 평가 요약 (GET /api/ratings/received?user_id=작성자) — 로그인 상태에서만 조회,
+// 평가가 없거나 조회 실패 시 아무것도 표시하지 않아 상세 화면에 영향을 주지 않는다.
+function AuthorManner({ id }: { id: unknown }) {
+  const s = useData(
+    id != null && token() ? "/api/ratings/received?user_id=" + id : null,
+  );
+  const d = s.data;
+  if (!d || !d.total) return null;
+  return (
+    <small
+      className="rx-manner"
+      aria-label={`받은 매너 평가 좋음 ${d.positive}건, 아쉬움 ${d.negative}건`}
+    >
+      매너 평가 👍 {d.positive} · 👎 {d.negative}
+    </small>
+  );
+}
 export function Detail({ q }: { q: URLSearchParams }) {
   const id = q.get("id"),
     s = useData(id ? "/posts/" + id : null),
@@ -105,6 +123,7 @@ export function Detail({ q }: { q: URLSearchParams }) {
                 <div>
                   <strong>{p.author_nickname || "이웃"}</strong>
                   <p>{p.address || "동네 미설정"}</p>
+                  <AuthorManner id={p.author_id} />
                 </div>
                 {p.author_trust != null && (
                   <div>
