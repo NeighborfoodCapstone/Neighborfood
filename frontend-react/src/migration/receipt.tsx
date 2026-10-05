@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Scanner } from "./Scanner";
 import {
   Page,
   Form,
@@ -18,10 +19,21 @@ export function Receipt() {
     [items, setItems] = useState<Row[]>([]),
     [receipt, setReceipt] = useState<Row | null>(null),
     [added, setAdded] = useState(false);
+  const [preview, setPreview] = useState("");
+  useEffect(() => {
+    if (!file) { setPreview(""); return; }
+    const url = URL.createObjectURL(file); setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  function chooseFile(next: File | null) {
+    setFile(next); setScan(null); setItems([]); setReceipt(null); setAdded(false);
+  }
   const update = (i: number, k: string, v: unknown) =>
     setItems((xs) => xs.map((x, n) => (n === i ? { ...x, [k]: v } : x)));
   return (
     <Page title="영수증 인증">
+      <div className="rx-receipt-workspace">
+      <Scanner key={file ? "selected" : "camera"} kind="receipt" onCapture={chooseFile} disabled={a.busy || !!file} preview={preview} />
       <Form
         onSubmit={() =>
           a.run(async () => {
@@ -40,20 +52,21 @@ export function Receipt() {
         }
       >
         <label className="rx-field">
-          영수증 사진
+          저장된 영수증 사진 선택
           <input
             type="file"
             accept="image/*"
-            capture="environment"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            required
+            onChange={(e) => chooseFile(e.target.files?.[0] || null)}
+            disabled={a.busy}
           />
         </label>
+
+        {file && <button type="button" disabled={a.busy} onClick={() => chooseFile(null)}>다시 촬영</button>}
         <button className="rx-primary" disabled={a.busy || !file}>
           영수증 분석
         </button>
       </Form>
-      <Feedback {...a} />
+      <Feedback {...a} busyLabel={scan ? "인증 정보를 저장하는 중…" : "영수증 인식 중…"} />
       {scan && (
         <>
           <h2>{scan.store || "매장명 미인식"}</h2>
@@ -63,7 +76,7 @@ export function Receipt() {
           {!items.length && (
             <p>인식된 품목이 없습니다. 사진을 다시 촬영해 주세요.</p>
           )}
-          <div className="rx-table-wrap">
+          <div className="rx-table-wrap rx-receipt-items rx-result-update">
             <table>
               <thead>
                 <tr>
@@ -76,7 +89,7 @@ export function Receipt() {
               <tbody>
                 {items.map((x, i) => (
                   <tr key={i}>
-                    <td>
+                    <td data-label="선택">
                       <input
                         aria-label={x.name + " 선택"}
                         type="checkbox"
@@ -87,7 +100,7 @@ export function Receipt() {
                         }
                       />
                     </td>
-                    <td>
+                    <td data-label="품목">
                       <input
                         aria-label="품목명"
                         value={x.name}
@@ -95,7 +108,7 @@ export function Receipt() {
                         onChange={(e) => update(i, "name", e.target.value)}
                       />
                     </td>
-                    <td>
+                    <td data-label="수량">
                       <input
                         aria-label="수량"
                         type="number"
@@ -107,7 +120,7 @@ export function Receipt() {
                         }
                       />
                     </td>
-                    <td>
+                    <td data-label="금액">
                       <input
                         aria-label="금액"
                         type="number"
@@ -164,6 +177,7 @@ export function Receipt() {
           )}
         </>
       )}
+      </div>
     </Page>
   );
 }

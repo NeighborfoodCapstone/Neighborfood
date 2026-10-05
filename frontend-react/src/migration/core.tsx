@@ -108,7 +108,7 @@ export function useData(path: string | null) {
     }
     const controller = new AbortController();
     const done = foreground ? begin() : () => {};
-    if (foreground) setLoading(true);
+    setLoading(true);
     api(path, { signal: controller.signal })
       .then(set)
       .catch((e) => {
@@ -155,15 +155,20 @@ export function useAction() {
 export function Feedback({
   error,
   notice,
+  busy,
+  busyLabel = "처리 중…",
 }: {
   error?: string;
   notice?: string;
+  busy?: boolean;
+  busyLabel?: string;
 }) {
   return (
     <>
+      {busy && <LoadingState compact label={busyLabel} />}
       {error && (
         <p role="alert" className="rx-error">
-          {error}
+          <span aria-hidden="true">! </span>{error}
           {!token() && (
             <>
               {" "}
@@ -176,7 +181,7 @@ export function Feedback({
       )}
       {notice && (
         <p role="status" className="rx-notice">
-          {notice}
+          <span aria-hidden="true">✓ </span>{notice}
         </p>
       )}
     </>
@@ -189,15 +194,15 @@ export function Load({
   state: ReturnType<typeof useData>;
   children: ReactNode;
 }) {
-  if (state.loading) return <LoadingState />;
-  if (state.error)
+  if (state.loading && !state.data) return <LoadingState />;
+  if (state.error && !state.data)
     return (
       <>
         <Feedback error={state.error} />
         <button onClick={state.reload}>다시 불러오기</button>
       </>
     );
-  return <>{children}</>;
+  return <><div className="rx-data-status">{state.loading && <LoadingState compact label="목록 갱신 중…" />}{state.error && <><Feedback error={state.error} /><button onClick={state.reload}>다시 불러오기</button></>}</div><div className={state.loading ? "" : "rx-result-update"}>{children}</div></>;
 }
 export function Page({
   title,
@@ -214,7 +219,7 @@ export function Page({
   return (
     <section className="rx-page">
       <header className="rx-title">
-        <h1>{title}</h1>
+        <div className="rx-page-heading"><a className="rx-back" href={href("Home")} onClick={e => { if (window.history.length > 1) { e.preventDefault(); window.history.back(); } }} aria-label="이전 화면으로">←</a><h1>{title}</h1></div>
         {actions}
       </header>
       {children}

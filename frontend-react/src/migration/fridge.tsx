@@ -81,7 +81,7 @@ export function Fridge() {
                             "PATCH",
                           );
                           s.reload();
-                        })
+                        }, "냉장고 상태를 변경했습니다.")
                       }
                     >
                       사용 완료
@@ -96,7 +96,7 @@ export function Fridge() {
                             "PATCH",
                           );
                           s.reload();
-                        })
+                        }, "냉장고 상태를 변경했습니다.")
                       }
                     >
                       폐기
@@ -130,6 +130,7 @@ export function Fridge() {
           aria-label="식재료 편집"
         >
           <div className="rx-dialog-body">
+            <button className="rx-dialog-close" aria-label="식재료 편집 닫기" disabled={a.busy} onClick={() => setAdding(false)}>닫기 ×</button>
             <h2>{edit ? "식재료 수정" : "식재료 추가"}</h2>
             <Form
               onSubmit={(f) =>

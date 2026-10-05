@@ -1,3 +1,4 @@
+import { PortOneTest } from "./portone";
 import { PlaceField } from "./location";
 import { useEffect, useState } from "react";
 import {
@@ -477,10 +478,10 @@ function SettlementDetail({ d, reload }: { d: Row; reload: () => void }) {
       </div>
       {me && d.status === "pending" && (
         <div className="rx-actions">
-          <a href={href("Local_Verify_Demo", { settlementId: d.id })}>
+          <a href={href("Local_Verify_Demo", { settlementId: d.id, returnTo: "payment" })}>
             GPS 인증
           </a>
-          <a href={href("QR_Scan", { settlementId: d.id })}>QR 인증</a>
+          <a href={href("QR_Scan", { settlementId: d.id, mode: "issue", returnTo: "payment" })}>QR 인증</a>
           <button
             className="rx-primary"
             disabled={a.busy || !me.payable}
@@ -497,6 +498,7 @@ function SettlementDetail({ d, reload }: { d: Row; reload: () => void }) {
           </button>
         </div>
       )}
+      {me && <PortOneTest key={d.id} settlementId={d.id} payable={d.status === "pending" && !!me.payable} />}
       {own && d.status === "pending" && (
         <div className="rx-actions">
           <button

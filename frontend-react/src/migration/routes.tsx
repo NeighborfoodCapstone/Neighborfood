@@ -1,3 +1,4 @@
+import { PaymentCheckout, PaymentResult, PaymentQuick } from "./portone";
 import type { ReactNode } from "react";
 import {
   AuthPage,
@@ -53,6 +54,10 @@ export const screens = [
   "My_Activity",
   "Transaction_History",
   "Settlement",
+  "Payment_Checkout",
+  "Payment_Result",
+  "Payment_Preview",
+  "Payment_Quick",
   "Fridge",
   "Map",
   "Neighborhood_Setting",
@@ -69,6 +74,8 @@ export const screens = [
   "Admin_Staff_Invite",
 ];
 const publicScreens = new Set([
+  "Payment_Preview",
+  "Payment_Quick",
   "Home",
   "Index",
   "Splash",
@@ -193,6 +200,14 @@ export function Screen({ page, q }: { page: string; q: URLSearchParams }) {
       return <Activity />;
     case "Transaction_History":
       return <Activity history />;
+    case "Payment_Quick":
+      return <PaymentQuick />;
+    case "Payment_Checkout":
+      return <PaymentCheckout q={q} />;
+    case "Payment_Result":
+      return <PaymentResult q={q} />;
+    case "Payment_Preview":
+      return q.get("stage") === "result" ? <PaymentResult q={q} preview /> : <PaymentCheckout q={q} preview />;
     case "Settlement":
       return <Settlement q={q} />;
     case "Fridge":
