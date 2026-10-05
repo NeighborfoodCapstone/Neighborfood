@@ -1,6 +1,7 @@
 import secrets
 from datetime         import timedelta
-from fastapi          import APIRouter, Request
+from fastapi          import APIRouter, Request, Depends
+from app.core.deps import get_current_user
 from app.core.utils   import now_utc, to_iso, from_iso, hash_token, parse_token
 from app.db           import qr_db
 from app.db.location_verify_db import mark_qr_verified_by_qr_session
@@ -167,3 +168,15 @@ def get_qr_history(limit: int = 20):
         ).fetchall()
 
     return {"ok": True, "items": [qr_db.row_to_dict(r) for r in rows]}
+
+@router.get("/my-history")
+def my_qr_history(limit: int = 20, user: dict = Depends(get_current_user)):
+    """Logged-in user's issued QR status; never expose other users' history."""
+    qr_db.init_qr_db()
+    qr_db.expire_old_sessions()
+    with qr_db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM qr_sessions WHERE subject_id=? ORDER BY issued_at DESC LIMIT ?",
+            (str(user["id"]), max(1, min(limit, 50))),
+        ).fetchall()
+    return {"ok": True, "items": [qr_db.row_to_dict(row) for row in rows]}

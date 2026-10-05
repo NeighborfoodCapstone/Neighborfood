@@ -267,6 +267,7 @@ export function CreatePost({ q }: { q: URLSearchParams }) {
     s = useData(id ? "/posts/" + id : null);
   return (
     <Page title={id ? "게시글 수정" : "식재료 등록"}>
+      <p className="rx-muted"><a href={href("Receipt_Verify")} target="_blank" rel="noopener">영수증 인증 열기 ↗</a> · 새 창에서 인증하고 등록 내용을 계속 작성할 수 있습니다.</p>
       <Load state={s}>
         {(!id || s.data) && <PostForm post={s.data?.post || s.data} id={id} />}
       </Load>

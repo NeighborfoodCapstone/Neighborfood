@@ -82,7 +82,7 @@ py -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 ## Git 반영
 
-화면 확인 후 저장소 루트에서 아래 명령으로 React 변경만 올린다. 백엔드·Toss 로컬 변경이나 DB는 포함하지 않는다.
+화면 확인 후 저장소 루트에서 아래 명령으로 React 변경만 올린다. 백엔드 로컬 변경이나 DB는 포함하지 않는다.
 
 ```bash
 cd /c/Users/bluem/Neighborfood

@@ -16,7 +16,7 @@ from fastapi.responses       import FileResponse, HTMLResponse
 from app.config              import UPLOAD_DIR, PAGE_DIR, NO_CACHE
 from app.db.base             import init_all_databases
 from app.routers             import auth, posts, qr, receipt, users, wishlist, chat, transactions, fridge, admin, reports
-from app.routers             import location_verify, ratings, settlements
+from app.routers             import location_verify, ratings, settlements, portone
 
 
 # ── .env 로더 (receipt_db.py의 _load_local_env_once와 동일한 방식, 의존성 추가 없음) ──
@@ -51,6 +51,7 @@ _SERVE_SPA = (_DIST_DIR / "index.html").is_file()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_all_databases()   # startup
+    portone.init_db()
     yield
     # (shutdown 시 정리할 자원이 있으면 여기에)
 
@@ -92,6 +93,8 @@ def get_kakao_key():
     """Map.html이 카카오맵 SDK를 동적으로 로드할 때 사용하는 JS 키를 반환합니다.
     실제 값은 .env의 KAKAO_JS_KEY에서 읽어오며, 이 소스코드에는 값을 두지 않습니다."""
     return {"key": KAKAO_JS_KEY}
+
+app.include_router(portone.router, prefix="/api/payments/portone", tags=["PortOne 테스트"])
 
 # ── 라우터 등록 ────────────────────────────────────────────────────────────
 app.include_router(auth.router,             tags=["인증"])

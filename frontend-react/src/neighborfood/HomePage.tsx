@@ -61,7 +61,7 @@ export function HomePage() {
       <form className="nf-search" onSubmit={search} role="search">
         <Icon name="search" /><label className="nf-sr-only" htmlFor="food-search">식재료 검색</label>
         <Autocomplete id="food-search" label="식재료 검색" value={draft} onChange={setDraft} onSelect={item=>setKeyword(item.value)} placeholder="어떤 식재료를 찾으세요?" />
-        <button type="submit">검색</button>
+        <button type="submit" disabled={loading}>검색</button>
       </form>
     </section>
     <section className="nf-shortcuts" aria-label="자주 찾는 메뉴">
@@ -73,10 +73,12 @@ export function HomePage() {
       <div className="nf-categories" role="group" aria-label="식재료 카테고리">{categories.map(item => <button key={item} aria-pressed={item === category} onClick={() => setCategory(item)}>{item}</button>)}</div>
       {keyword && <div className="nf-query"><span>“{keyword}” 검색 결과</span><button onClick={() => {setKeyword(''); setDraft('')}}>검색 해제 ×</button></div>}
       <div aria-live="polite" aria-busy={loading}>
-        {loading ? <LoadingState label="식재료를 불러오는 중…"/>
-          : error ? <div className="nf-state" role="alert"><p>{error}</p><button className="nf-retry" onClick={() => setRetry(v => v + 1)}>다시 불러오기</button></div>
+        {error && posts.length > 0 && <div className="nf-state" role="alert"><p>{error}</p><button onClick={() => setRetry(v => v + 1)}>다시 불러오기</button></div>}
+        {loading && posts.length > 0 && <LoadingState compact label="검색 결과 갱신 중…" />}
+        {loading && posts.length === 0 ? <LoadingState label="식재료를 불러오는 중…"/>
+          : error && posts.length === 0 ? <div className="nf-state" role="alert"><p>{error}</p><button className="nf-retry" onClick={() => setRetry(v => v + 1)}>다시 불러오기</button></div>
           : posts.length === 0 ? <div className="nf-state"><Icon name="leaf" /><p>아직 등록된 식재료가 없어요.</p><span>다른 카테고리를 보거나 첫 나눔을 시작해 보세요.</span><a className="nf-retry" href={legacy('Create_Post.html')}>식재료 등록하기</a></div>
-          : <div className="nf-post-grid">{posts.map(post => <PostCard key={`${post.id}-${post.images?.[0]}`} post={post} />)}</div>}
+          : <div className="nf-post-grid rx-result-update" key={`${category}-${keyword}-${loading}`}>{posts.map(post => <PostCard key={`${post.id}-${post.images?.[0]}`} post={post} />)}</div>}
       </div>
     </section>
     

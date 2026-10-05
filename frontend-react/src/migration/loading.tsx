@@ -2,7 +2,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useState,
 } from "react";
 import type { ReactNode } from "react";
@@ -41,20 +40,15 @@ export function RouteLoading({ children }: { children: ReactNode }) {
       }
     };
   }, []);
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => setReady(true));
-    return () => cancelAnimationFrame(frame);
-  }, []);
-  const busy = !ready || pending > 0;
+  const busy = pending > 0;
   return (
     <LoadingContext.Provider value={begin}>
       <div className="rx-route-stage" aria-busy={busy}>
-        <div inert={busy} aria-hidden={busy || undefined}>
+        <div className="rx-route-content">
           {children}
         </div>
         {busy && (
-          <div className="rx-route-loading">
+          <div className="rx-route-progress">
             <LoadingState label="화면을 불러오는 중…" />
           </div>
         )}

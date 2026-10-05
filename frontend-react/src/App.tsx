@@ -1,3 +1,4 @@
+import { acceptPaymentReturn } from "./migration/portone";
 import { RouteLoading } from "./migration/loading";
 import { AppLayout } from "./neighborfood/AppLayout";
 import { HomePage } from "./neighborfood/HomePage";
@@ -5,6 +6,9 @@ import { useRoute } from "./migration/core";
 import { Guard, Screen } from "./migration/routes";
 import "./neighborfood/home.css";
 import "./migration/design.css";
+import "./migration/interface.css";
+acceptPaymentReturn();
+
 export default function App() {
   const { page, q } = useRoute();
   return (

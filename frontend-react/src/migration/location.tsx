@@ -392,6 +392,7 @@ export function LocationVerify({ q }: { q: URLSearchParams }) {
               locationSessionId: session.id,
               settlementId,
               mode: "issue",
+              returnTo: q.get("returnTo"),
             })}
           >
             QR 인증으로 이동
