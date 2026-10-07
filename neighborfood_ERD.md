@@ -3,7 +3,8 @@
 동네 식재료 나눔·공동구매·교환 플랫폼의 데이터베이스 구조 및 프로젝트 디렉토리 문서입니다.
 3개로 분리돼 있던 SQLite(`auth.db` / `qr_auth.db` / `receipt_auth.db`)를 **단일 SQLite 파일(`data/neighborfood.db`)** 로 통합하고, 회원 기능 도입에 맞춰 `users`·`sessions`·`transactions`·`groupbuy_participants`를 추가한 현행 구조를 정리합니다.
  
-> 최종 갱신: 2026-09-21
+> 최종 갱신: 2026-10-07 — GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정(테이블 21개·`portone_*` 2개의 스키마 파일 미포함 서술은 GitHub 코드와 일치함을 확인). 이전 갱신: 2026-10-06
+> 2026-10-06 PortOne 테스트 결제 테이블 반영: 2026-10-05 팀원 푸시(`ec1da57`)로 추가된 `portone_test_payments`·`portone_quick_test_payments` 2개 테이블을 다이어그램·§2·§9-8·§11에 추가(테이블 19 → **21개**). 두 테이블은 `app/routers/portone.py`의 `init_db()`가 서버 시작 시 생성하며 `sql/neighborfood_schema.sql`에는 없고 **물리 FK 없이 논리 참조**입니다. 정산 납부 상태(`settlement_shares.status`)는 변경하지 않는 테스트 전용 기록입니다. 졸업작품집 ERD 그림은 핵심 18개 테이블(`auth_codes`·결제 테이블 제외)이므로 이 문서와 수가 다릅니다.
 > 2026-09-21 React 전체 화면 이전 반영: §0 디렉토리 트리의 `frontend-react/`를 전체 이전 구조(`src/migration/`, `docs/`)로 갱신, 공개 공지 API(`GET /api/notices`) 미구현 정정. **DB 스키마 변경 없음**(React 화면은 기존 테이블·API 재사용).
 > 2026-09-19 문서-소스 정합성 점검: `settlements` 약속 컬럼 4개(`appointment_place/at/lat/lng`) 누락 보완(다이어그램·§9-6), `seed_admin.py` 복원·`reset_db.py` 존재 반영(§0·§10.5), `adminGuard.js`·`frontend-react/`·`Neighborfood_React_실행_안내.md` 트리 반영, §11 정산 DB 레이어 설명 정정(GPS 자동확인은 제거된 기능). **DB 스키마 자체의 변경은 없음**(2026-09-12 관리자 연동·2026-09-14 React 추가는 기존 테이블/API 재사용).
 > 2026-09-08 문서-저장소 정합성 검토: `seed_admin.py` 등 7개 스크립트 + `posts.json`이 저장소에 미존재 확인(§0 참고 — ⚠️ 2026-09-19 정정: `seed_admin.py`·`reset_db.py`는 존재), `frontend/vendor/html5-qrcode.min.js`·`tests/test_receipt_parser_v212.py` 신규 반영, 테이블 수 18→19 정정(`manner_ratings` 누락 보완, §9-7 신설), 프런트 목록의 `QR_Create` 제거(실존 파일 아님), §11 정산 API 개수 오기재 정정(9종→13종).
@@ -19,7 +20,7 @@
 > · ID/비밀번호 인증 전환 + `wishlists`·`conversations`·`messages` (2026-06-10)
  
 - **DBMS**: SQLite 3 (단일 파일 `data/neighborfood.db`)
-- **테이블 수**: 19개 (`users`, `sessions`, `auth_codes`, `posts`, `transactions`, `groupbuy_participants`, `manner_ratings`, `settlements`, `settlement_shares`, `qr_sessions`, `receipts`, `fridge_items`, `location_verify_sessions`, `wishlists`, `conversations`, `messages`, `conversation_members`, `notices`, `reports`)
+- **테이블 수**: 21개 (`users`, `sessions`, `auth_codes`, `posts`, `transactions`, `groupbuy_participants`, `manner_ratings`, `settlements`, `settlement_shares`, `qr_sessions`, `receipts`, `fridge_items`, `location_verify_sessions`, `wishlists`, `conversations`, `messages`, `conversation_members`, `notices`, `reports`, `portone_test_payments`, `portone_quick_test_payments`)
 - **접속 계층**: `db/*.py` — 모든 연결이 `make_conn(DB_PATH, foreign_keys=True)`로 동일 파일을 공유
 - **스키마 원본**: `neighborfood_schema.sql`
 ---
@@ -49,7 +50,7 @@ NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 │   ├── models/                       Pydantic 모델
 │   │   └── auth.py  user.py  post.py  qr.py  receipt.py  member.py  fridge.py  location_verify.py
 │   └── routers/                      API 라우터
-│       ├── auth.py  users.py  posts.py  qr.py  receipt.py  wishlist.py  chat.py
+│       ├── auth.py  users.py  posts.py  qr.py  receipt.py  wishlist.py  chat.py  portone.py(2026-10-05)
 │       ├── transactions.py  fridge.py  admin.py  reports.py
 │       ├── location_verify.py            GPS 위치 인증 (`/api/location-verify/*`, radius=100m)
 │       ├── ratings.py                    매너 평가 (`/api/ratings/*`)
@@ -75,7 +76,7 @@ NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 │   │   ├── auth.js                   토큰 저장(localStorage) + fetch 자동 인증 주입
 │   │   ├── guard.js                  회원 전용 페이지 접근 가드 (nfRequireMember())
 │   │   ├── adminGuard.js             관리자 전용 페이지 접근 가드 (nfRequireAdmin(), 신규 2026-09-12)
-│   │   ├── profile.js                프로필 조회/수정/탈퇴 호출 헬퍼
+│   │   ├── (profile.js)              저장소에 없음(2026-10-07 확인) — 프로필 호출은 `Edit_Profile.html` 등 각 화면의 인라인 `fetch`로 처리
 │   │   └── tokens.css                디자인 토큰(CSS 변수)
 │   └── vendor/                       외부 라이브러리 로컬 사본 [신규]
 │       └── html5-qrcode.min.js       QR/바코드 스캔 — CDN 장애 대비 1차 로드 경로
@@ -93,7 +94,8 @@ NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 │   └── neighborfood_schema.sql       전체 테이블 DDL (단일 진실 소스)
 │
 ├── tests/                          ▶ 자동화 테스트 [신규]
-│   └── test_receipt_parser_v212.py   영수증 파서 v2.1.2 회귀 테스트 (pytest 없이 단독 실행)
+│   ├── test_receipt_parser_v212.py   영수증 파서 v2.1.2 회귀 테스트 (pytest 없이 단독 실행)
+│   └── test_portone.py               PortOne 테스트 결제 테스트 (pytest, 외부 API mock) [신규 2026-10-05]
 │
 ├── data/                           ▶ 실제 데이터베이스
 │   └── neighborfood.db               단일 SQLite 파일 (startup 시 자동 생성)
@@ -338,6 +340,28 @@ erDiagram
         TEXT updated_at
     }
  
+    portone_test_payments {
+        TEXT payment_id PK "nf-test-<uuid>"
+        INTEGER user_id "users.id (논리적)"
+        INTEGER settlement_id "settlements.id (논리적)"
+        INTEGER amount "서버 DB 분담금 기준(원)"
+        TEXT store_id
+        TEXT channel_key "PortOne 테스트 채널 키"
+        TEXT status "READY/PAID/CANCELLED 등"
+        TEXT created_at
+        TEXT checked_at
+    }
+    portone_quick_test_payments {
+        TEXT payment_id PK "nf-quick-<uuid>"
+        INTEGER user_id "users.id (논리적)"
+        INTEGER amount "1000 고정"
+        TEXT store_id
+        TEXT channel_key
+        TEXT status
+        TEXT created_at
+        TEXT checked_at
+    }
+
     users ||--o{ sessions : "로그인 세션 (1:N)"
     users ||--o{ posts : "작성 (1:N)"
     users ||--o{ transactions : "제공/수령 (1:N)"
@@ -360,9 +384,13 @@ erDiagram
     users ||--o{ settlements : "정산 주최자 (1:N)"
     settlements ||--o{ settlement_shares : "참여자별 분담 (1:N)"
     users ||--o{ settlement_shares : "정산 참여자 (1:N)"
+    users ||--o{ portone_test_payments : "테스트 결제 주문 (논리적)"
+    settlements ||--o{ portone_test_payments : "정산별 주문, UNIQUE(user_id, settlement_id) (논리적)"
+    users ||--o{ portone_quick_test_payments : "빠른 테스트 주문 (논리적)"
 ```
  
 > `posts.author_id`·`transactions`·`groupbuy_participants`·`settlements`·`settlement_shares`의 FK는 **물리 FK로 적용 완료**입니다(단일 파일 통합으로 활성화).
+> `portone_test_payments`·`portone_quick_test_payments`(2026-10-05)는 `user_id`·`settlement_id`를 **논리적으로만** 참조하며 FK를 선언하지 않습니다(`PRAGMA foreign_keys`와 무관한 테스트 전용 기록).
 > `qr_sessions.subject_id` / `receipts.subject_id`는 기존 흐름 보존을 위해 **논리적 참조(TEXT)** 로 유지하며, 거래 정합성은 `transactions.qr_session_id` / `receipt_id`를 통해 연결합니다.
  
 ---
@@ -386,6 +414,9 @@ erDiagram
 | `users` | `receipts` | `subject_id` | 1 : N | 논리적 | 회원의 영수증 인증 |
 | `transactions` | `qr_sessions` | `qr_session_id` | 1 : 1 | 논리적 | 거래에 연계된 QR |
 | `transactions` | `receipts` | `receipt_id` | 1 : 1 | 논리적 | 거래에 연계된 영수증 |
+| `users` | `portone_test_payments` | `user_id` | 1 : N | 논리적 | 회원의 PortOne 테스트 주문 (정산당 1건, `UNIQUE(user_id, settlement_id)`) |
+| `settlements` | `portone_test_payments` | `settlement_id` | 1 : N | 논리적 | 정산별 테스트 주문 |
+| `users` | `portone_quick_test_payments` | `user_id` | 1 : N | 논리적 | 회원의 빠른 테스트 주문 |
  
 ---
  
@@ -764,6 +795,39 @@ Step 2: QR 대면 인증 (주최자가 참여자 QR 스캔)
  
 ---
  
+## 9-8. `portone_test_payments` / `portone_quick_test_payments` — PortOne 테스트 결제 [신규 2026-10-05]
+
+팀원이 연동한 PortOne V2 **테스트 채널** 결제의 주문 기록입니다. 가격은 클라이언트가 보내지 않고 서버가 `settlement_shares.amount`(또는 빠른 테스트 1,000원)로 정하며, 결제 후 `POST /api/payments/portone/{payment_id}/verify`가 PortOne REST 조회 결과(ID·상점·채널 키·금액·KRW·채널 TEST·PAID)와 비교해 `status`를 갱신합니다. **`settlement_shares.status`·정산 완료·판매자 지급은 변경하지 않습니다.** 두 테이블은 `app/routers/portone.py`의 `init_db()`가 `CREATE TABLE IF NOT EXISTS`로 만듭니다.
+
+### `portone_test_payments` — 정산 분담금 테스트 주문
+
+| 컬럼 | 타입 | 키 | 설명 |
+|------|------|----|------|
+| `payment_id` | `TEXT` | PK | `nf-test-<uuid>` — 같은 (회원, 정산)은 항상 같은 ID 재사용 |
+| `user_id` | `INTEGER` | NOT NULL | 주문한 회원 (논리적 `users.id`) |
+| `settlement_id` | `INTEGER` | NOT NULL | 대상 정산 (논리적 `settlements.id`) |
+| `amount` | `INTEGER` | NOT NULL | 서버 DB 분담금(원) |
+| `store_id` | `TEXT` | NOT NULL | 주문 당시 PortOne 상점 ID (설정이 바뀌면 조회 거부) |
+| `channel_key` | `TEXT` | NOT NULL | 주문 당시 테스트 채널 키 |
+| `status` | `TEXT` | NOT NULL, 기본 `READY` | 검증 결과 상태 (취소 상태도 재조회 시 반영) |
+| `created_at` | `TEXT` | NOT NULL, 기본 `CURRENT_TIMESTAMP` | 생성 시각 |
+| `checked_at` | `TEXT` | | 마지막 검증 시각 |
+
+**제약**: `UNIQUE(user_id, settlement_id)` — 회원·정산당 테스트 주문 1건. `prepare`는 `GPS 인증 + QR 인증(quality_agreed)`을 마친 본인의 `unpaid` 분담금(정산 `pending`)에만 허용됩니다.
+
+### `portone_quick_test_payments` — 빠른 테스트(1,000원) 주문
+
+| 컬럼 | 타입 | 키 | 설명 |
+|------|------|----|------|
+| `payment_id` | `TEXT` | PK | `nf-quick-<uuid>` |
+| `user_id` | `INTEGER` | NOT NULL | 주문한 회원 (논리적) |
+| `amount` | `INTEGER` | NOT NULL | 1000 고정 |
+| `store_id` / `channel_key` | `TEXT` | NOT NULL | 주문 당시 설정 |
+| `status` | `TEXT` | NOT NULL, 기본 `READY` | 검증 결과 상태 |
+| `created_at` / `checked_at` | `TEXT` | | 생성·검증 시각 |
+
+---
+
 ## 10. 설계 결정 메모
  
 ### 10.1 타임스탬프를 `TEXT`(ISO-8601)로 두는 이유
@@ -811,6 +875,8 @@ Step 2: QR 대면 인증 (주최자가 참여자 QR 스캔)
 | `app/routers/reports.py` | 신고 제출 API (`/api/reports`) |
 | `app/routers/location_verify.py` | GPS 위치 인증 API (`/api/location-verify/*`) |
 | `app/routers/ratings.py` | 매너 평가 API (`/api/ratings/*`) |
+| `app/routers/portone.py` | PortOne V2 테스트 결제 API (`/api/payments/portone/*`) + `portone_test_payments`·`portone_quick_test_payments` DDL(`init_db()`) |
+| `docs/PORTONE_TEST_SETUP.md` · `portone.env.example` | PortOne 테스트 연동 범위·설정 / `PORTONE_*` 환경변수 템플릿 — 앞 문서는 ⚠️ 2026-09-28 기준 작성본이라 `quick-prepare`·`Payment_Quick`/`Payment_Preview`(2026-10-05 추가)를 반영하지 않고 API를 3종으로 기술함 — 현행 API는 4종(팀원 문서는 수정하지 않음) |
 | `frontend/shared/auth.js` | 토큰 저장 + fetch 자동 인증 주입 |
 | `frontend/shared/guard.js` | 회원 전용 페이지 접근 가드 (`nfRequireMember()`) |
 | `frontend/shared/adminGuard.js` | 관리자 전용 페이지 접근 가드 (`nfRequireAdmin()`) — 6개 `Admin_*.html` 공통 |

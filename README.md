@@ -3,7 +3,9 @@
 지역 기반 식재료 공동구매 플랫폼 — FastAPI + SQLite 백엔드, React(Vite) 프런트엔드(기존 화면 39개 전체 이전 구현) + 기존 정적 HTML 프런트엔드(병행 보존)
 
 버전: **v2.1.0** (2026-08-22)
-문서 최종 갱신: 2026-09-21 (React 전체 화면 이전·공통 디자인·로딩·자동완성·게시글 상세 개선 반영, 공개 공지 API 미구현 정정, 게시글 수정 범위 정정, `frontend-react/docs/` 문서 추가)
+문서 최종 갱신: 2026-10-07 (GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정)
+이전 갱신: 2026-10-06 (운영 서버 HTTPS 배포 완료·PortOne V2 테스트 결제 연동 반영: 주요 기능·라우터 표·폴더 구조·알려진 제한·관련 문서 갱신)
+이전 갱신: 2026-09-21 (React 전체 화면 이전·공통 디자인·로딩·자동완성·게시글 상세 개선 반영, 공개 공지 API 미구현 정정, 게시글 수정 범위 정정, `frontend-react/docs/` 문서 추가)
 이전 갱신: 2026-09-19 (문서-소스 정합성 점검 반영: `reset_db.py` 존재 확인, 라우터 경로 정정, 미구현 API(비밀번호 변경) 표기, 관련 문서 목록 추가)
 이전 갱신: 2026-09-14 (`frontend-react/`(Vite + React 19 + TypeScript) 신규 추가 — 홈 화면 부분 마이그레이션 반영)
 
@@ -24,7 +26,9 @@
 - GPS 위치 인증 (Haversine 100m 서버 재검증)
 - 카카오맵 연동 (`.env` 동적 로드, 소스코드 키 하드코딩 금지)
 - 관리자 대시보드 (회원·신고·공지·채팅 모니터링)
-- **(2026-09-20~21) React(Vite) 프런트엔드** — `frontend-react/`에 기존 정적 HTML 39개 화면 식별자를 React(TypeScript)로 이전(인증·게시글·냉장고·거래·채팅·정산·위치·QR·영수증·관리자). 공통 디자인·공통 로딩·자동완성·게시글 상세 개선 적용. 기존 정적 HTML은 최종 점검이 끝나기 전까지 병행 보존 (§5 및 "React 프런트엔드" 안내 참고)
+- PortOne V2 **테스트 결제** (정산 상세 → 결제 확인 → 테스트 결제창, 테스트 채널 전용·실결제 아님·정산 납부 상태 불변, 2026-10-05)
+- 운영 서버: Oracle Cloud + Nginx + Let's Encrypt HTTPS(`https://neighborfood.duckdns.org`), 로컬 빌드 `dist/`를 FastAPI가 서빙 (2026-10-03)
+- **(2026-09-20~21) React(Vite) 프런트엔드** — `frontend-react/`에 기존 정적 HTML 39개 화면 식별자를 React(TypeScript)로 이전(인증·게시글·냉장고·거래·채팅·정산·위치·QR·영수증·관리자). 공통 디자인·공통 로딩·자동완성·게시글 상세 개선 적용. 기존 정적 HTML은 최종 점검이 끝나기 전까지 병행 보존 (§5 및 "React 프런트엔드" 안내 참고) ※ 화면 수: 기존 HTML 이전분 39개 + PortOne 결제 화면 4개(`Payment_Checkout`·`Payment_Result`·`Payment_Quick`·`Payment_Preview`, 2026-10-05 신규) = `routes.tsx` `screens` 기준 총 43개.
 
 ---
 
@@ -77,9 +81,14 @@ CLOVA_OCR_INVOKE_URL=   # CLOVA OCR Invoke URL (선택)
 CLOVA_OCR_SECRET=       # CLOVA OCR Secret Key (선택)
 KAKAO_JS_KEY=           # 카카오 JS API 키 (지도 기능 사용 시 필요)
 ALLOWED_ORIGINS=        # CORS 허용 도메인(콤마 구분). 비우면 * 허용 — 배포 시 실제 도메인 필수
+PORTONE_TEST_ENABLED=   # (선택) PortOne 테스트 결제 사용 시 true — 템플릿: portone.env.example
+PORTONE_STORE_ID=       # (선택) PortOne V2 상점 ID
+PORTONE_CHANNEL_KEY=    # (선택) PortOne **테스트 채널** 키 (LIVE 채널 금지)
+PORTONE_API_SECRET=     # (선택) PortOne API 시크릿 — 서버 .env에만, VITE_ 변수·채팅·문서 금지
 ```
 
 > `.env` 파일은 `.gitignore`에 포함되어 있으므로 GitHub에 올라가지 않습니다.
+> `PORTONE_*` 4개 항목은 `.env.example`에는 없고 별도 템플릿 `portone.env.example`에만 있습니다. PortOne 테스트 결제를 쓸 때 그 내용을 `.env`에 추가하세요(위 블록의 `PORTONE_*` 줄은 추가할 항목의 예시입니다).
 
 ### 4. 서버 실행
 
@@ -114,12 +123,13 @@ npm run dev
 - 상세 실행·문제 해결은 `Neighborfood_React_실행_안내.md`, 화면 매핑·검증 범위는 `frontend-react/docs/MIGRATION_REPORT.md`, 디자인 기준은 `frontend-react/docs/DESIGN_CONTEXT.md`를 참고하세요.
 
 > ⚠️ **알려진 미비·제한 사항 (2026-09-21 기준)**
-> - `frontend-react/README.md`는 Vite 기본 템플릿 문서 그대로이며 프로젝트 설명으로 아직 교체되지 않았습니다.
+> - ~~`frontend-react/README.md` 템플릿 미교체~~ → 2026-10-03 교체 완료. 다만 배포 절차의 `scp -r dist/* …/dist/`는 서버에 `dist/`가 있어야 하므로 최초 업로드에는 `NeighborFood_서버_실행_점검_가이드.md` §5-2의 명령을 사용하세요. (저장소 미포함 — 개별 보관)
+> - 그룹 채팅 화면에 거래 액션 바(약속·정산·GPS·QR 진입점)가 없습니다(약속은 정산 상세에서만 입력).
 > - 실제 브라우저의 시각 확인·모바일 터치·키보드 탐색, 카메라(QR)·GPS·Kakao SDK·CLOVA OCR 동작은 실제 환경에서 확인이 필요합니다. 기존 HTML과 세부 동작·레이아웃이 1:1 동일하다고 확정하지 않았습니다.
 > - 기존 게시글 수정 API(`PATCH /posts/{id}`)는 사진·거래 유형·목표 인원·1인 금액을 수정하지 못해 React 화면에서도 해당 필드 편집을 제한했습니다.
 > - 공개 공지 API(`GET /api/notices`)는 코드에 없어 React 화면은 관리자 공지를 일반 회원 화면에 노출하지 않습니다.
 > - PWA 설치·오프라인 기능은 구현되지 않았습니다(PWA 전환을 위한 프런트 구조 정비 단계).
-> - 정산의 "납부 표시"는 결제 승인이나 자동 송금이 아닙니다. 외부 결제 연동은 기본적으로 예정되어 있지 않으며 여유가 있을 경우에 한해 추가 검토합니다.
+> - 정산의 "납부 표시"는 결제 승인이나 자동 송금이 아닙니다. 실결제·자동 송금은 예정되어 있지 않고, 2026-10-05 연동된 PortOne 결제는 **테스트 채널 전용**이며 납부 상태·정산 완료·판매자 지급을 바꾸지 않습니다.
 
 ### 6. 관리자 계정 생성
 
@@ -207,13 +217,14 @@ Neighborfood/
 │       ├── reports.py
 │       ├── qr.py
 │       ├── receipt.py
-│       └── location_verify.py
+│       ├── location_verify.py
+│       └── portone.py       # PortOne V2 테스트 결제 (/api/payments/portone/*) [신규 2026-10-05]
 ├── frontend/                # 정적 HTML 프런트엔드
 │   ├── shared/
 │   │   ├── auth.js          # fetch 래퍼 (Bearer 토큰 자동 주입)
 │   │   ├── guard.js         # 회원 전용 페이지 보호 (nfRequireMember)
 │   │   ├── adminGuard.js    # 관리자 전용 페이지 보호 (nfRequireAdmin) [신규 2026-09-12]
-│   │   ├── profile.js       # 프로필 조회·수정·탈퇴 헬퍼
+│   │   ├── (profile.js)     # 저장소에 없음(2026-10-07 확인) — 프로필 호출은 `Edit_Profile.html` 등 각 화면의 인라인 `fetch`로 처리
 │   │   └── tokens.css       # 디자인 토큰 (CSS 변수)
 │   ├── vendor/
 │   │   └── html5-qrcode.min.js  # QR/바코드 스캔 라이브러리 로컬 사본 [신규] — CDN 장애 대비 1차 로드 경로
@@ -250,7 +261,10 @@ Neighborfood/
 │   │   │   ├── location.tsx      # Kakao 지도·동네 설정·GPS 위치 인증
 │   │   │   ├── qr.tsx            # QR 발급·카메라 스캔·토큰 검증
 │   │   │   ├── receipt.tsx       # 영수증 OCR·품목 편집·인증·냉장고 등록
-│   │   │   └── admin.tsx         # 관리자 대시보드·회원·공지·신고·채팅 기록
+│   │   │   ├── admin.tsx         # 관리자 대시보드·회원·공지·신고·채팅 기록
+│   │   │   ├── portone.tsx       # PortOne 테스트 결제 화면 Payment_Checkout·Result·Quick·Preview [신규 2026-10-05]
+│   │   │   ├── Scanner.tsx       # QR·영수증 공용 카메라 스캐너 [신규 2026-10-05]
+│   │   │   └── scanner.css · interface.css   # 스캐너·인터페이스 스타일 [신규 2026-10-05]
 │   │   ├── App.css
 │   │   ├── App.tsx               # 해시 라우팅 + AppLayout + 접근 가드 (홈은 HomePage)
 │   │   ├── index.css
@@ -262,17 +276,20 @@ Neighborfood/
 │   ├── vite.config.ts         # @vitejs/plugin-react + 개발/preview API 프록시 (NEIGHBORFOOD_BACKEND)
 │   ├── .oxlintrc.json         # Oxlint 설정 (ESLint 대체 린터)
 │   ├── .gitignore
-│   └── README.md              # ⚠️ Vite 템플릿 기본 문서 — 아직 프로젝트 설명으로 미교체
+│   └── README.md              # 프로젝트 설명·실행·구조·배포 절차 (2026-10-03 교체 완료)
 
 ├── tests/
-│   └── test_receipt_parser_v212.py  # 영수증 파서 회귀·유닛 테스트 [신규] — pytest 없이 단독 실행 가능
+│   ├── test_receipt_parser_v212.py  # 영수증 파서 회귀·유닛 테스트 [신규] — pytest 없이 단독 실행 가능
+│   └── test_portone.py              # PortOne 테스트 결제 검증 (외부 API mock) [신규 2026-10-05]
+├── docs/PORTONE_TEST_SETUP.md   # PortOne 테스트 연동 범위·설정·제한
+├── portone.env.example          # PORTONE_* 환경변수 템플릿
 ├── README.md  Capstone.md  NeighborFood_Architecture_Plan.md  neighborfood_ERD.md
 ├── Settlement_Implementation_Plan.md  Neighborfood_React_실행_안내.md   # 프로젝트 문서 (아래 "관련 문서" 참고)
 ```
 
 > ℹ️ **React 프런트엔드 안내 (2026-09-14 추가 → 2026-09-20~21 전체 화면 이전 반영)**
 > `frontend-react/`(Vite 8 + React 19 + TypeScript, 린터는 ESLint 대신 **Oxlint**)는 2026-09-14 홈 화면으로 시작해, 2026-09-20 기존 HTML 39개 화면 식별자를 React 경로로 매핑·이전했고(`src/migration/`), 2026-09-21 공통 로딩·자동완성·게시글 상세 개선을 보강했습니다. 화면 이동은 해시 경로(`#/화면명`)이며, 39개 화면이 39개의 독립 TSX 파일은 아니고 같은 그룹의 화면은 하나의 컴포넌트와 props를 공유합니다. 신규 백엔드 API는 추가되지 않았고 기존 FastAPI API를 그대로 사용합니다.
-> **후속 필요 작업**: ① `frontend-react/README.md`를 Vite 기본 템플릿에서 프로젝트 설명으로 교체, ② 실제 브라우저·모바일·기기(카메라·GPS·OCR) 검증, ③ 공개 공지 API 미구현 대응, ④ 배포 시 `.env`의 `ALLOWED_ORIGINS`에 React 앱 서빙 도메인 추가 및 정적 빌드 배포 방식(API 프록시 또는 공개 API 주소) 결정, ⑤ 정적 HTML(`frontend/`)의 최종 처리(현재는 최종 점검 전까지 유지).
+> **후속 필요 작업 (2026-10-06 갱신)**: ① ~~`frontend-react/README.md` 교체~~ ✅ 완료(2026-10-03), ② 실제 브라우저·모바일·기기(카메라·GPS·OCR) 검증, ③ 공개 공지 API 미구현 대응, ④ 배포 시 `.env`의 `ALLOWED_ORIGINS`에 React 앱 서빙 도메인 추가 및 정적 빌드 배포 방식(API 프록시 또는 공개 API 주소) 결정, ⑤ 정적 HTML(`frontend/`)의 최종 처리(현재는 최종 점검 전까지 유지).
 
 
 > ⚠️ **문서-저장소 정합성 안내 (2026-09-08 확인, 2026-09-12 갱신)**
@@ -288,7 +305,7 @@ Neighborfood/
 > | `nf_functional_test.py` | 전체 기능 자동 테스트 스크립트 | ⬜ 미존재 |
 > | `reset_db.py` | DB 초기화 (테이블 DELETE + Admin 재생성) | ✅ **존재 확인 (2026-09-19)** — 아래 "9. DB 초기화" 참고 |
 >
-> 현재 저장소에 존재하는 자동화 테스트는 `tests/test_receipt_parser_v212.py`(영수증 파서 전용) 하나뿐이며(`reset_db.py`는 테스트가 아닌 DB 초기화 도구), 더미 시드·정산 검증 등 나머지 기능은 표에서 ⬜ 미존재로 표기된 스크립트가 없는 상태이므로 별도 수동 절차로 병행해야 합니다. 관리자 계정 생성은 `seed_admin.py` 복원으로 정상 동작합니다(아래 "6. 관리자 계정 생성" 참고). 아래 "7. 더미 데이터 주입" 안내는 여전히 미존재 상태를 반영합니다.
+> 현재 저장소에 존재하는 자동화 테스트는 `tests/test_receipt_parser_v212.py`(영수증 파서 전용)와 `tests/test_portone.py`(PortOne 테스트 결제) 두 개뿐이며(`reset_db.py`는 테스트가 아닌 DB 초기화 도구), 더미 시드·정산 검증 등 나머지 기능은 표에서 ⬜ 미존재로 표기된 스크립트가 없는 상태이므로 별도 수동 절차로 병행해야 합니다. 관리자 계정 생성은 `seed_admin.py` 복원으로 정상 동작합니다(아래 "6. 관리자 계정 생성" 참고). 아래 "7. 더미 데이터 주입" 안내는 여전히 미존재 상태를 반영합니다.
 
 ---
 
@@ -336,10 +353,11 @@ Bearer 토큰 세션 인증을 사용합니다.
 | `/api/admin` | 관리자 | 회원·신고·공지 관리, 채팅 모니터링, 대시보드 통계(`/stats`) |
 | `/api/reports` | 신고 | 게시글·회원 신고 접수·취소, 내 신고 목록(`GET /my`) |
 | `/api/location-verify` | GPS 위치 인증 | 위치 인증 세션 생성·검증 (Haversine 100m) |
+| `/api/payments/portone` | PortOne 테스트 결제 | `GET /config`, `POST /prepare`(정산 분담금 주문), `POST /{payment_id}/verify`(PortOne 조회 검증), `POST /quick-prepare`(1,000원 빠른 테스트). 테스트 채널 전용, 설정(`PORTONE_*`) 없으면 503, 정산 납부 상태 불변 (2026-10-05) |
 | `/api/notices` | 공개 공지 | ⚠️ **미구현 (2026-09-21 정정)** — 문서에는 비인증 공지 조회로 기재되어 있었으나 코드에 대응 라우터가 없고 관리자 전용 `/api/admin/notices`만 존재합니다. 정적 `Help.html`은 이 경로를 호출하며, React 화면은 관리자 공지를 일반 회원 화면에 노출하지 않습니다 |
 | `/api/config/kakao-key` | 설정 | 카카오 JS 키 반환 (프론트 동적 로드용) |
 
-> React 화면은 신규 API를 추가하지 않았으며 위 목록의 기존 API를 그대로 사용합니다. 게시글 수정 `PATCH /posts/{id}`는 제목·설명·카테고리·상태·교환 희망·주소·좌표만 반영하며 사진·거래 유형·목표 인원·1인 금액은 수정할 수 없습니다(정적 `Create_Post.html`이 인원·가격을 전송해도 서버가 반영하지 않음).
+> React 화면은 신규 API를 추가하지 않았으며 위 목록의 기존 API(PortOne 테스트 결제 4종 제외)를 그대로 사용합니다. 게시글 수정 `PATCH /posts/{id}`는 제목·설명·카테고리·상태·교환 희망·주소·좌표만 반영하며 사진·거래 유형·목표 인원·1인 금액은 수정할 수 없습니다(정적 `Create_Post.html`이 인원·가격을 전송해도 서버가 반영하지 않음).
 
 ---
 
@@ -363,5 +381,10 @@ Bearer 토큰 세션 인증을 사용합니다.
 | `neighborfood_ERD.md` | DB 구조(ERD)와 디렉토리 구조 |
 | `Settlement_Implementation_Plan.md` | 공동구매 정산 시스템 설계·구현 계획 |
 | `Neighborfood_React_실행_안내.md` | 백엔드 + React(`frontend-react/`) 로컬 실행 안내서 |
+| `NeighborFood_서버_실행_점검_가이드.md` | 운영 서버(Oracle Cloud) 실행·점검·갱신 배포·백업·장애 대응 | *(저장소 미포함 — 개별 보관)*
+| `NeighborFood_배포방식_비교_Oracle_vs_Vercel.md` | 배포 방식 비교(Oracle 유지 + 리스크 보강 권고) | *(저장소 미포함 — 개별 보관)*
+| `캡스톤_전시회_준비_일정.md` | 전시회(11/3)까지 일정·서버 진행 상태·체크포인트·이력 | *(저장소 미포함 — 개별 보관)*
+| `졸업작품집_원고_작업_기록.md` · `졸업작품집_원고_유의사항.md` | 졸업작품집 원고 구성·키워드·화면 목록과 제출 전 유의사항 | *(저장소 미포함 — 개별 보관)*
+| `docs/PORTONE_TEST_SETUP.md` | PortOne 테스트 결제 설정·범위·제한 (팀원 작성) — ⚠️ 2026-09-28 기준 작성본이라 `quick-prepare`·`Payment_Quick`/`Payment_Preview`(2026-10-05 추가)를 반영하지 않고 API를 3종으로 기술함 — 현행 API는 4종(팀원 문서는 수정하지 않음) |
 | `frontend-react/docs/DESIGN_CONTEXT.md` | React 공통 디자인·로딩·자동완성·게시글 상세 기준 |
 | `frontend-react/docs/MIGRATION_REPORT.md` | 화면 39개 React 이전 매핑·검증 범위·미검증 범위 |

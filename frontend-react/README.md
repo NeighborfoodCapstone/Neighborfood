@@ -4,7 +4,7 @@
 기존 정적 HTML 39개 화면을 모두 React(TypeScript)로 이전한 구현이며, **배포 시 사용자에게 보이는 UI는 이 앱**입니다.
 (루트의 `frontend/` 정적 HTML은 최종 점검 전까지 병행 보존하는 이전 버전이며, 배포 UI가 아닙니다.)
 
-> 상태: 화면 39개 이전·빌드 통과. 실제 모바일·카메라(QR)·GPS·Kakao 지도·OCR 동작은 실환경 검증 단계입니다.
+> 상태(2026-10-06): 화면 39개 이전·빌드 통과 + PortOne 테스트 결제 화면 4종(`Payment_*`, 2026-10-05) 추가, 운영 서버(`https://neighborfood.duckdns.org`)에 `dist/` 배포됨(PortOne 반영본은 서버 재배포 확인 필요). 실제 모바일·카메라(QR)·GPS·Kakao 지도·OCR 동작은 실환경 검증 단계입니다.
 > **PWA(설치·오프라인)는 아직 구현되지 않았습니다**(`vite-plugin-pwa` 도입 예정).
 
 ## 기술 스택
@@ -13,7 +13,7 @@
 |---|---|
 | 프레임워크 | React 19 + TypeScript, Vite 8 |
 | 린터 | Oxlint (`.oxlintrc.json`, `react/rules-of-hooks` error) |
-| 주요 라이브러리 | `qrcode`(QR 생성), `jsqr`(QR 스캔) |
+| 주요 라이브러리 | `qrcode`(QR 생성), `jsqr`(QR 스캔), `@portone/browser-sdk`(PortOne V2 테스트 결제창, 2026-10-05) |
 | 라우팅 | 해시 라우팅 (`#/화면이름?쿼리`) — 새로고침·직접 접속에 서버 설정이 필요 없음 |
 | 백엔드 | FastAPI + SQLite (저장소 루트, 이 폴더는 API만 호출) |
 | 요구 사항 | Node.js 20 이상, npm |
@@ -69,6 +69,7 @@ frontend-react/
       ├─ routes.tsx             화면 목록(screens)·공개 화면(publicScreens)·Screen 분기·Guard
       ├─ auth.tsx · posts.tsx · PostGallery.tsx · fridge.tsx · trades.tsx
       ├─ location.tsx · receipt.tsx · qr.tsx · admin.tsx
+      ├─ portone.tsx · Scanner.tsx · scanner.css · interface.css   PortOne 테스트 결제(Payment_Checkout/Result/Quick/Preview) · QR·영수증 공용 카메라 스캐너 · 스타일 (2026-10-05)
       └─ design.css             공통 디자인 토큰·폼·버튼·리스트 스타일
 ```
 
@@ -102,8 +103,10 @@ frontend-react/
    ```
 2. `dist/` 폴더를 서버의 `<저장소>/frontend-react/dist/`로 업로드합니다(`dist/`는 Git에 포함되지 않음).
    ```bash
-   scp -r dist/* <사용자>@<서버>:~/Neighborfood/frontend-react/dist/
+   ssh <사용자>@<서버> "rm -rf ~/Neighborfood/frontend-react/dist"      # 이전 빌드 제거(최초에는 없어도 됨)
+   scp -r dist <사용자>@<서버>:~/Neighborfood/frontend-react/            # dist 폴더째 업로드 — 서버에 dist/가 없어도 동작
    ```
+   > `scp -r dist/* …/dist/` 형태는 서버에 `dist/` 폴더가 이미 있어야 하므로 최초 업로드에는 위 방식을 씁니다(2026-10-06 보정). 개인키를 쓰면 `-i "<개인키 경로>"`를 붙입니다.
 3. 서버의 FastAPI(`main.py`)는 `frontend-react/dist/index.html`이 있으면 `/`에서 React 앱을 서빙하고, 없으면 임시 안내 페이지를 보여줍니다. 위치를 바꾸려면 서버 `.env`에 `FRONTEND_DIST_DIR=<절대경로>`를 지정합니다.
    - **`dist/`를 처음 올린 뒤에는 서비스를 한 번 재시작**합니다(`sudo systemctl restart neighborfood`). 서버가 시작할 때 `dist/index.html` 유무를 확인하기 때문입니다.
    - 이후 `dist/`만 교체할 때는 재시작이 필요 없습니다. 이전 빌드의 `assets/` 파일이 남아도 동작에는 영향이 없으며, 정리하려면 업로드 전에 서버의 `dist/` 내용을 지웁니다.

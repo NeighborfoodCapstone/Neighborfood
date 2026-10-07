@@ -1,7 +1,7 @@
 # Role: Senior Full-stack Engineer Assistant
 당신은 '1인 가구 지역 식재료 공동구매 플랫폼(NeighborFood)' 프로젝트의 전담 개발자입니다. 아래의 컨텍스트와 제약 사항을 완벽히 숙지하고 개발을 수행하십시오.
  
-> 최종 갱신: 2026-09-30 · 배포 서버 백엔드 배치·도메인 연결 반영(코드 변경 없음, '잠재 이슈'의 배포 보안 참고). 이전 갱신: 2026-09-21 · React 전체 화면 이전·공통 디자인·로딩·자동완성 반영(아래 참고). 이전 갱신: 2026-09-19 문서-소스 정합성 점검. 이전 주요 갱신: 2026-08-12 · UX 갭 감사·해소 완료 (관리자 연동·참여 취소·게시글 수정·공지 표시·매너 평가 리다이렉트)
+> 최종 갱신: 2026-10-07 · GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정. 이전 갱신: 2026-10-06 · 운영 서버 HTTPS 배포 완료(2026-10-03)와 팀원 PortOne V2 **테스트 결제** 연동(2026-10-05 푸시) 반영, 외부 결제 범위 정정. 이전 갱신: 2026-09-30 · 배포 서버 백엔드 배치·도메인 연결 반영(코드 변경 없음, '잠재 이슈'의 배포 보안 참고). 이전 갱신: 2026-09-21 · React 전체 화면 이전·공통 디자인·로딩·자동완성 반영(아래 참고). 이전 갱신: 2026-09-19 문서-소스 정합성 점검. 이전 주요 갱신: 2026-08-12 · UX 갭 감사·해소 완료 (관리자 연동·참여 취소·게시글 수정·공지 표시·매너 평가 리다이렉트)
 > 2026-09-08 문서-저장소 정합성 검토: `seed_admin.py`·`seed_posts.py`·`posts.json`이 실제 저장소에 더 이상 존재하지 않는 것으로 확인됨 (아래 §4 "문서-저장소 정합성 안내" 참고). `frontend/vendor/html5-qrcode.min.js`, `tests/test_receipt_parser_v212.py` 신규 반영. 정산 API 개수 오기재(9종→13종) 2곳 정정, "## Included" 목록의 자기모순(이미 완료된 매너평가·참여취소 흐름이 잔여로 중복 기재) 정정.
 > 2026-09-12 관리자 기능 실데이터 연동 완료: `seed_admin.py` 복원, `adminGuard.js` 신설, `Admin_Users.html`·`Admin_Report_Detail.html`·`Admin_Staff_Invite.html`·`Admin_Dashboard.html` 전면 실연동, 미납 정산 참여 차단 리팩터링, 주최자 귀책/먹튀 trust_score 자동 페널티, 회원 직접 신고 진입점 신설.
 > 2026-09-19 문서-소스 정합성 점검: 루트 스크립트 중 `reset_db.py`가 저장소에 존재함을 확인하고 트리·§6 Commands에 반영, 트리의 문서 파일명 오타(`Cpastone.md`→`Capstone.md`) 정정, `Neighborfood_React_실행_안내.md` 추가 반영. 코드 변경 없음.
@@ -23,6 +23,7 @@
 - 그룹(공동구매) 채팅(`conversations.kind`·`conversation_members` + `/api/chats/group/*`) — `Group_Chat.html`
 - 관리자 기능(`/api/admin/*`, `notices`·`reports`, 6종 화면 실데이터 연동 완료 2026-09-12) + `seed_admin.py`(계정 부트스트랩, 2026-09-12 복원)
 - 신고(`reports` + `POST /api/reports` → 관리자 처리)
+- 운영 서버 HTTPS 배포 완료(2026-10-03) · PortOne 테스트 결제 연동(2026-10-05, 테스트 채널 한정)
 - 배포 대응: 전 화면 `API_BASE`=`window.location.origin`(상대경로), `tokens.css` 전체 39개 화면 적용 완료
 - GPS 위치 인증(`location_verify_sessions` + `/api/location-verify/*`, 더미 타겟 생성·GPS 반경 체크·QR 연동) — `Local_Verify_Demo.html`
 - 공동구매 참여 레이스 컨디션 수정 — `posts.py`에서 원자적 UPDATE로 전환 (2026-07-09)
@@ -55,6 +56,8 @@
   - `AppLayout.tsx` — 헤더 + 하단 네비게이션(홈/지도/등록/내 활동/마이) 공통 레이아웃
   - `api.ts` — `legacy(page)` 헬퍼로 지도·등록·내 활동·마이페이지·게시글 상세 등 나머지 화면을 기존 정적 HTML(`frontend/*.html`)로 하드 네비게이션. 백엔드 주소는 `VITE_API_BASE_URL` 환경변수(기본값 `http://127.0.0.1:8000`)로 지정
   - 정적 HTML 프런트엔드(`frontend/`)는 그대로 유지 — **두 프런트엔드가 병행 운영되는 하이브리드 구조** (2026-09-20 갱신: 전체 화면 이전 구현 완료, 아래 참고)
+- **운영 서버 HTTPS 배포** (2026-10-03, 신규): Oracle Cloud Micro(Ubuntu 24.04)에서 Nginx 리버스 프록시 → Let's Encrypt(만료 2027-01-01, 자동 갱신) → PC 빌드 `dist/` 업로드·FastAPI 서빙 → HTTPS 도메인에서 카카오 지도 확인. 코드 갱신은 백엔드 `git pull`+재시작, 프런트는 `dist/` 교체
+- **PortOne V2 테스트 결제** (2026-10-05, 팀원, 신규 API·테이블): `app/routers/portone.py`(`/api/payments/portone/*` 4종), `portone_test_payments`·`portone_quick_test_payments`, React `portone.tsx`(Payment_Checkout/Result/Quick/Preview)·`Scanner.tsx`. **TEST 채널만, 실결제 아님, 정산 납부 상태 불변**. `tests/test_portone.py`(외부 API mock) 화면 수: 기존 HTML 이전분 39개 + PortOne 결제 화면 4개(`Payment_Checkout`·`Payment_Result`·`Payment_Quick`·`Payment_Preview`, 2026-10-05 신규) = `routes.tsx` `screens` 기준 총 43개.
 - **React 전체 화면 이전** (2026-09-20, 신규):
   - 기존 HTML 39개 화면 식별자를 React 경로로 매핑 — 인증(`auth.tsx`), 게시글·검색·찜·상세·등록·거래 신청·신고(`posts.tsx`), 냉장고(`fridge.tsx`), 채팅·내 활동·거래 내역·정산(`trades.tsx`), 지도·동네·GPS 인증(`location.tsx`), QR(`qr.tsx`), 영수증(`receipt.tsx`), 관리자(`admin.tsx`), 화면 목록·라우팅·접근 제어·도움말(`routes.tsx`). 39개 화면이 39개의 독립 TSX 파일은 아니며 같은 그룹은 컴포넌트·props를 공유
   - 공통 API 요청·인증 토큰·오류 처리는 `src/migration/core.tsx`, 공통 스타일은 `design.css`. 화면 이동은 해시 경로(`/#/Fridge`, `/#/Product_Detail?id=1`)
@@ -66,14 +69,16 @@
   - 화면 전환·최초 조회 공통 로딩(`loading.tsx`, 백그라운드 재조회는 기존 내용 유지), 검색·회원 검색·주소 검색 공통 자동완성(`autocomplete.tsx` — 250ms 디바운스·최대 8개·이전 요청 취소·한글 조합 처리·방향키/Enter/Esc), 게시글 상세 사진 갤러리(`PostGallery.tsx`)와 데스크톱 2열·모바일 1열 배치
   - GitHub main 반영: 커밋 `9df3688`(24개 파일). PWA 설치·오프라인 기능은 미구현(PWA 전환을 위한 프런트 구조 정비)
 미완료(잔여):
-- 작성자 매너 평가 표시 — `Product_Detail.html`·`Group_Buy_Detail.html` 작성자 카드에 `GET /api/ratings/received?user_id={authorId}` 연동 (API 완비)
-- `frontend-react/README.md` 교체 — 현재 Vite 기본 템플릿 문서 그대로이며 프로젝트 설명(실행 방법·구조)으로 교체 필요 (선택: 공개 API 주소를 직접 쓸 경우에만 `VITE_API_BASE_URL` 템플릿 항목 추가)
+- ~~작성자 매너 평가 표시~~ — ✅ 완료(2026-10-03): React 상세 작성자 카드에 `GET /api/ratings/received?user_id=` 요약(👍/👎) 표시. 정적 HTML 상세는 미적용
+- ~~`frontend-react/README.md` 교체~~ — ✅ 완료(2026-10-03): 프로젝트 설명·실행·구조·배포 절차로 교체. 보정 필요: 배포 절차의 `scp -r dist/* …/dist/`는 서버에 `dist/`가 있어야 동작 (선택: 공개 API 주소를 직접 쓸 경우에만 `VITE_API_BASE_URL` 템플릿 항목 추가)
 - 공개 공지 API 미구현 — 문서에 있던 `GET /api/notices`는 코드에 없음(관리자 전용 `/api/admin/notices`만 존재). `Help.html` 공지 목록이 표시되지 않으며 React 화면도 관리자 공지를 일반 회원에게 노출하지 않음
 - React 화면 실제 환경 검증 — 브라우저 화면·모바일 터치·키보드 탐색, 카메라(QR)·GPS·Kakao SDK·CLOVA OCR
 - 게시글 수정 API 확장 여부 — 사진·거래 유형·목표 인원·1인 금액 수정 불가(React 편집 제한 중)
 - PWA 전환 — 설치·오프라인 기능 미구현
-- 정적 HTML(`frontend/`) 최종 처리 — 최종 점검이 끝나기 전까지 유지, 이후 처리 방식과 정식 배포 서빙 방식 결정 필요
-- 배포 서버 잔여 구성 — 백엔드는 배포 서버에서 실행 중(2026-09-30). Nginx 리버스 프록시·HTTPS(certbot)·`dist/` 서빙(`main.py` SPA 마운트)·관리자 계정 생성 남음
+- 정적 HTML(`frontend/`) 최종 처리 — 최종 점검이 끝나기 전까지 유지, 이후 폐기·보존 여부 결정 필요. 정식 배포는 React `dist/` 서빙으로 확정(2026-10-03)
+- 배포 서버 운영 마무리(2-5) — Nginx·HTTPS·`dist/` 서빙은 완료(2026-10-03, `https://neighborfood.duckdns.org`). 남은 것: 관리자 계정 승격, 재부팅 후 자동 시작·`Restart=` 정책·SSH 설정 확인, 부하테스트(5~6명 동시·OCR 겹침), `apt` 업데이트. 상세: `NeighborFood_서버_실행_점검_가이드.md`, `캡스톤_전시회_준비_일정.md` 위 두 문서 (저장소 미포함 — 개별 보관).
+- PortOne 테스트 결제 서버 반영 — 코드는 GitHub(`ec1da57`)에 있으나 서버 `git pull`·`.env`(`PORTONE_*`, TEST 채널)·`dist/` 재빌드/업로드·재시작 확인 필요
+- 그룹 채팅 거래 액션 바 복원 — React 채팅에 약속·정산·GPS·QR 진입점이 없음(약속은 정산 상세에서만). 시연 흐름과 직결
 완료로 전환된 기존 잔여 항목:
 - ~~상호 매너 평가~~ → ✅ `ratings.py` + `manner_ratings` 테이블 + `trust_score` 원자적 UPDATE 구현 완료 (2026-08 이전)
 - ~~공동구매 참여 취소 흐름~~ → ✅ `DELETE /posts/{id}/join` (백엔드), 프론트 토글·시스템 메시지 모두 완료 (2026-08-12)
@@ -174,6 +179,7 @@ NEIGHBORFOOD/
 │       └── auth.py  users.py  posts.py  qr.py  receipt.py  wishlist.py  chat.py
 │                    transactions.py  fridge.py  admin.py  reports.py  location_verify.py
 │                    ratings.py  settlements.py  (신규 2026-08-04)
+│                    portone.py  (신규 2026-10-05, PortOne 테스트 결제)
 ├── frontend/                    ▶ 정적 HTML 페이지 + JS 파일
 │   ├── *.html                     사용자/관리자 화면 (Home·Verify·Create_Post·QR_Scan·Local_Verify_Demo·Admin_* 등)
 │   │   (인증 흐름) Splash · Onboarding · Login · Signup · Password_Reset (.html)
@@ -181,7 +187,7 @@ NEIGHBORFOOD/
 │   │   ├── auth.js                토큰 저장(localStorage) + fetch 자동 인증 주입
 │   │   ├── guard.js               회원 전용 페이지 가드 (nfRequireMember())
 │   │   ├── adminGuard.js          관리자 전용 페이지 가드 (nfRequireAdmin(), 신규 2026-09-12)
-│   │   ├── profile.js             프로필/탈퇴 호출 헬퍼
+│   │   ├── (profile.js)           저장소에 없음(2026-10-07 확인) — 프로필 호출은 `Edit_Profile.html` 등 각 화면의 인라인 `fetch`로 처리
 │   │   └── tokens.css             디자인 토큰(CSS 변수)
 │   └── vendor/                    외부 라이브러리 로컬 사본 [신규]
 │       └── html5-qrcode.min.js    QR/바코드 스캔 — CDN 장애 대비 1차 로드 경로
@@ -200,19 +206,23 @@ NEIGHBORFOOD/
 │   │   │   └── Icon.tsx            인라인 SVG 아이콘 컴포넌트
 │   │   ├── migration/             나머지 화면 React 모듈 [2026-09-20~21]
 │   │   │   ├── routes.tsx · core.tsx · design.css · loading.tsx · autocomplete.tsx · PostGallery.tsx   (라우팅·접근 제어 / 공통 요청·인증 / 공통 스타일 / 로딩 / 자동완성 / 상세 갤러리)
-│   │   │   └── auth.tsx · posts.tsx · fridge.tsx · trades.tsx · location.tsx · qr.tsx · receipt.tsx · admin.tsx   (화면 그룹별 모듈)
+│   │   │   ├── auth.tsx · posts.tsx · fridge.tsx · trades.tsx · location.tsx · qr.tsx · receipt.tsx · admin.tsx   (화면 그룹별 모듈)
+│   │   │   └── portone.tsx · Scanner.tsx · scanner.css · interface.css   (PortOne 테스트 결제 Payment_* / 공용 카메라 스캐너 / 스타일, 2026-10-05 신규)
 │   │   ├── App.css  App.tsx(해시 라우팅+AppLayout+접근 가드)  index.css  main.tsx
 │   ├── index.html                 Vite 진입 HTML (#root, /src/main.tsx 로드)
 │   ├── package.json  package-lock.json   react/react-dom 19.2, qrcode, jsqr / devDeps: vite 8·typescript·oxlint 등
 │   ├── tsconfig.json  tsconfig.app.json  tsconfig.node.json
 │   ├── vite.config.ts             @vitejs/plugin-react + 개발/preview API 프록시(NEIGHBORFOOD_BACKEND)
 │   ├── .oxlintrc.json             Oxlint 설정 (ESLint 대체)
-│   └── README.md                  ⚠️ Vite 템플릿 기본 문서 — 아직 프로젝트 설명으로 미교체
+│   └── README.md                  프로젝트 설명·실행·구조·배포 절차 (2026-10-03 교체 완료)
 
 ├── sql/                         ▶ 현재 프로젝트 스키마
 │   └── neighborfood_schema.sql
 ├── tests/                       ▶ 자동화 테스트 [신규]
-│   └── test_receipt_parser_v212.py  영수증 파서 v2.1.2 회귀 테스트 (pytest 없이 단독 실행)
+│   ├── test_receipt_parser_v212.py  영수증 파서 v2.1.2 회귀 테스트 (pytest 없이 단독 실행)
+│   └── test_portone.py              PortOne 테스트 결제 검증 (pytest, 외부 API mock) [신규 2026-10-05]
+├── docs/PORTONE_TEST_SETUP.md   PortOne 테스트 연동 범위·설정·제한 (팀원 작성, 2026-09-28)
+├── portone.env.example          PORTONE_* 환경변수 템플릿 (.env.example에는 없음)
 ├── data/                        ▶ 실제 데이터베이스
 │   └── neighborfood.db            단일 SQLite (startup 자동 생성, gitignore)
 ├── uploads/                     업로드 이미지 (gitignore)
@@ -231,7 +241,7 @@ NEIGHBORFOOD/
 > **2026-09-12 갱신**: 이 중 `seed_admin.py`는 복원되어 정상 동작합니다(위 "잠재 이슈"·"현재 완료"·"접근 정책" 항목 갱신됨). `seed_posts.py`·`posts.json`은 여전히 저장소에 존재하지 않습니다.
 > **2026-09-19 갱신**: 루트의 `reset_db.py`(DB 초기화)는 저장소에 존재합니다(위 트리 참고). 이 안내문의 삭제 대상 파일은 `seed_posts.py`·`posts.json`(및 README.md에 나열된 시드/테스트 스크립트)입니다.
 > **2026-09-14 갱신**: `frontend-react/` 워크스페이스가 신규 추가되었습니다(홈 화면 부분 마이그레이션).
-> **2026-09-21 갱신**: `frontend-react/`가 기존 HTML 39개 화면 식별자를 모두 React로 이전한 상태입니다(구현 완료, 실제 환경 검증 진행 중). `.env.example`의 `VITE_API_BASE_URL`은 미설정 시 상대경로+Vite 프록시를 쓰므로 선택 항목이며, `frontend-react/README.md`는 Vite 기본 템플릿 그대로입니다 — 후속 정리 필요(상단 "미완료(잔여)" 참고).
+> **2026-09-21 갱신**: `frontend-react/`가 기존 HTML 39개 화면 식별자를 모두 React로 이전한 상태입니다(구현 완료, 실제 환경 검증 진행 중). `.env.example`의 `VITE_API_BASE_URL`은 미설정 시 상대경로+Vite 프록시를 쓰므로 선택 항목이며, `frontend-react/README.md`는 당시 Vite 기본 템플릿이었으나 2026-10-03 프로젝트 설명으로 교체되었습니다(상단 "미완료(잔여)" 참고).
  
 **핵심 파일 (변경 주의)**
 * **엔트리포인트:** `main.py` (앱 생성·미들웨어·정적 마운트·라우터 등록 전담)
@@ -239,8 +249,8 @@ NEIGHBORFOOD/
 * **DB 레이어:** `app/db/base.py`, `auth_db.py`, `transaction_db.py`, `settlement_db.py`, `member_db.py`, `fridge_db.py`, `admin_db.py`, `qr_db.py`, `receipt_db.py`, `location_verify_db.py`
 * **스키마 정의:** `sql/neighborfood_schema.sql` (단일 진실 소스), 산출물 `data/neighborfood.db`
 * **모델:** `app/models/auth.py`, `user.py`, `post.py`, `qr.py`, `receipt.py`, `member.py`, `fridge.py`
-* **라우터:** `app/routers/auth.py`, `users.py`, `posts.py`, `qr.py`, `receipt.py`, `wishlist.py`, `chat.py`, `transactions.py`, `fridge.py`, `admin.py`, `reports.py`, `location_verify.py`, `ratings.py`, `settlements.py`
-* **프런트 공통(정적 HTML):** `frontend/shared/auth.js`, `frontend/shared/guard.js`, `frontend/shared/adminGuard.js`(관리자 가드, 신규 2026-09-12), `frontend/shared/profile.js`, `frontend/shared/tokens.css`
+* **라우터:** `app/routers/auth.py`, `users.py`, `posts.py`, `qr.py`, `receipt.py`, `wishlist.py`, `chat.py`, `transactions.py`, `fridge.py`, `admin.py`, `reports.py`, `location_verify.py`, `ratings.py`, `settlements.py`, `portone.py`(2026-10-05, PortOne 테스트 결제)
+* **프런트 공통(정적 HTML):** `frontend/shared/auth.js`, `frontend/shared/guard.js`, `frontend/shared/adminGuard.js`(관리자 가드, 신규 2026-09-12), `frontend/shared/tokens.css`
 * **프런트 공통(React, 2026-09-14 신규 → 2026-09-20~21 확장):** `frontend-react/src/neighborfood/`(`api.ts` 백엔드 연동·`legacy()` 해시 경로, `AppLayout.tsx` 공통 레이아웃, `HomePage.tsx` 홈 피드, `Icon.tsx`), `frontend-react/src/migration/`(`routes.tsx` 라우팅·접근 제어, `core.tsx` 공통 요청·인증, `design.css` 공통 스타일, `loading.tsx`, `autocomplete.tsx`, `PostGallery.tsx`와 화면 모듈)
 ---
 # 5. Scope & Exclusion
@@ -280,7 +290,7 @@ NEIGHBORFOOD/
 - 레시피 추천
 - 식재료 객체 인식
 - 오프라인 모드
-- 실제 결제 / 외부 송금 연동 (기본 미예정 — 여유가 있을 경우에 한해 추가 검토, 현재 정산은 사용자 납부 표시 방식)
+- 실제 결제 / 외부 송금 연동 (**미예정** — 정산은 사용자 납부 표시 방식. 2026-10-05 PortOne **테스트 채널** 결제만 연동되어 있으며 납부 상태·정산 완료·판매자 지급은 바꾸지 않음. LIVE 채널 사용 금지)
 ## Prohibited (금지)
 - 식품 소분 판매
 - 포장 훼손 거래 UI
@@ -293,6 +303,7 @@ NEIGHBORFOOD/
 * **더미 데이터:** ~~`python seed_posts.py`~~ (⚠️ 2026-09-08 기준 저장소에 미존재)
 * **관리자 계정:** `python seed_admin.py` (신규 생성, login_id=Admin/pw=admin0000) / `python seed_admin.py <login_id>` (기존 계정 승격) — 2026-09-12 복원
 * **영수증 파서 테스트 [신규]:** `python tests/test_receipt_parser_v212.py`
+* **PortOne 테스트 결제 테스트 [신규 2026-10-05]:** `python -m pytest tests/test_portone.py` (pytest 필요 — `requirements.txt`에 없으므로 `pip install pytest`, 외부 API mock, 팀원 문서 `docs/PORTONE_TEST_SETUP.md` — ⚠️ 2026-09-28 기준 작성본이라 `quick-prepare`·`Payment_Quick`/`Payment_Preview`(2026-10-05 추가)를 반영하지 않고 API를 3종으로 기술함 — 현행 API는 4종(팀원 문서는 수정하지 않음))
 * **API 문서:** `http://127.0.0.1:8000/docs`
 * **DB 초기화:** 서버 startup 시 `init_all_databases()`가 `neighborfood.db`를 자동 생성
 * **DB 데이터 전체 삭제 + Admin 재생성:** `python reset_db.py` (`--yes` 확인 생략, `--pw <비밀번호>` Admin 비밀번호 지정) — ⚠️ 전 데이터 삭제, 서버 종료 후 실행
