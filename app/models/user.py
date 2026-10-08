@@ -15,3 +15,9 @@ class ProfileUpdate(BaseModel):
 class WithdrawRequest(BaseModel):
     """회원 탈퇴: 현재 비밀번호 확인 후 진행."""
     password: str = Field(..., min_length=1, max_length=64)
+
+
+class PasswordChange(BaseModel):
+    """로그인 상태 비밀번호 변경: 현재 비밀번호 확인 + 새 비밀번호(6~64자)."""
+    current_password: str = Field(..., min_length=1, max_length=64)
+    new_password:     str = Field(..., min_length=6, max_length=64)

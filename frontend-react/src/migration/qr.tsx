@@ -18,6 +18,7 @@ export function QR({ q }: { q: URLSearchParams }) {
   const [ttl,setTtl] = useState("300");
   const [localScans,setLocalScans] = useState<Row[]>([]);
   const [linkWarning,setLinkWarning] = useState("");
+  const [copied,setCopied] = useState("");
   const [now,setNow] = useState(Date.now());
   const history = useData("/api/qr/my-history?limit=50");
   const settlement=q.get("settlementId");
@@ -49,7 +50,7 @@ export function QR({ q }: { q: URLSearchParams }) {
   async function issue() {
     setLinkWarning("");
     const d=await send("/api/qr/request",{subjectId:String(uid()),purpose,ttlSeconds:Number(ttl)});
-    setIssued(d.session);setNow(Date.now());setImage("");history.reload();
+    setIssued(d.session);setNow(Date.now());setImage("");setCopied("");history.reload();
     setImage(await QRCode.toDataURL(location.origin+location.pathname+href("QR_Scan",{token:d.session.token}),{width:400,margin:3,errorCorrectionLevel:"M"}));
     if(loc)try {await send(`/api/location-verify/${encodeURIComponent(loc)}/qr-issued`,{qrSessionId:d.session.id});}catch {setLinkWarning("QR은 발급됐지만 위치 인증 기록 연결에 실패했습니다. GPS 인증 상태를 확인해 주세요.");}
   }
@@ -84,6 +85,12 @@ export function QR({ q }: { q: URLSearchParams }) {
         <h3>{labels[currentStatus] || currentStatus}</h3>
         {currentStatus==="ISSUED" && <p>남은 시간 {Math.floor(remaining/60)}분 {remaining%60}초</p>}
         {currentStatus==="EXPIRED" && <p>유효 시간이 지났습니다. 새 QR을 발급해 주세요.</p>}
+        {currentStatus==="ISSUED" && issued.token && <div className="rx-field">
+          <label htmlFor="qr-token-value">QR 토큰 (카메라 스캔이 어려울 때 상대방 스캔 입력칸에 붙여 넣으세요)</label>
+          <input id="qr-token-value" readOnly value={issued.token} onFocus={e=>e.currentTarget.select()}/>
+          <button type="button" onClick={async()=>{try {await navigator.clipboard.writeText(issued.token);setCopied("토큰을 복사했습니다.");} catch {setCopied("자동 복사에 실패했습니다. 토큰을 직접 선택해 복사해 주세요.");}}}>토큰 복사</button>
+          {copied && <span role="status" className="rx-muted">{copied}</span>}
+        </div>}
         <p>발급: {when(issued.issuedAt)}</p><p>만료: {when(issued.expiresAt)}</p>
         {current?.usedAt && <p>인증: {when(current.usedAt)}</p>}
         <button onClick={()=>history.reload()} disabled={history.loading}>인증 상태 새로고침</button>

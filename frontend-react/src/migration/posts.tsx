@@ -280,6 +280,8 @@ function PostForm({ post: p, id }: { post?: Row; id: string | null }) {
     [category, setCategory] = useState(p?.category || categories[0]),
     [files, setFiles] = useState<File[]>([]),
     [images, setImages] = useState<string[]>(p?.images || []);
+  // 수정 시: 참여자가 있으면 거래 유형·인원·가격은 서버에서도 잠깁니다(409).
+  const locked = !!id && Number(p?.gb_current || 0) > 0;
   return (
     <Form
       onSubmit={(f) =>
@@ -319,6 +321,15 @@ function PostForm({ post: p, id }: { post?: Row; id: string | null }) {
                 lat: body.lat,
                 lng: body.lng,
                 exchange_want: body.exchange_want,
+                images: photos,
+                // 유형·인원·가격은 바뀐 경우에만 보냅니다(잠금 규칙 회피 아님: 서버가 최종 검증).
+                ...(!locked && type !== p?.type ? { type } : {}),
+                ...(!locked && type === "groupbuy" &&
+                (type !== p?.type ||
+                  body.gb_target !== p?.gb_target ||
+                  body.gb_price !== p?.gb_price)
+                  ? { gb_target: body.gb_target, gb_price: body.gb_price }
+                  : {}),
               }
             : body;
           const result = await send(
@@ -332,8 +343,8 @@ function PostForm({ post: p, id }: { post?: Row; id: string | null }) {
         })
       }
     >
-      {id ? (
-        <p>거래 유형: {types[type]}</p>
+      {id && locked ? (
+        <p>거래 유형: {types[type]} (참여자가 있어 변경할 수 없습니다)</p>
       ) : (
         <Select
           label="거래 유형"
@@ -363,11 +374,9 @@ function PostForm({ post: p, id }: { post?: Row; id: string | null }) {
           type="file"
           multiple
           accept="image/*"
-          disabled={!!id}
           onChange={(e) => setFiles(Array.from(e.target.files || []))}
         />
       </label>
-      {id && <p>기존 수정 API는 사진·거래 유형 변경을 지원하지 않습니다.</p>}
       <div className="rx-images">
         {images.map((img) => (
           <div key={img}>
@@ -375,14 +384,12 @@ function PostForm({ post: p, id }: { post?: Row; id: string | null }) {
               src={backend + "/uploads/" + encodeURIComponent(img)}
               alt="등록 사진"
             />
-            {!id && (
-              <button
-                type="button"
-                onClick={() => setImages(images.filter((x) => x !== img))}
-              >
-                제거
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setImages(images.filter((x) => x !== img))}
+            >
+              제거
+            </button>
           </div>
         ))}
       </div>
@@ -407,7 +414,7 @@ function PostForm({ post: p, id }: { post?: Row; id: string | null }) {
               min={2}
               required
               defaultValue={p?.gb_target || 2}
-              disabled={!!id}
+              disabled={locked}
             />
           </label>
           <label className="rx-field">
@@ -418,7 +425,7 @@ function PostForm({ post: p, id }: { post?: Row; id: string | null }) {
               min={1}
               required
               defaultValue={p?.gb_price || ""}
-              disabled={!!id}
+              disabled={locked}
             />
           </label>
         </>

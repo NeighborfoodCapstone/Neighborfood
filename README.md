@@ -3,7 +3,8 @@
 지역 기반 식재료 공동구매 플랫폼 — FastAPI + SQLite 백엔드, React(Vite) 프런트엔드(기존 화면 39개 전체 이전 구현) + 기존 정적 HTML 프런트엔드(병행 보존)
 
 버전: **v2.1.0** (2026-08-22)
-문서 최종 갱신: 2026-10-07 (GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정)
+문서 최종 갱신: 2026-10-08 (2026-10-08 구현 완료 — 그룹 채팅 거래 액션 바(B안: 약속·정산·GPS·QR 링크)·로그인 상태 비밀번호 변경 API(`PATCH /api/users/me/password`)·공개 공지 API(`GET /api/notices`)·게시글 수정 API 확장(사진·유형·인원·가격)·정산 흐름 자동화 테스트(`tests/test_settlement_flow.py` 등 pytest 12개 신규)·QR 발급 화면 토큰 표시·복사 줄 추가(`qr.tsx`). 같은 날 수동 UI 검증(액션 바·비밀번호 변경·공지·게시글 수정) 통과. 남은 작업: PWA·PortOne 서버 검증·실환경(기기) 검증·서버 운영 마무리.). 이전 갱신 내용: 2026-10-08 잔여 작업 방침 확정 — 시연·발표 전 처리(그룹 채팅 액션 바·PortOne 서버 검증·실환경 검증·서버 운영 마무리)와 구현/제외 결정 항목(비밀번호 변경·공개 공지·게시글 수정 API·PWA)은 모두 작업 예정, 정적 HTML 폐기는 구현 100% 완료 후 영향 점검 뒤 진행, 선택 사항은 별도 시점에 처리)
+이전 갱신: 2026-10-07 (GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정)
 이전 갱신: 2026-10-06 (운영 서버 HTTPS 배포 완료·PortOne V2 테스트 결제 연동 반영: 주요 기능·라우터 표·폴더 구조·알려진 제한·관련 문서 갱신)
 이전 갱신: 2026-09-21 (React 전체 화면 이전·공통 디자인·로딩·자동완성·게시글 상세 개선 반영, 공개 공지 API 미구현 정정, 게시글 수정 범위 정정, `frontend-react/docs/` 문서 추가)
 이전 갱신: 2026-09-19 (문서-소스 정합성 점검 반영: `reset_db.py` 존재 확인, 라우터 경로 정정, 미구현 API(비밀번호 변경) 표기, 관련 문서 목록 추가)
@@ -126,8 +127,8 @@ npm run dev
 > - ~~`frontend-react/README.md` 템플릿 미교체~~ → 2026-10-03 교체 완료. 다만 배포 절차의 `scp -r dist/* …/dist/`는 서버에 `dist/`가 있어야 하므로 최초 업로드에는 `NeighborFood_서버_실행_점검_가이드.md` §5-2의 명령을 사용하세요. (저장소 미포함 — 개별 보관)
 > - 그룹 채팅 화면에 거래 액션 바(약속·정산·GPS·QR 진입점)가 없습니다(약속은 정산 상세에서만 입력).
 > - 실제 브라우저의 시각 확인·모바일 터치·키보드 탐색, 카메라(QR)·GPS·Kakao SDK·CLOVA OCR 동작은 실제 환경에서 확인이 필요합니다. 기존 HTML과 세부 동작·레이아웃이 1:1 동일하다고 확정하지 않았습니다.
-> - 기존 게시글 수정 API(`PATCH /posts/{id}`)는 사진·거래 유형·목표 인원·1인 금액을 수정하지 못해 React 화면에서도 해당 필드 편집을 제한했습니다.
-> - 공개 공지 API(`GET /api/notices`)는 코드에 없어 React 화면은 관리자 공지를 일반 회원 화면에 노출하지 않습니다.
+> - 게시글 수정 API(`PATCH /posts/{id}`)는 2026-10-08부터 사진·거래 유형·목표 인원·1인 금액도 수정합니다(참여자·정산이 있으면 유형·인원·가격은 409로 잠김). React 화면도 해당 필드 편집이 가능합니다.
+> - 공개 공지 API(`GET /api/notices`)가 2026-10-08 구현되어 React `Help` 화면과 정적 `Help.html`에 관리자 공지가 표시됩니다.
 > - PWA 설치·오프라인 기능은 구현되지 않았습니다(PWA 전환을 위한 프런트 구조 정비 단계).
 > - 정산의 "납부 표시"는 결제 승인이나 자동 송금이 아닙니다. 실결제·자동 송금은 예정되어 있지 않고, 2026-10-05 연동된 PortOne 결제는 **테스트 채널 전용**이며 납부 상태·정산 완료·판매자 지급을 바꾸지 않습니다.
 
@@ -154,6 +155,13 @@ python Seed_capstone_settlement.py    # Capstone_1~3 계정 + 공동구매 정�
 
 ```bash
 python tests/test_receipt_parser_v212.py
+```
+
+API 자동화 테스트(2026-10-08 추가, 임시 DB 사용 — 실제 `data/neighborfood.db`는 변경되지 않음):
+
+```bash
+pip install pytest httpx
+python -m pytest tests -q
 ```
 
 `pytest` 등 외부 프레임워크 없이 단독 실행되며, 마트형(농협)·카페형(스타벅스) 영수증 구조에 대한 5개 회귀 테스트를 수행합니다.
@@ -259,7 +267,7 @@ Neighborfood/
 │   │   │   ├── fridge.tsx        # 내 냉장고
 │   │   │   ├── trades.tsx        # 채팅·그룹 채팅·내 활동·거래 내역·정산·매너 평가
 │   │   │   ├── location.tsx      # Kakao 지도·동네 설정·GPS 위치 인증
-│   │   │   ├── qr.tsx            # QR 발급·카메라 스캔·토큰 검증
+│   │   │   ├── qr.tsx            # QR 발급(토큰 표시·복사)·카메라 스캔·토큰 검증
 │   │   │   ├── receipt.tsx       # 영수증 OCR·품목 편집·인증·냉장고 등록
 │   │   │   ├── admin.tsx         # 관리자 대시보드·회원·공지·신고·채팅 기록
 │   │   │   ├── portone.tsx       # PortOne 테스트 결제 화면 Payment_Checkout·Result·Quick·Preview [신규 2026-10-05]
@@ -280,6 +288,9 @@ Neighborfood/
 
 ├── tests/
 │   ├── test_receipt_parser_v212.py  # 영수증 파서 회귀·유닛 테스트 [신규] — pytest 없이 단독 실행 가능
+│   ├── conftest.py                  # pytest 공용 픽스처(임시 DB + TestClient) [신규 2026-10-08]
+│   ├── test_account_notice_post.py  # 비밀번호 변경·공개 공지·게시글 수정 확장 테스트 [신규 2026-10-08]
+│   ├── test_settlement_flow.py      # 정산 흐름 자동화 테스트 [신규 2026-10-08]
 │   └── test_portone.py              # PortOne 테스트 결제 검증 (외부 API mock) [신규 2026-10-05]
 ├── docs/PORTONE_TEST_SETUP.md   # PortOne 테스트 연동 범위·설정·제한
 ├── portone.env.example          # PORTONE_* 환경변수 템플릿
@@ -289,7 +300,7 @@ Neighborfood/
 
 > ℹ️ **React 프런트엔드 안내 (2026-09-14 추가 → 2026-09-20~21 전체 화면 이전 반영)**
 > `frontend-react/`(Vite 8 + React 19 + TypeScript, 린터는 ESLint 대신 **Oxlint**)는 2026-09-14 홈 화면으로 시작해, 2026-09-20 기존 HTML 39개 화면 식별자를 React 경로로 매핑·이전했고(`src/migration/`), 2026-09-21 공통 로딩·자동완성·게시글 상세 개선을 보강했습니다. 화면 이동은 해시 경로(`#/화면명`)이며, 39개 화면이 39개의 독립 TSX 파일은 아니고 같은 그룹의 화면은 하나의 컴포넌트와 props를 공유합니다. 신규 백엔드 API는 추가되지 않았고 기존 FastAPI API를 그대로 사용합니다.
-> **후속 필요 작업 (2026-10-06 갱신)**: ① ~~`frontend-react/README.md` 교체~~ ✅ 완료(2026-10-03), ② 실제 브라우저·모바일·기기(카메라·GPS·OCR) 검증, ③ 공개 공지 API 미구현 대응, ④ 배포 시 `.env`의 `ALLOWED_ORIGINS`에 React 앱 서빙 도메인 추가 및 정적 빌드 배포 방식(API 프록시 또는 공개 API 주소) 결정, ⑤ 정적 HTML(`frontend/`)의 최종 처리(현재는 최종 점검 전까지 유지).
+> **후속 필요 작업 (2026-10-08 갱신)**: ① 실제 브라우저·모바일·기기(카메라·GPS·OCR) 검증, ② PortOne 테스트 결제 서버 반영·검증, ③ PWA 전환, ④ 배포 시 `.env`의 `ALLOWED_ORIGINS`에 React 앱 서빙 도메인 추가 및 정적 빌드 배포 방식 결정, ⑤ 정적 HTML(`frontend/`)의 최종 처리(구현 100% 완료 후 영향 점검 뒤 폐기). ✅ 2026-10-08 완료: 공개 공지 API, 비밀번호 변경 API, 게시글 수정 API 확장, 그룹 채팅 거래 액션 바, 정산 흐름 자동화 테스트.
 
 
 > ⚠️ **문서-저장소 정합성 안내 (2026-09-08 확인, 2026-09-12 갱신)**
@@ -305,7 +316,7 @@ Neighborfood/
 > | `nf_functional_test.py` | 전체 기능 자동 테스트 스크립트 | ⬜ 미존재 |
 > | `reset_db.py` | DB 초기화 (테이블 DELETE + Admin 재생성) | ✅ **존재 확인 (2026-09-19)** — 아래 "9. DB 초기화" 참고 |
 >
-> 현재 저장소에 존재하는 자동화 테스트는 `tests/test_receipt_parser_v212.py`(영수증 파서 전용)와 `tests/test_portone.py`(PortOne 테스트 결제) 두 개뿐이며(`reset_db.py`는 테스트가 아닌 DB 초기화 도구), 더미 시드·정산 검증 등 나머지 기능은 표에서 ⬜ 미존재로 표기된 스크립트가 없는 상태이므로 별도 수동 절차로 병행해야 합니다. 관리자 계정 생성은 `seed_admin.py` 복원으로 정상 동작합니다(아래 "6. 관리자 계정 생성" 참고). 아래 "7. 더미 데이터 주입" 안내는 여전히 미존재 상태를 반영합니다.
+> 현재 저장소에 존재하는 자동화 테스트는 `tests/test_receipt_parser_v212.py`(영수증 파서), `tests/test_portone.py`(PortOne 테스트 결제), 그리고 2026-10-08 추가된 `tests/test_account_notice_post.py`·`tests/test_settlement_flow.py`(공용 픽스처 `tests/conftest.py`, 임시 DB)입니다. 나머지(더미 시드·일부 검증 스크립트 등)는 표에서 ⬜ 미존재로 표기된 스크립트가 없는 상태이므로 별도 수동 절차로 병행해야 합니다(`reset_db.py`는 테스트가 아닌 DB 초기화 도구). 관리자 계정 생성은 `seed_admin.py` 복원으로 정상 동작합니다(아래 "6. 관리자 계정 생성" 참고). 아래 "7. 더미 데이터 주입" 안내는 여전히 미존재 상태를 반영합니다.
 
 ---
 
@@ -341,7 +352,7 @@ Bearer 토큰 세션 인증을 사용합니다.
 | `/api/auth` | 인증 | 회원가입(`/register`), 로그인(`/login`) |
 | (접두사 없음) | 인증 | 로그아웃 `POST /logout`, 비밀번호 재설정 OTP `POST /request-auth` · `POST /reset-password` |
 | `/posts` | 게시글 | 목록·상세·작성·수정·삭제, 공동구매 참여/취소, 약속 확정, my-status |
-| `/api/users` | 회원 | 프로필 조회·수정, 회원 탈퇴, 동네 인증(동네 이름·인증일 저장, 좌표는 국내 범위 검증만) — ⚠️ 로그인 상태 비밀번호 변경 API는 **미구현** |
+| `/api/users` | 회원 | 프로필 조회·수정, 회원 탈퇴, 동네 인증(동네 이름·인증일 저장, 좌표는 국내 범위 검증만), 로그인 상태 비밀번호 변경(`PATCH /api/users/me/password`, 2026-10-08) |
 | `/api/wishlist` | 찜 목록 | 찜 추가·취소, 내 찜 목록 |
 | `/api/chats` | 채팅 | 1:1·그룹 채팅방 생성, 메시지 송수신 (REST 폴링) |
 | `/api/transactions` | 거래 | 거래 생성·조회·상태 변경 |
@@ -354,10 +365,10 @@ Bearer 토큰 세션 인증을 사용합니다.
 | `/api/reports` | 신고 | 게시글·회원 신고 접수·취소, 내 신고 목록(`GET /my`) |
 | `/api/location-verify` | GPS 위치 인증 | 위치 인증 세션 생성·검증 (Haversine 100m) |
 | `/api/payments/portone` | PortOne 테스트 결제 | `GET /config`, `POST /prepare`(정산 분담금 주문), `POST /{payment_id}/verify`(PortOne 조회 검증), `POST /quick-prepare`(1,000원 빠른 테스트). 테스트 채널 전용, 설정(`PORTONE_*`) 없으면 503, 정산 납부 상태 불변 (2026-10-05) |
-| `/api/notices` | 공개 공지 | ⚠️ **미구현 (2026-09-21 정정)** — 문서에는 비인증 공지 조회로 기재되어 있었으나 코드에 대응 라우터가 없고 관리자 전용 `/api/admin/notices`만 존재합니다. 정적 `Help.html`은 이 경로를 호출하며, React 화면은 관리자 공지를 일반 회원 화면에 노출하지 않습니다 |
+| `/api/notices` | 공개 공지 | 비인증 공지 목록 조회(2026-10-08 구현, `?limit=1~50`). 등록·삭제는 관리자 전용 `/api/admin/notices` |
 | `/api/config/kakao-key` | 설정 | 카카오 JS 키 반환 (프론트 동적 로드용) |
 
-> React 화면은 신규 API를 추가하지 않았으며 위 목록의 기존 API(PortOne 테스트 결제 4종 제외)를 그대로 사용합니다. 게시글 수정 `PATCH /posts/{id}`는 제목·설명·카테고리·상태·교환 희망·주소·좌표만 반영하며 사진·거래 유형·목표 인원·1인 금액은 수정할 수 없습니다(정적 `Create_Post.html`이 인원·가격을 전송해도 서버가 반영하지 않음).
+> React 화면은 신규 API로 PortOne 테스트 결제 4종과 2026-10-08 추가된 비밀번호 변경·공개 공지 2종을 사용하며 그 외는 기존 API를 그대로 사용합니다. 게시글 수정 `PATCH /posts/{id}`는 제목·설명·카테고리·상태·교환 희망·주소·좌표·사진·거래 유형·목표 인원·1인 금액을 반영하고, 참여자·정산이 있으면 유형·인원·가격은 409로 잠깁니다.
 
 ---
 

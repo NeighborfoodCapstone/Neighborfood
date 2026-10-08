@@ -128,9 +128,31 @@ function AdminGuard({ children }: { children: ReactNode }) {
     </Load>
   );
 }
+function PublicNotices() {
+  const n = useData("/api/notices?limit=10");
+  return (
+    <section>
+      <h2>공지사항</h2>
+      <Load state={n}>
+        {n.data && !n.data.items.length ? (
+          <p>등록된 공지가 없습니다.</p>
+        ) : (
+          (n.data?.items || []).map((x: Record<string, any>) => (
+            <details key={x.id}>
+              <summary>{x.title}</summary>
+              <p style={{ whiteSpace: "pre-wrap" }}>{x.content}</p>
+            </details>
+          ))
+        )}
+      </Load>
+    </section>
+  );
+}
 function Help() {
   return (
     <Page title="도움말">
+      <PublicNotices />
+      <h2>자주 묻는 질문</h2>
       {[
         [
           "식재료를 나누려면?",

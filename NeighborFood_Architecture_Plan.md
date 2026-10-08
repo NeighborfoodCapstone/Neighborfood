@@ -1,6 +1,6 @@
 # NeighborFood FastAPI — 아키텍처 현황 및 개발 이력
 
-> 최종 수정: 2026-10-07 (GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정). 이전 수정: 2026-10-06 (운영 서버 HTTPS 배포 완료(Nginx·Let's Encrypt·`dist/` 서빙)와 팀원 PortOne V2 테스트 결제 연동 반영 — 신규 API 4종·테이블 2개 추가, §9 외부 결제 정책 갱신. 상세는 §2·§3·§4·§5·§6·§7·§8·§9 참고. 이전 수정 2026-09-30 (배포 서버 백엔드 배치·도메인 연결 반영, 코드 변경 없음 — §7·§8 참고. 이전 수정 2026-09-21: React 전체 화면 이전(`frontend-react/`, 화면 39개)·공통 디자인·로딩·자동완성·게시글 상세 개선 반영, 공개 공지 API 미구현·게시글 수정 범위 정정. 상세는 §2·§3·§5·§6·§7·§8·§9·§10·§11 참고)
+> 최종 수정: 2026-10-08 (2026-10-08 구현 완료 — 그룹 채팅 거래 액션 바(B안: 약속·정산·GPS·QR 링크)·로그인 상태 비밀번호 변경 API(`PATCH /api/users/me/password`)·공개 공지 API(`GET /api/notices`)·게시글 수정 API 확장(사진·유형·인원·가격)·정산 흐름 자동화 테스트(`tests/test_settlement_flow.py` 등 pytest 12개 신규)·QR 발급 화면 토큰 표시·복사 줄 추가(`qr.tsx`). 같은 날 수동 UI 검증(액션 바·비밀번호 변경·공지·게시글 수정) 통과. 남은 작업: PWA·PortOne 서버 검증·실환경(기기) 검증·서버 운영 마무리. 이전 수정: 2026-10-08 (2026-10-08 잔여 작업 방침 확정 — 시연·발표 전 처리(그룹 채팅 액션 바·PortOne 서버 검증·실환경 검증·서버 운영 마무리)와 구현/제외 결정 항목(비밀번호 변경·공개 공지·게시글 수정 API·PWA)은 모두 작업 예정, 정적 HTML 폐기는 구현 100% 완료 후 영향 점검 뒤 진행, 선택 사항은 별도 시점에 처리). 이전 수정: 2026-10-07 (GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정). 이전 수정: 2026-10-06 (운영 서버 HTTPS 배포 완료(Nginx·Let's Encrypt·`dist/` 서빙)와 팀원 PortOne V2 테스트 결제 연동 반영 — 신규 API 4종·테이블 2개 추가, §9 외부 결제 정책 갱신. 상세는 §2·§3·§4·§5·§6·§7·§8·§9 참고. 이전 수정 2026-09-30 (배포 서버 백엔드 배치·도메인 연결 반영, 코드 변경 없음 — §7·§8 참고. 이전 수정 2026-09-21: React 전체 화면 이전(`frontend-react/`, 화면 39개)·공통 디자인·로딩·자동완성·게시글 상세 개선 반영, 공개 공지 API 미구현·게시글 수정 범위 정정. 상세는 §2·§3·§5·§6·§7·§8·§9·§10·§11 참고)
 > 2026-09-08 수정: 기술 스택 사용 목적 서술 추가, 디렉토리 구조를 README.md와 정합화 / 존재하지 않는 `receipt_items` 테이블 언급 2곳 정정 — 영수증 품목은 `receipts.items`/`selected_items` JSON 컬럼으로만 저장
 > 2026-09-12 업데이트: 관리자 기능 실데이터 연동 완료(가드 공용화·회원 관리·신고 상세·운영진 관리·대시보드 통계), 미납 정산 참여 차단 리팩터링, 주최자 귀책/먹튀 trust_score 자동 페널티, `seed_admin.py` 복원, CORS `.env` 동적 분기 준비. 상세는 §7 개발 이력 참고.
 > 2026-09-14 업데이트: `frontend-react/` 워크스페이스 신규 추가 — 홈 화면(`HomePage.tsx`)만 React로 재구현한 부분 마이그레이션. 기존 정적 HTML 프런트엔드(`frontend/`)와 하이브리드로 병행 운영하며, 신규 백엔드 API는 없음(기존 `GET /posts` 재사용). 상세는 §7 개발 이력 참고.
@@ -136,6 +136,9 @@ project_root/
 ├── sql/neighborfood_schema.sql  전체 테이블 DDL (단일 진실 소스)
 ├── tests/
 │   ├── test_receipt_parser_v212.py  영수증 파서 회귀·유닛 테스트 [신규] — pytest 없이 단독 실행 가능
+│   ├── conftest.py                  pytest 공용 픽스처 — 임시 SQLite DB로 전체 앱(TestClient) 구동 [신규 2026-10-08]
+│   ├── test_account_notice_post.py  비밀번호 변경·공개 공지·게시글 수정 확장 API 테스트 [신규 2026-10-08]
+│   ├── test_settlement_flow.py      정산 흐름 자동화 테스트(약속→GPS 100m→QR→납부→완료→매너 평가, 노쇼·취소·미납 참여 차단) [신규 2026-10-08]
 │   └── test_portone.py      PortOne 테스트 결제 검증(금액·권한·게이트·반복 요청·취소·오류, 외부 API는 mock) [신규 2026-10-05]
 ├── docs/PORTONE_TEST_SETUP.md   PortOne 테스트 연동 범위·설정·제한 (팀원 작성, 2026-09-28 — ⚠️ 2026-09-28 기준 작성본이라 `quick-prepare`·`Payment_Quick`/`Payment_Preview`(2026-10-05 추가)를 반영하지 않고 API를 3종으로 기술함 — 현행 API는 4종(팀원 문서는 수정하지 않음))
 ├── portone.env.example          `PORTONE_*` 4개 환경변수 템플릿 (값은 서버 `.env`에만)
@@ -202,7 +205,7 @@ project_root/
 |---|---|---|
 | GET | `/api/users/me` | 내 프로필 (전화번호 마스킹, 동네 이름·인증일 포함) |
 | PATCH | `/api/users/me` | 닉네임·이미지·이메일·소개·관심·식이 수정 |
-| PATCH | `/api/users/me/password` | ⬜ **미구현** (2026-09-19 확인: 라우트·모델·프런트 호출 없음). 설계안: 비밀번호 변경 시 현재 세션 유지, 타 세션 폐기 — §8 참고 |
+| PATCH | `/api/users/me/password` | ✅ **구현(2026-10-08)** — 현재 비밀번호 검증(불일치 401) → 새 비밀번호 6~64자(현재와 동일 400) 저장 → **현재 세션 유지, 타 기기 세션 전부 폐기**. React: `Edit_Profile` 하단 "비밀번호 변경" 폼 |
 | POST | `/api/users/withdraw` | 탈퇴 (소프트삭제·익명화·전 세션 폐기) |
 | POST | `/api/users/neighborhood` | 동네 인증 (GPS 좌표를 국내 범위로 검증 후 동네 이름·인증일 저장, 좌표 자체는 저장하지 않음) |
 
@@ -318,7 +321,7 @@ project_root/
 ### 공개 API (비인증)
 | Method | Path | 설명 |
 |---|---|---|
-| GET | `/api/notices` | ⚠️ **미구현 (2026-09-21 정정)** — 이전 문서에는 공개 공지 목록(비인증, Help.html 아코디언)으로 기재되어 있었으나 코드에 대응 라우터가 없음. 공지 API는 관리자 전용 `/api/admin/notices`만 존재 |
+| GET | `/api/notices` | ✅ **구현(2026-10-08)** — 비인증 공개 공지 목록(`?limit=1~50`, 기본 10, 최신순, `{count, items:[{id,title,content,created_at}]}`, 작성자 비노출). `Help.html`·React `Help` 화면의 공지 아코디언이 호출. 등록·삭제는 관리자 전용 `/api/admin/notices` |
 | GET | `/api/config/kakao-key` | 카카오 JS 키 반환 (프론트 동적 로드용) |
 
 ### GPS 위치 인증 — `/api/location-verify/*`
@@ -337,7 +340,7 @@ project_root/
 ### 영수증 인증 — `/api/receipt/*`
 `scan`, `verify`, `issue`, `confirm`, `token/{token}`, `{id}`, `history`
 
-> **참고**: `frontend-react/`는 위 목록의 기존 API를 사용하며, 신규 엔드포인트는 2026-10-05 추가된 PortOne 테스트 결제 4종뿐입니다. `PATCH /posts/{id}`는 제목·설명·카테고리·상태·교환 희망·주소·좌표만 반영합니다(목표 인원·1인 금액·사진·거래 유형은 수정 불가).
+> **참고**: `frontend-react/`는 위 목록의 기존 API를 사용합니다. 신규 엔드포인트는 2026-10-05 PortOne 테스트 결제 4종과 2026-10-08 `PATCH /api/users/me/password`·`GET /api/notices` 2종입니다. `PATCH /posts/{id}`는 제목·설명·카테고리·상태·교환 희망·주소·좌표에 더해 **사진(`images`, 최대 10장)·거래 유형(`type`)·목표 인원(`gb_target`)·1인 금액(`gb_price`)**을 반영합니다(2026-10-08). 참여자가 있거나 진행 중/완료 정산이 있으면 유형·인원·가격은 409로 잠깁니다.
 
 ---
 
@@ -373,7 +376,7 @@ project_root/
 | `QR_Scan.html` | ✅ 연동 | QR·바코드 스캔 (정산 QR 발급 모드 포함) |
 | `Receipt_Verify.html` | ✅ 연동 | 영수증 OCR 인증 |
 | `Report.html` | ✅ 연동 | 신고 제출 |
-| `Help.html` | ✅ 연동 | 고객센터 + 공개 공지 아코디언 — ⚠️ 2026-09-21 정정: 호출하는 공개 공지 API(`GET /api/notices`)가 코드에 없어 공지 목록은 채워지지 않음 |
+| `Help.html` | ✅ 연동 | 고객센터 + 공개 공지 아코디언 — 2026-10-08 `GET /api/notices` 구현으로 공지 목록 표시(이전 정정 해소) |
 | `Withdraw.html` | ✅ 연동 | 회원 탈퇴 |
 | `Verify.html` | ✅ 정적 | OTP 인증 화면 |
 
@@ -407,7 +410,7 @@ project_root/
 | Settlement | `trades.tsx` — 정산 생성·약속·인증·납부 표시·불참·완료/취소 |
 | Map, Location_Detail, Neighborhood_Setting | `migration/location.tsx` — Kakao 지도·검색·위치·동네 설정 |
 | Local_Verify_Demo | `location.tsx` — 서버 GPS 검증·정산·QR 연결 |
-| QR_Scan | `migration/qr.tsx` — QR 발급·카메라 스캔(공용 `Scanner.tsx`, 2026-10-05 통합)·토큰 검증·정산 연결 |
+| QR_Scan | `migration/qr.tsx` — QR 발급(2026-10-08 발급 직후 QR 토큰 읽기 전용 표시·"토큰 복사" 추가, 발급 상태일 때만 노출)·카메라 스캔(공용 `Scanner.tsx`, 2026-10-05 통합)·토큰 검증·정산 연결 |
 | Payment_Checkout, Payment_Result, Payment_Quick, Payment_Preview (정적 HTML에 없는 신규 화면 4종, 2026-10-05) | `migration/portone.tsx` — 정산 상세의 "결제 확인으로" → 결제 확인 → PortOne 테스트 결제창 → 결과 조회 / 빠른 테스트 / 예시 미리보기. PG 리다이렉트 복귀는 `acceptPaymentReturn()`으로 `#/Payment_Result`에 연결(모바일 동작 미검증) |
 | Receipt_Verify | `migration/receipt.tsx` — OCR 업로드·항목 편집/선택·인증·냉장고 등록 |
 | Admin_Dashboard, Admin_Users, Admin_Notices | `migration/admin.tsx` — 관리자 데이터·회원·공지 |
@@ -421,7 +424,7 @@ project_root/
 
 **검증 범위**: TypeScript·Vite 프로덕션 빌드 통과, 별도 테스트 FastAPI/SQLite에서 로그인·냉장고 등록·사용 완료·게시글 폼 제출·상세 이동·공동구매 참여·그룹 채팅·정산(생성→약속→GPS→QR→납부 표시→완료)·거래 상태 전환·평가·찜 API 확인, 일반 회원의 관리자 화면 접근 차단 확인, 공통 자동완성(입력·키보드 선택·이전 응답 취소)·로딩·사진 전환 동작 검사. **미검증**: 실제 브라우저 화면·모바일 터치·키보드 전체 탐색, 카메라 스캔·위치 정확도·Kakao SDK·CLOVA OCR(실제 환경 확인 필요), 기존 HTML과의 세부 상호작용·레이아웃 1:1 동등성.
 
-**이전 시 제한**: 게시글 수정 API가 사진·거래 유형·목표 인원·1인 금액을 수정하지 못해 해당 필드 편집을 제한, 공개 공지 API가 없어 관리자 공지를 일반 회원 화면에 노출하지 않음, 정산의 납부 표시는 결제 승인·자동 송금이 아님.
+**이전 시 제한**: 정산의 납부 표시는 결제 승인·자동 송금이 아님. (2026-10-08 해소: 게시글 수정 API 확장으로 사진·유형·인원·가격 편집 가능, 공개 공지 API 구현으로 도움말에 공지 노출)
 
 > **병행 구조 안내**: 기존 정적 HTML(`frontend/`)은 삭제하지 않고 최종 점검이 끝나기 전까지 유지합니다(§9). 정식 배포는 **React(`dist/`)를 FastAPI가 `/`에서 서빙**하는 방식으로 2026-10-03 적용되었고(§7), 정적 HTML(`frontend/`)의 최종 처리만 미결정입니다(§8). PWA 설치·오프라인 기능은 구현되지 않았습니다.
 
@@ -485,7 +488,7 @@ project_root/
 | 공동구매 참여/취소 토글 | `Group_Buy_Detail.html` | `GET /posts/{id}/my-status` 기반 버튼 전환, 취소 시 `DELETE .../join` 호출 |
 | 작성자 3-dot 드롭다운 | `Group_Buy_Detail.html` | 수정(`Create_Post.html?edit={id}`) + 삭제(`DELETE /posts/{id}`) 메뉴 |
 | 매너 평가 리다이렉트 수정 | `Settlement.html` | 완료 버튼 → `My_Activity.html?tab=history` |
-| 공개 공지 UI | `Help.html` | `GET /api/notices?limit=10` 아코디언 표시 (비회원 열람) — ⚠️ 2026-09-21 정정: 해당 공개 API는 코드에 없음(관리자 전용 `/api/admin/notices`만 존재) |
+| 공개 공지 UI | `Help.html` | `GET /api/notices?limit=10` 아코디언 표시 (비회원 열람) — 2026-10-08 공개 API 구현으로 정상 표시 |
 | 게시글 수정 흐름 | `Create_Post.html`, `My_Activity.html` | "수정" 링크 추가, `?edit=` 프리필, `PATCH /posts/{id}` 제출, 참여자 있는 공구 인원·가격 잠금 |
 
 **Phase 3 — 보조 개선**
@@ -585,18 +588,19 @@ project_root/
 |---|---|---|
 | ✅ **완료 (2026-10-03)** | **작성자 매너 평가 표시** | React `posts.tsx` 상세 작성자 카드에 `GET /api/ratings/received?user_id=` 요약(👍/👎) 연동 완료. 정적 HTML 상세는 미적용 |
 | 🟢 **준비 완료** | **배포 CORS 도메인 제한** | `main.py`가 `.env`의 `ALLOWED_ORIGINS`를 읽어 동적 분기하도록 구현 완료(2026-09-12). 값 미설정 시 개발 편의를 위해 `*` 유지. **2026-09-30: 배포 서버 `.env`에 `ALLOWED_ORIGINS=https://neighborfood.duckdns.org` 반영 완료**(다른 도메인에서 서빙하게 되면 값을 함께 수정해야 함). 정적 빌드(`dist`) 배포 시에는 Vite 프록시가 없으므로 API 프록시를 배포 서버에 구성하거나 `VITE_API_BASE_URL`로 공개 API 주소를 지정해야 함 |
-| 🟡 **권장 (2026-10-06 갱신)** | **배포 서버 운영 마무리(2-5)** | Nginx·HTTPS·`dist/` 서빙은 2026-10-03 완료. 남은 것: 관리자 계정 승격(`seed_admin.py <login_id>`, 기본 비밀번호 `admin0000` 계정 생성 금지), 재부팅 후 서비스·nginx 자동 시작 확인, systemd `Restart=` 정책, SSH 비밀번호 로그인 차단 확인, 부하테스트(`ab -n 100 -c 6`, OCR 겹침), `apt` 업데이트 |
-| 🟢 **선택 (2026-09-21 갱신)** | **`VITE_API_BASE_URL` 템플릿 정리** | React는 미설정 시 상대경로 + Vite 프록시를 사용하므로 필수 아님. 공개 API 주소를 직접 쓰는 경우에만 `frontend-react/.env.local`에 지정. 템플릿 항목 추가는 선택 사항 |
+| 🟡 **권장 (2026-10-06 갱신)** | **배포 서버 운영 마무리(2-5)** | Nginx·HTTPS·`dist/` 서빙은 2026-10-03 완료. 남은 것: 관리자 계정 승격(`seed_admin.py <login_id>`, 기본 비밀번호 `admin0000` 계정 생성 금지), 재부팅 후 서비스·nginx 자동 시작 확인, systemd `Restart=` 정책, SSH 비밀번호 로그인 차단 확인, 부하테스트(`ab -n 100 -c 6`, OCR 겹침), `apt` 업데이트<br>**[2026-10-08 방침] 구현·보완 예정(시연·발표 전 처리)** |
+| 🟢 **선택 (2026-09-21 갱신)** | **`VITE_API_BASE_URL` 템플릿 정리** | React는 미설정 시 상대경로 + Vite 프록시를 사용하므로 필수 아님. 공개 API 주소를 직접 쓰는 경우에만 `frontend-react/.env.local`에 지정. 템플릿 항목 추가는 선택 사항<br>**[2026-10-08 방침] 차후 필요하다고 판단될 때 처리** |
 | ✅ **완료 (2026-10-03)** | **`frontend-react/README.md` 교체** | 프로젝트 설명·실행·폴더 구조·배포 절차로 교체됨. 보정 필요: 배포 절차의 `scp -r dist/* …/dist/`는 서버에 `dist/`가 이미 있어야 동작하므로 최초 업로드용 명령(`rm -rf` 후 `scp -r dist …/frontend-react/`)으로 수정 권장 |
-| 🟡 **권장 (신규 2026-09-19)** | **로그인 상태 비밀번호 변경 API** | 문서상 `PATCH /api/users/me/password`(현재 비밀번호 검증, 현재 세션 유지·타 세션 폐기)가 설계되어 있으나 `users.py`에 미구현. 구현하거나 정책에서 제외 결정 필요 |
-| 🔵 **정책 결정 필요 (2026-10-06 갱신)** | **React·정적 HTML 병행 정리** | 정식 배포는 React `dist/` 서빙으로 확정·적용(2026-10-03). 정적 HTML(`frontend/`)과 `main.py`의 `/frontend`·`/QR_Scan.html`·`/Receipt_Verify.html` 직접 라우트의 최종 폐기·보존 여부만 미결정 |
-| 🟡 **권장 (신규 2026-09-21)** | **공개 공지 API 미구현** | 문서에 있던 `GET /api/notices`는 코드에 없음(관리자 전용 `/api/admin/notices`만 존재). `Help.html` 공지 목록이 표시되지 않으며 React 화면도 관리자 공지를 일반 회원에게 노출하지 않음. 구현하거나 화면·문서에서 제외 결정 필요 |
-| 🟡 **권장 (신규 2026-09-21)** | **React 화면 실제 환경 검증** | 브라우저 화면 비교·모바일 터치·키보드 탐색, 카메라(QR)·GPS·Kakao SDK·CLOVA OCR 동작 확인. 기존 HTML과의 세부 동등성은 미확정 |
-| 🟡 **권장 (신규 2026-09-21)** | **게시글 수정 API 확장 여부** | `PATCH /posts/{id}`가 사진·거래 유형·목표 인원·1인 금액을 수정하지 못해 React 화면에서 해당 필드 편집을 제한 중. API를 확장하거나 현 제한을 유지할지 결정 필요 |
-| 🟡 **권장 (신규 2026-09-21)** | **PWA 전환** | 설치·오프라인 기능 미구현(PWA 전환을 위한 프런트 구조 정비 단계). 반응형 기준은 메인 1080px 중앙 영역·760px 모바일 분기 |
-| 🟡 **권장 (신규 2026-10-06)** | **PortOne 테스트 결제 서버 반영·검증** | 코드는 GitHub에 있으나 서버 `git pull`·`.env`(`PORTONE_*`, TEST 채널)·`dist/` 재빌드/업로드·재시작은 미확인. 반영 후 정산 → GPS → QR → 테스트 결제 흐름과 포트원 콘솔 허용 도메인 확인. 시연은 테스트 모드 고정, 모바일 리다이렉트 복귀는 미검증 |
-| 🟡 **권장 (신규 2026-10-06)** | **그룹 채팅 거래 액션 바 복원** | 정적 `Group_Chat.html`의 액션 바(장소·시간 → 정산 → 인증)가 React 이전 때 빠짐. React는 정산 시작 후에만 약속 입력(`/api/settlements/{id}/appointment`), `POST /posts/{id}/appointment`(정산 전 약속) 미호출. 시연 흐름과 직결 — A안(정산 이동 링크)/B안(GPS·QR 버튼) 결정 필요(7주차 보완 예정) |
-| 🟢 **선택 (신규 2026-10-06)** | **ERD·원고 정합성** | 졸업작품집 ERD 그림은 핵심 18개 테이블(`auth_codes`·결제 테이블 제외). 결제 테이블까지 보이려면 그림 갱신 필요 |
+| ✅ **완료 (2026-10-08)** | ~~로그인 상태 비밀번호 변경 API~~ | `PATCH /api/users/me/password` 구현(현재 세션 유지·타 세션 폐기), React `Edit_Profile` 폼, pytest(`tests/test_account_notice_post.py`) |
+| 🔵 **정책 결정 필요 (2026-10-06 갱신)** | **React·정적 HTML 병행 정리** | 정식 배포는 React `dist/` 서빙으로 확정·적용(2026-10-03). 정적 HTML(`frontend/`)과 `main.py`의 `/frontend`·`/QR_Scan.html`·`/Receipt_Verify.html` 직접 라우트의 최종 폐기·보존 여부만 미결정<br>**[2026-10-08 방침] 프로젝트 구현이 100% 끝난 뒤, 폐기해도 문제가 없는지 점검한 후 폐기 예정** |
+| ✅ **완료 (2026-10-08)** | ~~공개 공지 API~~ | `GET /api/notices` 구현(`app/routers/notices.py`, `main.py` 등록), React `Help` 공지 아코디언, pytest |
+| 🟡 **권장 (신규 2026-09-21)** | **React 화면 실제 환경 검증** | 브라우저 화면 비교·모바일 터치·키보드 탐색, 카메라(QR)·GPS·Kakao SDK·CLOVA OCR 동작 확인. 기존 HTML과의 세부 동등성은 미확정<br>**[2026-10-08 방침] 구현·보완 예정(시연·발표 전 처리)** |
+| ✅ **완료 (2026-10-08)** | ~~게시글 수정 API 확장~~ | `PATCH /posts/{id}`가 사진·유형·목표 인원·1인 금액 반영(참여자·정산 있으면 유형·인원·가격 409 잠금, 인원 2명 이상·가격 1원 이상 검증, 사진 최대 10장). React `PostForm` 사진 추가/삭제·유형/인원/가격 편집 활성화 |
+| 🟡 **권장 (신규 2026-09-21)** | **PWA 전환** | 설치·오프라인 기능 미구현(PWA 전환을 위한 프런트 구조 정비 단계). 반응형 기준은 메인 1080px 중앙 영역·760px 모바일 분기<br>**[2026-10-08 방침] 작업 예정** |
+| 🟡 **권장 (신규 2026-10-06)** | **PortOne 테스트 결제 서버 반영·검증** | 코드는 GitHub에 있으나 서버 `git pull`·`.env`(`PORTONE_*`, TEST 채널)·`dist/` 재빌드/업로드·재시작은 미확인. 반영 후 정산 → GPS → QR → 테스트 결제 흐름과 포트원 콘솔 허용 도메인 확인. 시연은 테스트 모드 고정, 모바일 리다이렉트 복귀는 미검증<br>**[2026-10-08 방침] 구현·보완 예정(시연·발표 전 처리)**. 서버 반영·검증을 마친 뒤 팀원 문서 `docs/PORTONE_TEST_SETUP.md`를 함께 갱신 예정 |
+| ✅ **완료 (2026-10-08)** | ~~그룹 채팅 거래 액션 바 복원~~ | `trades.tsx`의 `TradeBar`: 방장 약속 정하기/변경(`POST /posts/{id}/appointment`) → 정산 시작/상세 링크 → GPS 인증 → QR 발급/스캔 링크, 진행 현황(GPS·QR 완료 수). **B안(GPS·QR 링크까지 포함)으로 구현** |
+| ✅ **완료 (2026-10-08)** | ~~QR 발급 화면 토큰 확인 줄~~ | `qr.tsx` 발급 카드에 토큰 읽기 전용 입력칸·복사 버튼 추가(카메라 스캔이 어려울 때 상대방 스캔 입력칸에 붙여 넣어 인증, 개발자도구 없이 확인). 서버 변경 없음 |
+| 🟢 **선택 (신규 2026-10-06)** | **ERD·원고 정합성** | 졸업작품집 ERD 그림은 핵심 18개 테이블(`auth_codes`·결제 테이블 제외). 결제 테이블까지 보이려면 그림 갱신 필요<br>**[2026-10-08 방침] 작업 동기가 그림을 갱신한 뒤 문서에 반영 예정** |
 
 > 완료된 항목(미납 정산 참여 차단, `Admin_Staff_Invite.html` 연동, 관리자 사이드바 배지 동적화)은 §7 "2026-09-12" 절 참고. React 홈 화면 추가 경과는 §7 "2026-09-14" 절, 전체 화면 이전은 §7 "2026-09-20"·"2026-09-21" 절 참고.
 
@@ -606,13 +610,13 @@ project_root/
 
 | 항목 | 결정 내용 |
 |---|---|
-| 게시글 수정 가능 필드 | 서버 `PATCH /posts/{id}`는 제목·설명·카테고리·상태·교환 희망·주소·좌표만 반영(2026-09-21 코드 기준 정정). 공동구매 인원·가격·사진·거래 유형은 수정 불가 — 이전 문서의 "`gb_current==0`일 때 인원·가격 수정 가능"은 서버에 구현되어 있지 않음(정적 `Create_Post.html`은 전송하나 서버가 무시, React는 편집 제한) |
+| 게시글 수정 가능 필드 | 서버 `PATCH /posts/{id}`는 제목·설명·카테고리·상태·교환 희망·주소·좌표·**사진·거래 유형·목표 인원·1인 금액**(2026-10-08 확장). 참여자(`gb_current>0` 또는 `groupbuy_participants`)나 진행 중/완료 정산이 있으면 유형·인원·가격은 409로 잠금, 사진·제목 등은 계속 수정 가능. 유형을 공동구매로 바꾸려면 인원(≥2)·가격(≥1) 필수, 공동구매에서 다른 유형으로 바꾸면 gb_* 값 정리 |
 | 참여 취소 정책 | 정산 생성(pending/completed) 전까지 취소 허용. 시간 기반 컷오프 없음 |
 | 공지 기능 범위 | 즉시 게시·목록·삭제만 연동. 예약 발행·임시저장·푸시 알림은 스키마 미지원으로 보류 |
 | 운영진 관리 | 이메일 초대 없이 기존 계정 검색 → `admin` 역할 승격 방식 유지 |
 | 전역 401 리다이렉트 | 적용 안 함. 비회원 홈 접근 probe 회귀 방지를 위해 페이지별 `nfRequireMember()` 수동 방식 유지 |
 | GPS 인증 반경 | 300m → **100m** (프론트·백 동기화 완료) |
-| 비밀번호 변경 | 설계 결정: 현재 세션 유지, 타 기기 세션 일괄 폐기 — ⚠️ API 미구현(2026-09-19 확인, §8 참고) |
+| 비밀번호 변경 | 설계 결정: 현재 세션 유지, 타 기기 세션 일괄 폐기 — ✅ `PATCH /api/users/me/password`로 구현(2026-10-08) |
 | 공동구매 참여 취소 | `groupbuy_participants` 삭제 + `gb_current` 원자적 감소 + 그룹챗 `conversation_members` 제거 + 시스템 메시지 삽입 (`is_system=1`) |
 | 게시글 삭제 | 소프트삭제 (`status='deleted'`). 거래·채팅 이력 보존 |
 | 세션 유효 기간 | `SESSION_TTL_DAYS = 30` (30일) |
@@ -664,6 +668,9 @@ python reset_db.py --pw <비밀번호>     # Admin 비밀번호 지정 (기본 a
 
 # 영수증 파서 회귀 테스트 [신규] — (PortOne 테스트 `tests/test_portone.py`와 함께 현재 저장소에 존재하는 자동화 테스트)
 python tests/test_receipt_parser_v212.py
+
+# API 자동화 테스트 [신규 2026-10-08] — 임시 DB 사용(실제 data/neighborfood.db 미변경). pip install pytest httpx
+python -m pytest tests -q
 ```
 
 > 위 명령 중 더미 데이터·테스트 시드·전체 기능 테스트(4개 스크립트)는 대응 스크립트가 저장소에서 제거되어 현재 실행되지 않습니다. `reset_db.py`(DB 초기화)는 2026-09-19 존재를 확인했습니다. §3의 "문서-저장소 정합성 안내" 참고. `seed_admin.py`는 2026-09-12 복원되어 정상 동작합니다.

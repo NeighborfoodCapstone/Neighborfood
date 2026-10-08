@@ -1,7 +1,7 @@
 # Role: Senior Full-stack Engineer Assistant
 당신은 '1인 가구 지역 식재료 공동구매 플랫폼(NeighborFood)' 프로젝트의 전담 개발자입니다. 아래의 컨텍스트와 제약 사항을 완벽히 숙지하고 개발을 수행하십시오.
  
-> 최종 갱신: 2026-10-07 · GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정. 이전 갱신: 2026-10-06 · 운영 서버 HTTPS 배포 완료(2026-10-03)와 팀원 PortOne V2 **테스트 결제** 연동(2026-10-05 푸시) 반영, 외부 결제 범위 정정. 이전 갱신: 2026-09-30 · 배포 서버 백엔드 배치·도메인 연결 반영(코드 변경 없음, '잠재 이슈'의 배포 보안 참고). 이전 갱신: 2026-09-21 · React 전체 화면 이전·공통 디자인·로딩·자동완성 반영(아래 참고). 이전 갱신: 2026-09-19 문서-소스 정합성 점검. 이전 주요 갱신: 2026-08-12 · UX 갭 감사·해소 완료 (관리자 연동·참여 취소·게시글 수정·공지 표시·매너 평가 리다이렉트)
+> 최종 갱신: 2026-10-08 · 2026-10-08 구현 완료 — 그룹 채팅 거래 액션 바(B안: 약속·정산·GPS·QR 링크)·로그인 상태 비밀번호 변경 API(`PATCH /api/users/me/password`)·공개 공지 API(`GET /api/notices`)·게시글 수정 API 확장(사진·유형·인원·가격)·정산 흐름 자동화 테스트(`tests/test_settlement_flow.py` 등 pytest 12개 신규)·QR 발급 화면 토큰 표시·복사 줄 추가(`qr.tsx`). 같은 날 수동 UI 검증(액션 바·비밀번호 변경·공지·게시글 수정) 통과. 남은 작업: PWA·PortOne 서버 검증·실환경(기기) 검증·서버 운영 마무리. 이전 갱신: 2026-10-08 잔여 작업 방침 확정 — 시연·발표 전 처리(그룹 채팅 액션 바·PortOne 서버 검증·실환경 검증·서버 운영 마무리)와 구현/제외 결정 항목(비밀번호 변경·공개 공지·게시글 수정 API·PWA)은 모두 작업 예정, 정적 HTML 폐기는 구현 100% 완료 후 영향 점검 뒤 진행, 선택 사항은 별도 시점에 처리. 이전 갱신: 2026-10-07 · GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정. 이전 갱신: 2026-10-06 · 운영 서버 HTTPS 배포 완료(2026-10-03)와 팀원 PortOne V2 **테스트 결제** 연동(2026-10-05 푸시) 반영, 외부 결제 범위 정정. 이전 갱신: 2026-09-30 · 배포 서버 백엔드 배치·도메인 연결 반영(코드 변경 없음, '잠재 이슈'의 배포 보안 참고). 이전 갱신: 2026-09-21 · React 전체 화면 이전·공통 디자인·로딩·자동완성 반영(아래 참고). 이전 갱신: 2026-09-19 문서-소스 정합성 점검. 이전 주요 갱신: 2026-08-12 · UX 갭 감사·해소 완료 (관리자 연동·참여 취소·게시글 수정·공지 표시·매너 평가 리다이렉트)
 > 2026-09-08 문서-저장소 정합성 검토: `seed_admin.py`·`seed_posts.py`·`posts.json`이 실제 저장소에 더 이상 존재하지 않는 것으로 확인됨 (아래 §4 "문서-저장소 정합성 안내" 참고). `frontend/vendor/html5-qrcode.min.js`, `tests/test_receipt_parser_v212.py` 신규 반영. 정산 API 개수 오기재(9종→13종) 2곳 정정, "## Included" 목록의 자기모순(이미 완료된 매너평가·참여취소 흐름이 잔여로 중복 기재) 정정.
 > 2026-09-12 관리자 기능 실데이터 연동 완료: `seed_admin.py` 복원, `adminGuard.js` 신설, `Admin_Users.html`·`Admin_Report_Detail.html`·`Admin_Staff_Invite.html`·`Admin_Dashboard.html` 전면 실연동, 미납 정산 참여 차단 리팩터링, 주최자 귀책/먹튀 trust_score 자동 페널티, 회원 직접 신고 진입점 신설.
 > 2026-09-19 문서-소스 정합성 점검: 루트 스크립트 중 `reset_db.py`가 저장소에 존재함을 확인하고 트리·§6 Commands에 반영, 트리의 문서 파일명 오타(`Cpastone.md`→`Capstone.md`) 정정, `Neighborfood_React_실행_안내.md` 추가 반영. 코드 변경 없음.
@@ -46,8 +46,8 @@
   - `Admin_Chat_History.html`: 대화방 목록·메시지 실연동, 정적 더미 제거
   - `Group_Buy_Detail.html`: 참여/취소 버튼 토글 (`GET /posts/{id}/my-status`), 취소 시 `DELETE .../join` 연동, 작성자 3-dot 드롭다운 메뉴 (수정·삭제), 취소 버튼 스타일 수정 (Tailwind `error` 색 미정의 → `style.cssText` 인라인 직접 지정)
   - `Settlement.html`: 완료 후 "매너 평가 남기기" → `My_Activity.html?tab=history` 리다이렉트
-  - `Help.html`: `GET /api/notices?limit=10` 공개 공지 아코디언 표시 (비회원 포함) — ⚠️ 2026-09-21 정정: 공개 공지 API는 코드에 없음(관리자 전용 `/api/admin/notices`만 존재)
-  - `Create_Post.html` + `My_Activity.html`: 게시글 수정 흐름 (`?edit={id}` 프리필, `PATCH /posts/{id}`, 참여자 있는 공구 인원·가격 잠금) — ⚠️ 2026-09-21 정정: 서버 `PATCH /posts/{id}`는 인원·가격·사진·거래 유형을 반영하지 않음(제목·설명·카테고리·상태·교환 희망·주소·좌표만)
+  - `Help.html`: `GET /api/notices?limit=10` 공개 공지 아코디언 표시 (비회원 포함) — 2026-10-08 공개 공지 API 구현으로 정상 표시(React `Help` 화면에도 동일 공지 노출)
+  - `Create_Post.html` + `My_Activity.html`: 게시글 수정 흐름 (`?edit={id}` 프리필, `PATCH /posts/{id}`, 참여자 있는 공구 인원·가격 잠금) — 2026-10-08 서버 `PATCH /posts/{id}`가 인원·가격·사진·거래 유형을 반영하도록 확장(참여자·정산 있으면 유형·인원·가격 409 잠금)
   - `posts.py`: `list_posts()` 진입 시 만료 글 일괄 `expired` 전환, `cancel_join_groupbuy`에 그룹챗 퇴장 + `messages.is_system` 시스템 메시지 삽입 추가
   - `neighborfood_schema.sql` · `neighborfood_ERD.md`: `messages.is_system` 컬럼 동기화
 - **React(Vite) 홈 화면 부분 마이그레이션 시작** (2026-09-14 — ⚠️ 이후 2026-09-20 전체 이전으로 확장, 아래 두 항목이 현행 기준):
@@ -63,7 +63,7 @@
   - 공통 API 요청·인증 토큰·오류 처리는 `src/migration/core.tsx`, 공통 스타일은 `design.css`. 화면 이동은 해시 경로(`/#/Fridge`, `/#/Product_Detail?id=1`)
   - FastAPI·SQLite·기존 HTML은 변경하지 않음. Vite 개발/preview 프록시가 `/api`·`/posts`·`/uploads` 등을 FastAPI(8000)로 전달(`NEIGHBORFOOD_BACKEND`로 변경 가능), `VITE_API_BASE_URL` 지정 시 공개 API 주소를 직접 사용. QR 생성·스캔용 `qrcode`·`jsqr` 의존성 추가
   - 검증: TypeScript·Vite 프로덕션 빌드 통과, 별도 테스트 DB에서 로그인·냉장고·게시글 등록·공동구매 참여·그룹 채팅·정산(생성→약속→GPS→QR→납부 표시→완료)·거래 상태·평가·찜 API 흐름과 관리자 접근 차단을 자동 확인. 실제 브라우저 화면·모바일·카메라·위치 정확도·Kakao SDK·CLOVA OCR은 미검증
-  - 이전 시 제한: 게시글 수정 API 제약으로 사진·거래 유형·목표 인원·1인 금액 편집 제한, 공개 공지 API 부재로 관리자 공지를 일반 회원 화면에 미노출, Verify는 별도 OTP 성공 페이지 대신 비밀번호 재설정 흐름 공유, Splash·Onboarding은 진입 링크로 정리, 미구현 안내(자동 환불 등)는 도움말로 옮기지 않음. 정산의 납부 표시는 결제 승인·자동 송금이 아님
+  - 이전 시 제한: Verify는 별도 OTP 성공 페이지 대신 비밀번호 재설정 흐름 공유, Splash·Onboarding은 진입 링크로 정리, 미구현 안내(자동 환불 등)는 도움말로 옮기지 않음. 정산의 납부 표시는 결제 승인·자동 송금이 아님 (2026-10-08 해소: 게시글 수정 API 확장·공개 공지 API 구현)
 - **공통 디자인·로딩·자동완성·게시글 상세 보강 + GitHub 반영** (2026-09-21, 신규):
   - 승인된 메인 화면 디자인을 기준으로 색·버튼·입력·목록을 공통화(`frontend-react/docs/DESIGN_CONTEXT.md`), 홍보 문구·가짜 추천·가짜 통계·미연결 위젯을 추가하지 않는 기준 유지
   - 화면 전환·최초 조회 공통 로딩(`loading.tsx`, 백그라운드 재조회는 기존 내용 유지), 검색·회원 검색·주소 검색 공통 자동완성(`autocomplete.tsx` — 250ms 디바운스·최대 8개·이전 요청 취소·한글 조합 처리·방향키/Enter/Esc), 게시글 상세 사진 갤러리(`PostGallery.tsx`)와 데스크톱 2열·모바일 1열 배치
@@ -71,14 +71,14 @@
 미완료(잔여):
 - ~~작성자 매너 평가 표시~~ — ✅ 완료(2026-10-03): React 상세 작성자 카드에 `GET /api/ratings/received?user_id=` 요약(👍/👎) 표시. 정적 HTML 상세는 미적용
 - ~~`frontend-react/README.md` 교체~~ — ✅ 완료(2026-10-03): 프로젝트 설명·실행·구조·배포 절차로 교체. 보정 필요: 배포 절차의 `scp -r dist/* …/dist/`는 서버에 `dist/`가 있어야 동작 (선택: 공개 API 주소를 직접 쓸 경우에만 `VITE_API_BASE_URL` 템플릿 항목 추가)
-- 공개 공지 API 미구현 — 문서에 있던 `GET /api/notices`는 코드에 없음(관리자 전용 `/api/admin/notices`만 존재). `Help.html` 공지 목록이 표시되지 않으며 React 화면도 관리자 공지를 일반 회원에게 노출하지 않음
-- React 화면 실제 환경 검증 — 브라우저 화면·모바일 터치·키보드 탐색, 카메라(QR)·GPS·Kakao SDK·CLOVA OCR
-- 게시글 수정 API 확장 여부 — 사진·거래 유형·목표 인원·1인 금액 수정 불가(React 편집 제한 중)
-- PWA 전환 — 설치·오프라인 기능 미구현
-- 정적 HTML(`frontend/`) 최종 처리 — 최종 점검이 끝나기 전까지 유지, 이후 폐기·보존 여부 결정 필요. 정식 배포는 React `dist/` 서빙으로 확정(2026-10-03)
-- 배포 서버 운영 마무리(2-5) — Nginx·HTTPS·`dist/` 서빙은 완료(2026-10-03, `https://neighborfood.duckdns.org`). 남은 것: 관리자 계정 승격, 재부팅 후 자동 시작·`Restart=` 정책·SSH 설정 확인, 부하테스트(5~6명 동시·OCR 겹침), `apt` 업데이트. 상세: `NeighborFood_서버_실행_점검_가이드.md`, `캡스톤_전시회_준비_일정.md` 위 두 문서 (저장소 미포함 — 개별 보관).
-- PortOne 테스트 결제 서버 반영 — 코드는 GitHub(`ec1da57`)에 있으나 서버 `git pull`·`.env`(`PORTONE_*`, TEST 채널)·`dist/` 재빌드/업로드·재시작 확인 필요
-- 그룹 채팅 거래 액션 바 복원 — React 채팅에 약속·정산·GPS·QR 진입점이 없음(약속은 정산 상세에서만). 시연 흐름과 직결
+- ✅ ~~공개 공지 API~~ — 2026-10-08 `GET /api/notices` 구현·테스트 완료(`Help.html`·React `Help` 공지 표시)
+- React 화면 실제 환경 검증 — 브라우저 화면·모바일 터치·키보드 탐색, 카메라(QR)·GPS·Kakao SDK·CLOVA OCR → **[2026-10-08 방침] 구현·보완 예정(시연·발표 전 처리)**
+- ✅ ~~게시글 수정 API 확장~~ — 2026-10-08 사진·거래 유형·목표 인원·1인 금액 수정 지원(참여자·정산 있으면 유형·인원·가격 잠금), React 편집 활성화
+- PWA 전환 — 설치·오프라인 기능 미구현 → **[2026-10-08 방침] 작업 예정**
+- 정적 HTML(`frontend/`) 최종 처리 — 최종 점검이 끝나기 전까지 유지, 이후 폐기·보존 여부 결정 필요. 정식 배포는 React `dist/` 서빙으로 확정(2026-10-03) → **[2026-10-08 방침] 프로젝트 구현이 100% 끝난 뒤, 폐기해도 문제가 없는지 점검한 후 폐기 예정**
+- 배포 서버 운영 마무리(2-5) — Nginx·HTTPS·`dist/` 서빙은 완료(2026-10-03, `https://neighborfood.duckdns.org`). 남은 것: 관리자 계정 승격, 재부팅 후 자동 시작·`Restart=` 정책·SSH 설정 확인, 부하테스트(5~6명 동시·OCR 겹침), `apt` 업데이트. 상세: `NeighborFood_서버_실행_점검_가이드.md`, `캡스톤_전시회_준비_일정.md` 위 두 문서 (저장소 미포함 — 개별 보관). → **[2026-10-08 방침] 구현·보완 예정(시연·발표 전 처리)**
+- PortOne 테스트 결제 서버 반영 — 코드는 GitHub(`ec1da57`)에 있으나 서버 `git pull`·`.env`(`PORTONE_*`, TEST 채널)·`dist/` 재빌드/업로드·재시작 확인 필요 → **[2026-10-08 방침] 구현·보완 예정(시연·발표 전 처리)**. 서버 반영·검증을 마친 뒤 팀원 문서 `docs/PORTONE_TEST_SETUP.md`를 함께 갱신 예정
+- ✅ ~~그룹 채팅 거래 액션 바 복원~~ — 2026-10-08 구현(B안: 약속 정하기 → 정산 → GPS → QR 진입 링크). 실기기 GPS·카메라 검증은 별도 진행
 완료로 전환된 기존 잔여 항목:
 - ~~상호 매너 평가~~ → ✅ `ratings.py` + `manner_ratings` 테이블 + `trust_score` 원자적 UPDATE 구현 완료 (2026-08 이전)
 - ~~공동구매 참여 취소 흐름~~ → ✅ `DELETE /posts/{id}/join` (백엔드), 프론트 토글·시스템 메시지 모두 완료 (2026-08-12)
@@ -220,7 +220,10 @@ NEIGHBORFOOD/
 │   └── neighborfood_schema.sql
 ├── tests/                       ▶ 자동화 테스트 [신규]
 │   ├── test_receipt_parser_v212.py  영수증 파서 v2.1.2 회귀 테스트 (pytest 없이 단독 실행)
-│   └── test_portone.py              PortOne 테스트 결제 검증 (pytest, 외부 API mock) [신규 2026-10-05]
+│   ├── test_portone.py              PortOne 테스트 결제 검증 (pytest, 외부 API mock) [신규 2026-10-05]
+│   ├── conftest.py                  pytest 공용 픽스처(임시 DB + TestClient) [신규 2026-10-08]
+│   ├── test_account_notice_post.py  비밀번호 변경·공개 공지·게시글 수정 확장 [신규 2026-10-08]
+│   └── test_settlement_flow.py      정산 흐름 자동화(약속→GPS→QR→납부→완료→평가·노쇼·취소) [신규 2026-10-08]
 ├── docs/PORTONE_TEST_SETUP.md   PortOne 테스트 연동 범위·설정·제한 (팀원 작성, 2026-09-28)
 ├── portone.env.example          PORTONE_* 환경변수 템플릿 (.env.example에는 없음)
 ├── data/                        ▶ 실제 데이터베이스
@@ -284,7 +287,7 @@ NEIGHBORFOOD/
 - ~~`qr.py` QR 인증 성공 시 `quality_agreed` 연동~~ — **불필요** (2026-08-07): `POST /api/settlements/{id}/shares/me/qr-done`으로 대체 완료
 - ~~상호 매너 평가(`manner_ratings` 테이블 + `trust_score` 반영)~~ — ✅ 완료(2026-08 이전, 상단 "완료로 전환된 기존 잔여 항목" 참고). [2026-09-08 정정: 이 목록에 잘못 남아있던 항목]
 - ~~공동구매 참여 취소 흐름~~ — ✅ 완료(2026-08-12, 상단 "완료로 전환된 기존 잔여 항목" 참고). [2026-09-08 정정: 이 목록에 잘못 남아있던 항목]
-- `frontend-react/README.md` 프로젝트 설명으로 교체, 공개 공지 API 미구현 대응, React 화면 실제 환경 검증, 게시글 수정 API 확장 여부, PWA 전환, 정적 HTML 최종 처리 (2026-09-21 갱신 — 상단 "미완료(잔여)" 참고)
+- 공개 공지 API·게시글 수정 API 확장·비밀번호 변경 API·그룹 채팅 액션 바·QR 발급 토큰 표시는 2026-10-08 구현 완료(수동 UI 검증 통과). 남은 항목: React 화면 실제 환경 검증, PWA 전환, 정적 HTML 최종 처리
 ## Excluded (범위 외)
 - 유통기한 임박 추천
 - 레시피 추천
@@ -304,6 +307,7 @@ NEIGHBORFOOD/
 * **관리자 계정:** `python seed_admin.py` (신규 생성, login_id=Admin/pw=admin0000) / `python seed_admin.py <login_id>` (기존 계정 승격) — 2026-09-12 복원
 * **영수증 파서 테스트 [신규]:** `python tests/test_receipt_parser_v212.py`
 * **PortOne 테스트 결제 테스트 [신규 2026-10-05]:** `python -m pytest tests/test_portone.py` (pytest 필요 — `requirements.txt`에 없으므로 `pip install pytest`, 외부 API mock, 팀원 문서 `docs/PORTONE_TEST_SETUP.md` — ⚠️ 2026-09-28 기준 작성본이라 `quick-prepare`·`Payment_Quick`/`Payment_Preview`(2026-10-05 추가)를 반영하지 않고 API를 3종으로 기술함 — 현행 API는 4종(팀원 문서는 수정하지 않음))
+* **API 자동화 테스트 [신규 2026-10-08]:** `pip install pytest httpx` 후 `python -m pytest tests -q` — 임시 DB 사용(실제 `data/neighborfood.db` 미변경). 비밀번호 변경·공개 공지·게시글 수정 확장·정산 흐름 12개
 * **API 문서:** `http://127.0.0.1:8000/docs`
 * **DB 초기화:** 서버 startup 시 `init_all_databases()`가 `neighborfood.db`를 자동 생성
 * **DB 데이터 전체 삭제 + Admin 재생성:** `python reset_db.py` (`--yes` 확인 생략, `--pw <비밀번호>` Admin 비밀번호 지정) — ⚠️ 전 데이터 삭제, 서버 종료 후 실행
