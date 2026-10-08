@@ -2,9 +2,10 @@ import json
 import re
 from fastapi          import APIRouter, HTTPException, Depends
 from app.core.deps     import get_current_user
-from app.core.utils    import now_utc, to_iso, verify_password
+from app.core.deps     import get_bearer_token
+from app.core.utils    import now_utc, to_iso, verify_password, hash_password
 from app.db.auth_db    import get_conn
-from app.models.user   import ProfileUpdate, WithdrawRequest
+from app.models.user   import ProfileUpdate, WithdrawRequest, PasswordChange
 from app.models.member import NeighborhoodVerify
 
 router = APIRouter()
@@ -106,6 +107,26 @@ async def update_me(body: ProfileUpdate, user: dict = Depends(get_current_user))
         conn.commit()
 
     return _profile(dict(row))
+
+
+@router.patch("/me/password")
+async def change_password(body: PasswordChange,
+                          user: dict = Depends(get_current_user),
+                          token: str = Depends(get_bearer_token)):
+    """로그인 상태에서 비밀번호 변경.
+    현재 비밀번호 확인 → 새 비밀번호 저장 → 현재 기기 세션은 유지하고 다른 기기 세션은 모두 만료."""
+    if not verify_password(body.current_password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="현재 비밀번호가 일치하지 않습니다.")
+    if body.new_password == body.current_password:
+        raise HTTPException(status_code=400, detail="새 비밀번호가 현재 비밀번호와 같습니다.")
+
+    with get_conn() as conn:
+        conn.execute("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
+                     (hash_password(body.new_password), to_iso(now_utc()), user["id"]))
+        conn.execute("DELETE FROM sessions WHERE user_id = ? AND token <> ?",
+                     (user["id"], token))
+        conn.commit()
+    return {"message": "비밀번호가 변경되었습니다. 다른 기기에서는 다시 로그인해야 합니다."}
 
 
 @router.post("/withdraw")

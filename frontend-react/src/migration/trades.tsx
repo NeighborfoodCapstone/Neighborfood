@@ -51,6 +51,130 @@ export function Chats() {
     </Page>
   );
 }
+// 공동구매 채팅 상단의 거래 진행 바: 약속 → 정산 → GPS → QR 진입점 (정적 Group_Chat.html 액션 바 복원)
+function when(value?: string) {
+  if (!value) return "일시 미정";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? value : d.toLocaleString("ko-KR");
+}
+function TradeBar({
+  post,
+  postId,
+  onSaved,
+}: {
+  post: Row;
+  postId: string | number;
+  onSaved: () => void;
+}) {
+  const a = useAction(),
+    stl = useData("/api/settlements/post/" + postId),
+    [open, setOpen] = useState(false),
+    isHost = String(post.author_id) === String(uid()),
+    d = stl.data?.settlement,
+    active = d && d.status !== "canceled",
+    place = active ? d.appointmentPlace : post.appointment_place,
+    at = active ? d.appointmentAt : post.appointment_at,
+    lat = active ? d.appointmentLat : post.appointment_lat,
+    lng = active ? d.appointmentLng : post.appointment_lng,
+    hasAppointment = !!(place || at),
+    shares: Row[] = active ? d.shares || [] : [],
+    me = shares.find((x) => x.userId === uid()),
+    gps = shares.filter((x) => x.gpsVerified).length,
+    qr = shares.filter((x) => x.qualityAgreed).length,
+    waitingQr = shares.filter((x) => x.gpsVerified && !x.qualityAgreed).length;
+  return (
+    <section className="rx-card" aria-label="거래 진행">
+      <h3>거래 진행</h3>
+      <p>
+        {hasAppointment
+          ? "약속: " + (place || "장소 미정") + " · " + when(at)
+          : "약속이 아직 정해지지 않았습니다."}
+      </p>
+      {active && (
+        <p className="rx-muted">
+          정산 {status[d.status]} · 납부 {d.paidCount}/{d.participantCount} ·
+          GPS {gps}/{shares.length} · QR {qr}/{shares.length}
+        </p>
+      )}
+      <Feedback {...a} />
+      <div className="rx-actions">
+        {isHost && (!active || d.status === "pending") && (
+          <button type="button" onClick={() => setOpen(!open)}>
+            {hasAppointment ? "약속 변경" : "약속 정하기"}
+          </button>
+        )}
+        {isHost && !active && hasAppointment && (
+          <a className="rx-primary" href={href("Settlement", { postId })}>
+            정산 시작하기
+          </a>
+        )}
+        {isHost && !active && !hasAppointment && (
+          <span className="rx-muted">약속을 정하면 정산을 시작할 수 있습니다.</span>
+        )}
+        {active && (
+          <a href={href("Settlement", { settlementId: d.id })}>정산 상세</a>
+        )}
+        {me && d.status === "pending" && (
+          <>
+            <a
+              href={href("Local_Verify_Demo", {
+                settlementId: d.id,
+                returnTo: "payment",
+              })}
+            >
+              1단계 GPS 인증{me.gpsVerified ? " ✓" : ""}
+            </a>
+            {me.gpsVerified ? (
+              <a
+                href={href("QR_Scan", {
+                  settlementId: d.id,
+                  mode: "issue",
+                  returnTo: "payment",
+                })}
+              >
+                2단계 QR 인증{me.qualityAgreed ? " ✓" : ""}
+              </a>
+            ) : (
+              <span className="rx-muted">GPS 인증 후 QR 인증</span>
+            )}
+          </>
+        )}
+        {isHost && active && d.status === "pending" && waitingQr > 0 && (
+          <a href={href("QR_Scan", { settlementId: d.id, mode: "scan" })}>
+            참여자 QR 스캔 ({waitingQr})
+          </a>
+        )}
+      </div>
+      {open && (
+        <Form
+          onSubmit={(f) =>
+            a.run(async () => {
+              const raw = text(f, "at");
+              await send("/posts/" + postId + "/appointment", {
+                place: text(f, "place"),
+                appointment_at: raw ? new Date(raw).toISOString() : null,
+                lat: text(f, "lat") ? Number(text(f, "lat")) : null,
+                lng: text(f, "lng") ? Number(text(f, "lng")) : null,
+              });
+              setOpen(false);
+              onSaved();
+              stl.reload();
+            })
+          }
+        >
+          <PlaceField
+            addressName="place"
+            initial={{ address: place || "", lat, lng }}
+          />
+          <Field label="일시" name="at" type="datetime-local" required />
+          <button className="rx-primary" disabled={a.busy}>
+            약속 저장
+          </button>
+        </Form>
+      )}
+    </section>
+  );
+}
 export function Chat({
   q,
   group = false,
@@ -105,6 +229,13 @@ export function Chat({
           </details>
         )}
       </Load>
+      {group && conversation && post.data && (
+        <TradeBar
+          post={post.data}
+          postId={conversation.post_id}
+          onSaved={post.reload}
+        />
+      )}
       <Load state={s}>
         <div className="rx-messages" aria-live="polite">
           {(s.data?.items || []).map((m: Row) => (

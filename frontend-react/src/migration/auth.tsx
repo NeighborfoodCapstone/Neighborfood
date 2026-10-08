@@ -202,7 +202,55 @@ export function EditProfile() {
   return (
     <Page title="프로필 수정">
       <Load state={s}>{s.data && <ProfileForm profile={s.data} />}</Load>
+      <PasswordChangeForm />
     </Page>
+  );
+}
+function PasswordChangeForm() {
+  const a = useAction(),
+    [round, setRound] = useState(0);
+  return (
+    <section key={round}>
+      <h2>비밀번호 변경</h2>
+      <Form
+        onSubmit={(f) =>
+          a.run(async () => {
+            const next = String(f.get("new_password") || "");
+            if (next.length < 6 || next.length > 64)
+              throw new Error("새 비밀번호는 6~64자여야 합니다.");
+            if (next !== String(f.get("confirm") || ""))
+              throw new Error("새 비밀번호 확인이 일치하지 않습니다.");
+            await send(
+              "/api/users/me/password",
+              {
+                current_password: String(f.get("current_password") || ""),
+                new_password: next,
+              },
+              "PATCH",
+            );
+            setRound((n) => n + 1);
+          }, "비밀번호가 변경되었습니다. 다른 기기는 다시 로그인해야 합니다.")
+        }
+      >
+        <Field
+          label="현재 비밀번호"
+          type="password"
+          name="current_password"
+          required
+        />
+        <Field
+          label="새 비밀번호 (6~64자)"
+          type="password"
+          name="new_password"
+          required
+        />
+        <Field label="새 비밀번호 확인" type="password" name="confirm" required />
+        <Feedback {...a} />
+        <button className="rx-primary" disabled={a.busy}>
+          비밀번호 변경
+        </button>
+      </Form>
+    </section>
   );
 }
 function ProfileForm({ profile }: { profile: Record<string, any> }) {

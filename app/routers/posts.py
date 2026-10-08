@@ -10,7 +10,7 @@ from app.core.utils  import now_utc, to_iso
 from app.db.auth_db  import get_conn
 from app.db          import settlement_db
 from app.models.post import PostCreate
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PostUpdate(BaseModel):
@@ -22,7 +22,12 @@ class PostUpdate(BaseModel):
     address: Optional[str] = None
     lat: Optional[float] = None
     lng: Optional[float] = None
-    gb_max: Optional[int] = None
+    gb_max: Optional[int] = None          # (미사용, 구버전 호환)
+    # ── 2026-10 확장 ─────────────────────────────────────────────
+    images: Optional[List[str]] = None    # 사진 URL 목록 전체 교체
+    type: Optional[str] = Field(None, pattern=r"^(share|exchange|groupbuy)$")
+    gb_target: Optional[int] = None       # 공동구매 목표 인원
+    gb_price: Optional[int] = None        # 공동구매 1인 가격
 
 
 class PostAppointment(BaseModel):
@@ -259,6 +264,45 @@ async def update_post(post_id: int, body: PostUpdate, user: dict = Depends(get_c
         for col, val in field_map.items():
             if val is not None:
                 sets.append(f"{col} = ?"); vals.append(val)
+
+        # 사진은 거래 진행과 무관하게 수정 가능 (목록 전체 교체)
+        if body.images is not None:
+            if len(body.images) > 10:
+                raise HTTPException(status_code=400, detail="사진은 최대 10장까지 등록할 수 있습니다.")
+            sets.append("images = ?"); vals.append(json.dumps(body.images, ensure_ascii=False))
+
+        # 거래 유형·공동구매 인원/가격은 참여자나 정산이 생기면 잠급니다.
+        if any(v is not None for v in (body.type, body.gb_target, body.gb_price)):
+            cur = conn.execute(
+                "SELECT type, gb_target, gb_current, gb_price FROM posts WHERE id = ?", (post_id,)
+            ).fetchone()
+            participants = (cur["gb_current"] or 0) > 0 or conn.execute(
+                "SELECT 1 FROM groupbuy_participants WHERE post_id = ? LIMIT 1", (post_id,)
+            ).fetchone()
+            settled = conn.execute(
+                "SELECT 1 FROM settlements WHERE post_id = ? AND status != 'canceled' LIMIT 1", (post_id,)
+            ).fetchone()
+            if participants or settled:
+                raise HTTPException(
+                    status_code=409,
+                    detail="참여자나 정산이 있는 게시글은 거래 유형·인원·가격을 변경할 수 없습니다.",
+                )
+            new_type = body.type or cur["type"]
+            if new_type == "groupbuy":
+                target = body.gb_target if body.gb_target is not None else cur["gb_target"]
+                price  = body.gb_price  if body.gb_price  is not None else cur["gb_price"]
+                if target is None or target < 2:
+                    raise HTTPException(status_code=400, detail="공동구매 목표 인원은 2명 이상이어야 합니다.")
+                if price is None or price <= 0:
+                    raise HTTPException(status_code=400, detail="공동구매 가격은 1원 이상이어야 합니다.")
+                sets += ["type = ?", "gb_target = ?", "gb_price = ?", "gb_current = ?"]
+                vals += [new_type, target, price, 0]
+            else:
+                if body.gb_target is not None or body.gb_price is not None:
+                    raise HTTPException(status_code=400, detail="공동구매 게시글만 인원·가격을 설정할 수 있습니다.")
+                if new_type != cur["type"]:
+                    sets += ["type = ?", "gb_target = NULL", "gb_price = NULL", "gb_current = NULL"]
+                    vals += [new_type]
         if not sets:
             raise HTTPException(status_code=400, detail="수정할 내용이 없습니다.")
         vals.append(post_id)
