@@ -55,16 +55,21 @@ export function QR({ q }: { q: URLSearchParams }) {
     if(loc)try {await send(`/api/location-verify/${encodeURIComponent(loc)}/qr-issued`,{qrSessionId:d.session.id});}catch {setLinkWarning("QR은 발급됐지만 위치 인증 기록 연결에 실패했습니다. GPS 인증 상태를 확인해 주세요.");}
   }
   return <Page title="QR 거래 인증">
+    <div className="rx-qr-workspace">
     {settlement && <p className="rx-muted">정산 #{settlement} · 내 QR을 발급해 거래 상대에게 보여 주세요. 상대방이 스캔하면 인증 상태를 확인할 수 있습니다.</p>}
     {myShare && <section className="rx-card"><strong>공동구매 정산 #{settlement}</strong><p>{myShare.nickname} · {Number(myShare.amount).toLocaleString("ko-KR")}원</p><p>거래 QR 인증: {myShare.qualityAgreed ? "완료" : "대기"}</p></section>}
     <Feedback error={transaction.error} />
-    <div className="rx-qr-tabs" role="tablist" aria-label="QR 기능">
+    {mode!=="scan" && <div className="rx-qr-tabs" role="tablist" aria-label="QR 기능">
       {[["scan","QR 스캔"],["issue","내 QR 발급"],["history","인증 내역"]].map(([key,label])=><button key={key} role="tab" id={`qr-tab-${key}`} aria-selected={mode===key} aria-controls="qr-panel" onClick={()=>{setMode(key);history.reload();}}>{label}</button>)}
-    </div>
+    </div>}
     <Feedback {...a}/>
-    <div id="qr-panel" role="tabpanel" aria-labelledby={`qr-tab-${mode}`}>
+    <div id="qr-panel" role={mode==="scan" ? "region" : "tabpanel"} aria-label={mode==="scan" ? "QR 스캔" : undefined} aria-labelledby={mode==="scan" ? undefined : `qr-tab-${mode}`}>
     {mode==="scan" && <>
       <Scanner kind="qr" onRead={verify} disabled={a.busy} status={scanStatus} onReset={()=>{setScanStatus("idle");setResult(null);}}/>
+      <div className="rx-qr-secondary-actions" aria-label="QR 추가 기능">
+        <button type="button" onClick={()=>{setMode("issue");history.reload();}}>내 QR 발급</button>
+        <button type="button" onClick={()=>{setMode("history");history.reload();}}>인증 내역 확인</button>
+      </div>
       <p className="rx-muted">상대방이 발급한 QR을 중앙 정사각형에 맞춰 주세요.</p>
       <details><summary>QR 내용 직접 입력</summary><Form onSubmit={()=>verify(raw)}><Field label="QR 내용 또는 인증 토큰" value={raw} onChange={setRaw} required/><button className="rx-primary" disabled={a.busy}>인증 확인</button></Form></details>
       {q.get("token") && <button disabled={a.busy} onClick={()=>verify(q.get("token")!)}>전달받은 QR 인증</button>}
@@ -113,5 +118,6 @@ export function QR({ q }: { q: URLSearchParams }) {
       await api(`/api/settlements/${settlement}/shares/me/qr-done`,{method:"POST"});
       location.hash=href(paymentFlow?"Payment_Checkout":"Settlement",{settlementId:settlement});
     })}>{paymentFlow?"인증 확인 후 결제로 계속":"정산에 인증 결과 반영"}</button><a href={href(paymentFlow?"Payment_Checkout":"Settlement",{settlementId:settlement})}>돌아가기</a></div>}
+    </div>
   </Page>;
 }

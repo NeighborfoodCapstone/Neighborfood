@@ -20,6 +20,7 @@ export function Receipt() {
     [receipt, setReceipt] = useState<Row | null>(null),
     [added, setAdded] = useState(false);
   const [preview, setPreview] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
   useEffect(() => {
     if (!file) { setPreview(""); return; }
     const url = URL.createObjectURL(file); setPreview(url);
@@ -33,11 +34,13 @@ export function Receipt() {
   return (
     <Page title="영수증 인증">
       <div className="rx-receipt-workspace">
-      <Scanner key={file ? "selected" : "camera"} kind="receipt" onCapture={chooseFile} disabled={a.busy || !!file} preview={preview} />
+      <Scanner key={file ? "selected" : "camera"} kind="receipt" onCapture={chooseFile} disabled={a.busy || !!file} preview={preview} processing={analyzing} />
       <Form
         onSubmit={() =>
           a.run(async () => {
             if (!file) return;
+            setAnalyzing(true);
+            try {
             const fd = new FormData();
             fd.append("file", file);
             const d = await api("/api/receipt/scan?subjectId=" + uid(), {
@@ -48,6 +51,7 @@ export function Receipt() {
             setItems(d.scan.items.map((x: Row) => ({ ...x, selected: true })));
             setReceipt(null);
             setAdded(false);
+            } finally { setAnalyzing(false); }
           })
         }
       >
@@ -66,7 +70,7 @@ export function Receipt() {
           영수증 분석
         </button>
       </Form>
-      <Feedback {...a} busyLabel={scan ? "인증 정보를 저장하는 중…" : "영수증 인식 중…"} />
+      <Feedback {...a} busyLabel={analyzing ? "영수증 인식 중…" : "인증 정보를 저장하는 중…"} />
       {scan && (
         <>
           <h2>{scan.store || "매장명 미인식"}</h2>

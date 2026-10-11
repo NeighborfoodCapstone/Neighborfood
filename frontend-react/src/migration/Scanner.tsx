@@ -2,9 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import jsQR from "jsqr";
 import "./scanner.css";
 
-type Props = { kind: "qr" | "receipt"; onRead?: (text: string) => void; onCapture?: (file: File) => void; disabled?: boolean; preview?: string; onReset?: () => void; status?: "idle" | "checking" | "success" | "error" };
-export function Scanner({ kind, onRead, onCapture, disabled = false, preview = "", status = "idle", onReset }: Props) {
+type Props = { kind: "qr" | "receipt"; onRead?: (text: string) => void; onCapture?: (file: File) => void; disabled?: boolean; preview?: string; onReset?: () => void; processing?: boolean; status?: "idle" | "checking" | "success" | "error" };
+export function Scanner({ kind, onRead, onCapture, disabled = false, preview = "", status = "idle", onReset, processing = false }: Props) {
   const video = useRef<HTMLVideoElement>(null);
+  const guide = useRef<HTMLDivElement>(null);
+  const photoInput = useRef<HTMLInputElement>(null);
+  const [readingPhoto, setReadingPhoto] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState(false);
   const handlers = useRef({ onRead, onCapture });
   handlers.current = { onRead, onCapture };
   const [frozen, setFrozen] = useState("");
@@ -45,13 +49,23 @@ export function Scanner({ kind, onRead, onCapture, disabled = false, preview = "
         function decode() {
           if (disposed || !element || !context) return;
           if (element.readyState >= 2 && element.videoWidth) {
-            const side = Math.min(element.videoWidth, element.videoHeight);
-            canvas.width = canvas.height = Math.min(960, side);
-            context.drawImage(element, (element.videoWidth-side)/2, (element.videoHeight-side)/2, side, side, 0, 0, canvas.width, canvas.height);
+            // Decode exactly the visible guide within the object-fit:cover preview.
+            const view = element.getBoundingClientRect();
+            const box = guide.current?.getBoundingClientRect();
+            if (!box || !view.width || !view.height) { timer = setTimeout(decode, 180); return; }
+            const scale = Math.max(view.width / element.videoWidth, view.height / element.videoHeight);
+            const sx = (box.left - view.left + (element.videoWidth * scale - view.width) / 2) / scale;
+            const sy = (box.top - view.top + (element.videoHeight * scale - view.height) / 2) / scale;
+            const side = Math.min(box.width, box.height) / scale;
+            canvas.width = canvas.height = Math.min(960, Math.round(side));
+            context.drawImage(element, sx, sy, side, side, 0, 0, canvas.width, canvas.height);
             const frame = context.getImageData(0, 0, canvas.width, canvas.height);
             const code = jsQR(frame.data, frame.width, frame.height);
             if (code?.data) {
-              setFrozen(canvas.toDataURL("image/jpeg", 0.8));
+              const still = document.createElement("canvas");
+              still.width = element.videoWidth; still.height = element.videoHeight;
+              still.getContext("2d")?.drawImage(element, 0, 0);
+              setFrozen(still.toDataURL("image/jpeg", 0.8));
               stop(); setActive(false); setReady(false);
               handlers.current.onRead?.(code.data);
               return;
@@ -73,6 +87,33 @@ export function Scanner({ kind, onRead, onCapture, disabled = false, preview = "
     void start();
     return () => { stop(); document.removeEventListener("visibilitychange", hide); };
   }, [active, disabled, attempt, kind]);
+  async function readPhoto(file: File) {
+    setActive(false); setReady(false); setError(""); setReadingPhoto(true);
+    onReset?.(); setFrozen("");
+    const url = URL.createObjectURL(file);
+    try {
+      const photo = new Image();
+      await new Promise<void>((resolve, reject) => { photo.onload = () => resolve(); photo.onerror = () => reject(new Error("사진을 열지 못했습니다. 다른 사진을 선택해 주세요.")); photo.src = url; });
+      if (!alive.current) return;
+      const canvas = document.createElement("canvas");
+      const scale = Math.min(1, 1920 / Math.max(photo.naturalWidth, photo.naturalHeight));
+      canvas.width = Math.max(1, Math.round(photo.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(photo.naturalHeight * scale));
+      const context = canvas.getContext("2d", { willReadFrequently:true });
+      if (!context) throw new Error("사진을 분석할 수 없습니다. 카메라나 직접 입력을 이용해 주세요.");
+      context.drawImage(photo, 0, 0, canvas.width, canvas.height);
+      const frame = context.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(frame.data, frame.width, frame.height);
+      setPhotoPreview(true); setFrozen(canvas.toDataURL("image/jpeg", .9));
+      if (!code?.data) throw new Error("사진에서 QR을 찾지 못했습니다. QR이 선명한 사진을 선택해 주세요.");
+      handlers.current.onRead?.(code.data);
+    } catch (e) {
+      if (alive.current) setError(e instanceof Error ? e.message : "사진 인식에 실패했습니다.");
+    } finally {
+      URL.revokeObjectURL(url);
+      if (alive.current) setReadingPhoto(false);
+    }
+  }
   function capture() {
     const element = video.current;
     if (!element?.videoWidth || !ready || capturing) return;
@@ -91,17 +132,24 @@ export function Scanner({ kind, onRead, onCapture, disabled = false, preview = "
     }, "image/jpeg", 0.92);
   }
   return <section className={`rx-scanner rx-scanner-${kind}`}>
-    <div className={`rx-scanner-view rx-scan-${status}${capturing ? " rx-capture" : ""}`}>
+    <div className={`rx-scanner-view rx-scan-${status}${capturing ? " rx-capture" : ""}${ready && active && !disabled ? " rx-camera-live" : ""}${processing ? " rx-receipt-processing" : ""}`}>
       <video ref={video} autoPlay muted playsInline aria-label={kind === "qr" ? "QR 스캐너 카메라" : "영수증 촬영 카메라"} />
-      {(preview || frozen) && <img className="rx-scanner-still" src={preview || frozen} alt={kind === "qr" ? "감지한 QR 화면" : "촬영하거나 선택한 영수증"} />}
+      {(preview || frozen) && <img className={`rx-scanner-still${photoPreview ? " rx-scanner-photo" : ""}`} src={preview || frozen} alt={kind === "qr" ? "감지한 QR 화면" : "촬영하거나 선택한 영수증"} />}
       {status === "success" && <span className="rx-scan-check" aria-label="인증 완료">✓</span>}
-      <div className="rx-scanner-guide" aria-hidden="true" />
-      <p className="rx-scanner-caption" role="status">{status === "success" ? "QR 인증 완료" : status === "error" ? "인증 실패 · 아래 사유를 확인해 주세요" : status === "checking" ? "인증 확인 중…" : preview ? "촬영한 영수증 · 아래에서 인식을 진행해 주세요" : disabled ? "처리 중입니다" : ready && active ? kind === "qr" ? "QR 코드를 화면 중앙에 맞춰 주세요" : "영수증 전체가 보이도록 맞춰 주세요" : active ? "카메라 연결 중 · 권한 요청을 허용해 주세요" : "카메라가 정지되었습니다"}</p>
+      <div ref={guide} className="rx-scanner-guide" aria-hidden="true">
+        <div className="rx-scanner-corners"><i className="rx-corner-tl"/><i className="rx-corner-tr"/><i className="rx-corner-bl"/><i className="rx-corner-br"/></div>
+        {kind === "receipt" && processing && <span className="rx-receipt-scanline"/>}
+      </div>
+      <p className="rx-scanner-caption" role="status">{status === "success" ? "QR 인증 완료" : status === "error" ? "인증 실패 · 아래 사유를 확인해 주세요" : status === "checking" ? "인증 확인 중…" : readingPhoto ? "사진에서 QR을 찾는 중…" : photoPreview ? "선택한 QR 사진 · 아래 결과를 확인해 주세요" : processing ? "영수증 정보를 인식 중입니다…" : preview ? "촬영한 영수증 · 아래에서 인식을 진행해 주세요" : disabled ? "처리 중입니다" : ready && active ? kind === "qr" ? "QR 코드를 화면 중앙에 맞춰 주세요" : "영수증 전체가 보이도록 맞춰 주세요" : active ? "카메라 연결 중 · 권한 요청을 허용해 주세요" : "카메라가 정지되었습니다"}</p>
     </div>
     {error && <p className="rx-scanner-error" role="alert">{error}</p>}
     <div className="rx-actions rx-scanner-controls">
+      {kind === "qr" && <>
+        <input ref={photoInput} type="file" accept="image/*" hidden aria-label="QR 사진 선택" onChange={e=>{const file=e.target.files?.[0]; e.target.value=""; if(file) void readPhoto(file);}}/>
+        <button type="button" className="rx-primary" disabled={disabled || readingPhoto} onClick={()=>photoInput.current?.click()}>{readingPhoto ? "사진 인식 중…" : "사진에서 인식"}</button>
+      </>}
       {kind === "receipt" && <button type="button" className="rx-primary" disabled={!ready || !active || disabled || capturing} onClick={capture}>{capturing ? "사진 저장 중…" : "영수증 촬영"}</button>}
-      {active ? <button type="button" onClick={() => { setActive(false); setReady(false); }}>카메라 중지</button> : <button type="button" disabled={disabled || capturing} onClick={() => { onReset?.(); setFrozen(""); setActive(true); setAttempt(n => n + 1); }}>카메라 다시 시작</button>}
+      {active ? <button type="button" onClick={() => { setActive(false); setReady(false); }}>카메라 중지</button> : <button type="button" disabled={disabled || capturing || readingPhoto} onClick={() => { onReset?.(); setFrozen(""); setPhotoPreview(false); setActive(true); setAttempt(n => n + 1); }}>카메라 다시 시작</button>}
     </div>
   </section>;
 }
