@@ -1,10 +1,13 @@
 import os
+from dotenv import load_dotenv
+from pathlib import Path
+load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
 
 # ── 경로 상수 ──────────────────────────────────────────────────────────────
 # app/config.py 기준으로 두 단계 위가 프로젝트 루트(BASE_DIR)
 BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR   = os.path.join(BASE_DIR, "data")
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+DATA_DIR   = os.path.join("/tmp/neighborfood" if os.getenv("VERCEL") else BASE_DIR, "data")
+UPLOAD_DIR = os.path.join("/tmp/neighborfood" if os.getenv("VERCEL") else BASE_DIR, "uploads")
 PAGE_DIR   = os.path.join(BASE_DIR, "frontend")
 
 # ── DB 파일 경로 ───────────────────────────────────────────────────────────

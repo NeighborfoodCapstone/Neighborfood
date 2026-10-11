@@ -1,9 +1,15 @@
 import sqlite3
+import os
 
 
 def make_conn(path: str, foreign_keys: bool = False) -> sqlite3.Connection:
     """SQLite 연결을 생성하고 WAL 모드·busy timeout을 설정합니다.
     컨텍스트 매니저(with make_conn(...) as conn:)로 사용하세요."""
+    if os.getenv("DATABASE_URL", "").strip():
+        from app.db.postgres import Connection
+        return Connection()
+    if os.getenv("VERCEL"):
+        raise RuntimeError("DATABASE_URL is required on Vercel; SQLite fallback is disabled")
     conn = sqlite3.connect(path, timeout=5.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode = WAL")

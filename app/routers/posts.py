@@ -5,6 +5,7 @@ import uuid
 from typing          import Optional, List
 from fastapi         import APIRouter, HTTPException, UploadFile, File, Query, Depends
 from app.config      import UPLOAD_DIR
+from app import storage
 from app.core.deps   import get_current_user
 from app.core.utils  import now_utc, to_iso
 from app.db.auth_db  import get_conn
@@ -57,9 +58,10 @@ def _row_to_item(row) -> dict:
 
 
 @router.post("/upload-images")
-async def upload_images(files: List[UploadFile] = File(...)):
+async def upload_images(files: List[UploadFile] = File(...), user: dict = Depends(get_current_user)):
     allowed_ext = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
     saved = []
+    total_bytes = 0
 
     for f in files:
         ext = os.path.splitext(f.filename)[1].lower()
@@ -69,8 +71,15 @@ async def upload_images(files: List[UploadFile] = File(...)):
         new_name = f"{uuid.uuid4().hex}{ext}"
         path     = os.path.join(UPLOAD_DIR, new_name)
 
-        with open(path, "wb") as out:
-            out.write(await f.read())
+        data = await f.read(storage.MAX_BYTES + 1)
+        total_bytes += len(data)
+        if total_bytes > storage.MAX_BYTES:
+            raise HTTPException(413, "한 번에 올리는 이미지 합계는 4MB 이하여야 합니다.")
+        if storage.enabled():
+            storage.save("food-images", new_name, data)
+        else:
+            with open(path, "wb") as out:
+                out.write(data)
 
         saved.append(new_name)
         print(f"[이미지 저장] {f.filename} → {new_name}")

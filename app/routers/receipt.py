@@ -1,8 +1,12 @@
 import json
 import os
 import secrets
+import tempfile
+from app import storage
+from app.core.deps import get_current_user
+from fastapi.responses import RedirectResponse
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile, Depends
 
 from app.config import RECEIPT_TRUST_DELTA, UPLOAD_DIR
 from app.core.utils import now_utc, to_iso
@@ -22,9 +26,13 @@ def receipt_health():
 async def scan_receipt(
     file: UploadFile = File(...),
     subjectId: str = Query(""),
+    user: dict = Depends(get_current_user),
 ):
     """영수증 이미지 업로드 → OCR → 파싱 결과 저장 → 프론트 검토용 응답."""
     receipt_db.init_receipt_db()
+    if subjectId and subjectId != str(user["id"]):
+        raise HTTPException(403, "본인의 영수증만 등록할 수 있습니다.")
+    subjectId = str(user["id"])
 
     allowed_ext = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".tiff", ".tif"}
     ext = os.path.splitext(file.filename or "")[1].lower()
@@ -32,11 +40,25 @@ async def scan_receipt(
         raise HTTPException(status_code=400, detail=f"허용되지 않은 확장자: {ext}")
 
     new_name = f"receipt_{secrets.token_hex(8)}{ext}"
-    image_path = os.path.join(UPLOAD_DIR, new_name)
-    with open(image_path, "wb") as out:
-        out.write(await file.read())
-
-    ocr_engine, safe_text, ocr_debug = receipt_db.run_ocr(image_path)
+    data = await file.read(storage.MAX_BYTES + 1)
+    if len(data) > storage.MAX_BYTES:
+        raise HTTPException(413, "영수증 이미지는 4MB 이하여야 합니다.")
+    if storage.enabled():
+        storage.save("receipts", new_name, data)
+        fd, image_path = tempfile.mkstemp(suffix=ext)
+        try:
+            with os.fdopen(fd, "wb") as out:
+                out.write(data)
+            ocr_engine, safe_text, ocr_debug = receipt_db.run_ocr(image_path)
+        finally:
+            os.unlink(image_path)
+        image_url = storage.signed_receipt_url(new_name)
+    else:
+        image_path = os.path.join(UPLOAD_DIR, new_name)
+        with open(image_path, "wb") as out:
+            out.write(data)
+        ocr_engine, safe_text, ocr_debug = receipt_db.run_ocr(image_path)
+        image_url = f"/uploads/{new_name}"
     parsed = receipt_db.parse_receipt(safe_text) if safe_text else {"items": []}
 
     # OCR이 실패하거나 품목이 하나도 없으면 가짜 데모값을 넣지 않고 빈 결과로 유지한다.
@@ -105,7 +127,7 @@ async def scan_receipt(
             "items": parsed["items"],
             "ocrEngine": ocr_engine,
             "ocrTextPreview": safe_text[:600] if safe_text else "",
-            "imageUrl": f"/uploads/{new_name}",
+            "imageUrl": image_url,
             "status": "SCANNED",
             "scannedAt": now,
         },
@@ -113,9 +135,12 @@ async def scan_receipt(
 
 
 @router.post("/verify")
-def verify_receipt(body: ReceiptVerifyRequest):
+def verify_receipt(body: ReceiptVerifyRequest, user: dict = Depends(get_current_user)):
     """사용자가 검토/수정/선택한 항목을 최종 인증하여 DB에 저장한다."""
     receipt_db.init_receipt_db()
+    if body.subjectId and body.subjectId != str(user["id"]):
+        raise HTTPException(403, "본인의 영수증만 인증할 수 있습니다.")
+    body.subjectId = str(user["id"])
     selected = [item.dict() for item in body.items]
     if not selected:
         return {"ok": False, "result": "no_items", "message": "인증할 항목을 1개 이상 선택하세요."}
@@ -131,6 +156,10 @@ def verify_receipt(body: ReceiptVerifyRequest):
         if body.scanId:
             row = conn.execute("SELECT * FROM receipts WHERE id = ?", (body.scanId,)).fetchone()
 
+        if body.scanId and row is None:
+            raise HTTPException(404, "영수증을 찾을 수 없습니다.")
+        if row is not None and row["subject_id"] != str(user["id"]):
+            raise HTTPException(403, "본인의 영수증만 인증할 수 있습니다.")
         if row is not None:
             if row["status"] == "VERIFIED":
                 return {
@@ -192,12 +221,21 @@ def verify_receipt(body: ReceiptVerifyRequest):
 
 
 @router.get("/history")
-def get_receipt_history(limit: int = 20):
+def get_receipt_history(limit: int = 20, user: dict = Depends(get_current_user)):
     receipt_db.init_receipt_db()
     limit = max(1, min(limit, 50))
     with receipt_db.get_conn() as conn:
         rows = conn.execute(
-            "SELECT * FROM receipts ORDER BY scanned_at DESC LIMIT ?",
-            (limit,),
+            "SELECT * FROM receipts WHERE subject_id = ? ORDER BY scanned_at DESC LIMIT ?",
+            (str(user["id"]), limit),
         ).fetchall()
     return {"ok": True, "items": [receipt_db.row_to_dict(r) for r in rows]}
+
+
+@router.get("/image/{name}")
+def receipt_image(name: str, user: dict = Depends(get_current_user)):
+    with receipt_db.get_conn() as conn:
+        row=conn.execute("SELECT subject_id FROM receipts WHERE image_path = ?",(name,)).fetchone()
+    if not row or row["subject_id"] != str(user["id"]):
+        raise HTTPException(404,"영수증 이미지를 찾을 수 없습니다.")
+    return RedirectResponse(storage.signed_receipt_url(name),status_code=307)
