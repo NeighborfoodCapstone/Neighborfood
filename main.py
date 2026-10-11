@@ -11,7 +11,8 @@ from pathlib                 import Path
 from fastapi                 import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles     import StaticFiles
-from fastapi.responses       import FileResponse, HTMLResponse
+from fastapi.responses       import FileResponse, HTMLResponse, RedirectResponse
+from app import storage
 
 from app.config              import UPLOAD_DIR, PAGE_DIR, NO_CACHE
 from app.db.base             import init_all_databases
@@ -65,7 +66,15 @@ app = FastAPI(
 )
 
 # ── 정적 파일 서빙 ─────────────────────────────────────────────────────────
-app.mount("/uploads",  StaticFiles(directory=UPLOAD_DIR), name="uploads")
+if os.getenv("VERCEL") and not storage.enabled():
+    raise RuntimeError("SUPABASE_URL and SUPABASE_SECRET_KEY are required on Vercel")
+if storage.enabled():
+    storage.config()
+    @app.get("/uploads/{filename}")
+    def upload_image(filename: str):
+        return RedirectResponse(storage.public_url(filename), status_code=307)
+else:
+    app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.mount("/frontend", StaticFiles(directory=PAGE_DIR),   name="frontend")
 app.mount("/shared",   StaticFiles(directory=os.path.join(PAGE_DIR, "shared")), name="shared")
 
