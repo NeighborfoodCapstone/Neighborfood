@@ -1,0 +1,10 @@
+/* Profile photo uses the shared neutral controls and spacing. */
+.rx-profile-photo { width:96px; height:96px; flex:none; margin:0 0 12px; overflow:hidden; border:1px solid #e9e9e9; border-radius:50%; background:#f2f2f2; }
+.rx-profile-photo img { display:block; width:100%; height:100%; object-fit:cover; }
+.rx-profile-photo span { display:grid; place-items:center; width:100%; height:100%; color:#555; font-size:32px; }
+.rx-profile-editor { display:flex; align-items:center; gap:20px; padding:16px; border:1px solid #e9e9e9; border-radius:8px; }
+.rx-profile-editor .rx-profile-photo { margin:0; }
+.rx-profile-photo-controls { display:grid; gap:8px; flex:1; min-width:0; }
+.rx-profile-photo-controls input[type=file] { box-sizing:border-box; }
+.rx-profile-photo-controls button { justify-self:start; }
+@media(max-width:480px) { .rx-profile-editor { flex-direction:column; align-items:stretch; gap:12px; } .rx-profile-editor .rx-profile-photo { margin-inline:auto; } }

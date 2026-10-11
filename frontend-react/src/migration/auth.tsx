@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { backend } from "../neighborfood/api";
+import "./profile.css";
+import { TrustTemperature } from "./TrustTemperature";
 import {
   Page,
   Form,
@@ -141,6 +144,17 @@ export function PasswordReset() {
     </Page>
   );
 }
+function ProfilePhoto({ source, label }: { source: string; label: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { setFailed(false); }, [source]);
+  const src = /^(https?:|blob:)/.test(source) ? source
+    : source.startsWith("/uploads/") ? backend + source
+    : source ? backend + "/uploads/" + encodeURIComponent(source) : "";
+  return <div className="rx-profile-photo">
+    {src && !failed ? <img src={src} alt={label + " 프로필 사진"} onError={()=>setFailed(true)}/>
+      : <span role="img" aria-label="기본 프로필 사진">{(label.trim() || "이웃").slice(0,1)}</span>}
+  </div>;
+}
 export function Profile() {
   const s = useData("/api/users/me"),
     a = useAction();
@@ -150,11 +164,14 @@ export function Profile() {
       <Load state={s}>
         {p && (
           <>
-            <div className="rx-card">
-              <h2>{p.nickname || p.loginId}</h2>
-              <p>{p.neighborhood || "동네 미설정"}</p>
-              <p>신뢰 온도 {p.trustScore}°</p>
-              <a href={href("Edit_Profile")}>프로필 수정</a>
+            <div className="rx-card rx-profile-summary">
+              <div className="rx-profile-summary-info">
+                <ProfilePhoto source={p.profileImage || ""} label={p.nickname || p.loginId || "이웃"}/>
+                <h2>{p.nickname || p.loginId}</h2>
+                <p>{p.neighborhood || "동네 미설정"}</p>
+                <a href={href("Edit_Profile")}>프로필 수정</a>
+              </div>
+              <TrustTemperature value={p.trustScore}/>
             </div>
             <div className="rx-menu">
               {[
@@ -256,13 +273,44 @@ function PasswordChangeForm() {
 function ProfileForm({ profile }: { profile: Record<string, any> }) {
   const a = useAction(),
     [interests, setInterests] = useState<string[]>(profile.interests || []);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPath, setPhotoPath] = useState<string>(profile.profileImage || "");
+  const [photoPreview, setPhotoPreview] = useState("");
+  const [photoError, setPhotoError] = useState("");
+  const [photoChanged, setPhotoChanged] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  const uploaded = useRef<{ file: File; name: string } | null>(null);
+  useEffect(() => {
+    if (!photo) { setPhotoPreview(""); return; }
+    const url = URL.createObjectURL(photo); setPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photo]);
+  function selectPhoto(file: File | null) {
+    if (!file) return;
+    if (!/\.(jpe?g|png|webp|gif)$/i.test(file.name) || (file.type && !/^image\/(jpeg|png|webp|gif)$/.test(file.type))) {
+      setPhotoError("JPG, PNG, WebP, GIF 사진을 선택해 주세요."); return;
+    }
+    if (file.size > 5 * 1024 * 1024) { setPhotoError("5MB 이하의 사진을 선택해 주세요."); return; }
+    setPhotoError(""); setPhoto(file); setPhotoChanged(true); uploaded.current = null;
+  }
   return (
     <Form
       onSubmit={(f) =>
         a.run(async () => {
+          let image = photoPath;
+          if (photo) {
+            if (uploaded.current?.file === photo) image = uploaded.current.name;
+            else {
+              const body = new FormData(); body.append("files", photo);
+              const result = await api("/upload-images", { method:"POST", body });
+              if (!result.files?.[0]) throw new Error("사진 업로드 결과를 확인할 수 없습니다. 다시 시도해 주세요.");
+              image = result.files[0]; uploaded.current = { file:photo, name:image };
+            }
+          }
           await send(
             "/api/users/me",
             {
+              ...(photoChanged ? { profile_image:image } : {}),
               nickname: text(f, "nickname"),
               email: text(f, "email"),
               bio: text(f, "bio"),
@@ -278,6 +326,17 @@ function ProfileForm({ profile }: { profile: Record<string, any> }) {
         })
       }
     >
+      <section className="rx-profile-editor" aria-label="프로필 사진 변경">
+        <ProfilePhoto source={photoPreview || photoPath} label={profile.nickname || profile.loginId || "이웃"}/>
+        <div className="rx-profile-photo-controls">
+          <label className="rx-field">프로필 사진 선택
+            <input ref={input} type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={a.busy} onChange={e=>{selectPhoto(e.target.files?.[0] || null); e.target.value="";}}/>
+          </label>
+          <small className="rx-muted">JPG · PNG · WebP · GIF / 최대 5MB · 저장하면 반영됩니다.</small>
+          <button type="button" disabled={a.busy || (!photo && !photoPath)} onClick={()=>{setPhoto(null);setPhotoPath("");setPhotoChanged(true);setPhotoError("");uploaded.current=null;}}>기본 이미지로 변경</button>
+          <Feedback error={photoError}/>
+        </div>
+      </section>
       <label className="rx-field">
         닉네임
         <input name="nickname" defaultValue={profile.nickname || ""} required />

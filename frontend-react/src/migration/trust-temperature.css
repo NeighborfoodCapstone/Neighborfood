@@ -1,0 +1,12 @@
+/* Approved trust thermometer: idle motion and localized hover at 60%. */
+.rx-profile-summary { display:grid; grid-template-columns:minmax(180px,240px) minmax(0,1fr); align-items:center; gap:32px; }
+.rx-profile-summary-info { min-width:0; padding-left:30px; }
+.rx-trust-temperature { min-width:0; width:100%; padding:16px 0; touch-action:pan-y; }
+.rx-trust-value-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.rx-trust-value-row output { font-size:24px; font-weight:500; font-variant-numeric:tabular-nums; }
+.rx-trust-temperature canvas { display:block; width:100%; height:140px; }
+.rx-trust-ticks { position:relative; margin:-14px 16px 0 50px; height:22px; color:#737373; font-size:12px; font-variant-numeric:tabular-nums; }
+.rx-trust-ticks span { position:absolute; transform:translateX(-50%); }
+.rx-trust-ticks span:first-child { left:0; transform:none; }
+.rx-trust-ticks span:last-child { right:0; transform:none; }
+@media(max-width:680px) { .rx-profile-summary { grid-template-columns:minmax(0,1fr); gap:12px; } .rx-trust-temperature { padding:0; } }

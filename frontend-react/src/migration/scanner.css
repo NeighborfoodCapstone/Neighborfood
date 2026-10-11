@@ -37,3 +37,55 @@
 .rx-issued-qr { text-align:center; }
 .rx-issued-qr img { display:block; width:100%; max-width:320px; aspect-ratio:1; margin:0 auto; }
 @media(max-width:380px) { .rx-qr-tabs { gap:4px; } .rx-qr-tabs button { padding:8px 4px; font-size:13px; } }
+
+/* Approved QR / receipt samples, 2026-10-06. One video with a dim outer mask. */
+.rx-qr-workspace { width:100%; max-width:720px; min-width:0; margin-inline:auto; }
+.rx-qr-workspace .rx-form { max-width:none; }
+.rx-scanner { width:100%; margin-inline:auto; }
+.rx-scanner-qr { max-width:440px; }
+.rx-scanner-receipt { max-width:480px; }
+.rx-scanner-view { border-radius:18px; }
+.rx-scanner-qr .rx-scanner-view { aspect-ratio:70.6 / 100; }
+.rx-scanner-receipt .rx-scanner-view { aspect-ratio:4 / 5; }
+.rx-scanner-view video { position:absolute; inset:0; }
+.rx-scanner-qr .rx-scanner-view video,
+.rx-scanner-qr .rx-scanner-still { object-fit:cover; }
+.rx-scanner-receipt .rx-scanner-view video,
+.rx-scanner-receipt .rx-scanner-still { object-fit:contain; }
+.rx-scanner-qr .rx-scanner-guide { inset:auto 14%; top:45%; aspect-ratio:1; transform:translateY(-50%); }
+.rx-scanner-receipt .rx-scanner-guide { inset:18px 20px 90px; transform:none; }
+.rx-scanner-view .rx-scanner-guide { border:0; border-radius:18px; box-shadow:0 0 0 1000px rgb(10 18 24 / .66); pointer-events:none; }
+.rx-scanner-corners { position:absolute; inset:0; }
+.rx-scanner-corners i { position:absolute; width:clamp(32px,10vw,52px); height:clamp(32px,10vw,52px); border:3px solid white; }
+.rx-scanner-corners .rx-corner-tl { top:0; left:0; border-right:0; border-bottom:0; border-radius:18px 0 0 0; }
+.rx-scanner-corners .rx-corner-tr { top:0; right:0; border-left:0; border-bottom:0; border-radius:0 18px 0 0; }
+.rx-scanner-corners .rx-corner-bl { bottom:0; left:0; border-right:0; border-top:0; border-radius:0 0 0 18px; }
+.rx-scanner-corners .rx-corner-br { bottom:0; right:0; border-left:0; border-top:0; border-radius:0 0 18px 0; }
+.rx-camera-live .rx-scanner-corners { animation:rx-corner-breathe 2s ease-in-out infinite; }
+@keyframes rx-corner-breathe { 0%,100% { opacity:.55; transform:scale(1); } 50% { opacity:1; transform:scale(1.035); filter:drop-shadow(0 0 5px #9ed5b7); } }
+.rx-scanner-view .rx-scanner-caption { z-index:1; min-height:64px; padding:12px 16px; background:transparent; color:white; font-size:14px; }
+.rx-scanner-controls { display:flex; flex-wrap:wrap; gap:10px; padding-top:12px; }
+.rx-scanner-controls button { flex:1; min-height:48px; }
+.rx-qr-secondary-actions { display:flex; gap:10px; max-width:440px; margin:0 auto 20px; }
+.rx-qr-secondary-actions button { flex:1; min-height:48px; }
+.nf-app .rx-receipt-workspace > .rx-form { max-width:480px; margin-inline:auto; }
+.rx-receipt-workspace > button.rx-primary { display:block; width:100%; min-height:48px; }
+.rx-receipt-workspace .rx-actions > * { flex:1; text-align:center; }
+.rx-receipt-workspace .rx-actions a { border:1px solid #d8d8d8; border-radius:8px; padding:10px 12px; }
+.rx-receipt-scanline { position:absolute; left:0; right:0; height:2px; background:#86dba6; box-shadow:0 -12px 20px 3px #86dba64d; animation:rx-receipt-scan 3s ease-in-out infinite; }
+@keyframes rx-receipt-scan { from { top:4%; } to { top:94%; } }
+.rx-scan-success .rx-scanner-corners i { border-width:4px; }
+.rx-scan-error .rx-scanner-corners i { border-style:dashed; }
+@media(max-width:600px) {
+ .rx-scanner-controls button { min-width:0; }
+ .rx-qr-workspace .rx-qr-tabs { gap:6px; }
+ .rx-qr-secondary-actions button { padding:12px 6px; }
+}
+@media(prefers-reduced-motion:reduce) {
+ .rx-camera-live .rx-scanner-corners,.rx-receipt-scanline { animation:none; transform:none; filter:none; opacity:1; }
+ .rx-receipt-scanline { top:50%; }
+}
+
+.rx-scanner-qr .rx-scanner-still.rx-scanner-photo { object-fit:contain; }
+.rx-scanner-view .rx-scan-check { z-index:2; }
+.rx-scanner-qr .rx-scanner-controls input[hidden] { display:none; }
