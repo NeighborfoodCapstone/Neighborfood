@@ -1,6 +1,6 @@
 # NeighborFood FastAPI — 아키텍처 현황 및 개발 이력
 
-> 최종 수정: 2026-10-08 (2026-10-08 구현 완료 — 그룹 채팅 거래 액션 바(B안: 약속·정산·GPS·QR 링크)·로그인 상태 비밀번호 변경 API(`PATCH /api/users/me/password`)·공개 공지 API(`GET /api/notices`)·게시글 수정 API 확장(사진·유형·인원·가격)·정산 흐름 자동화 테스트(`tests/test_settlement_flow.py` 등 pytest 12개 신규)·QR 발급 화면 토큰 표시·복사 줄 추가(`qr.tsx`). 같은 날 수동 UI 검증(액션 바·비밀번호 변경·공지·게시글 수정) 통과. 남은 작업: PWA·PortOne 서버 검증·실환경(기기) 검증·서버 운영 마무리. 이전 수정: 2026-10-08 (2026-10-08 잔여 작업 방침 확정 — 시연·발표 전 처리(그룹 채팅 액션 바·PortOne 서버 검증·실환경 검증·서버 운영 마무리)와 구현/제외 결정 항목(비밀번호 변경·공개 공지·게시글 수정 API·PWA)은 모두 작업 예정, 정적 HTML 폐기는 구현 100% 완료 후 영향 점검 뒤 진행, 선택 사항은 별도 시점에 처리). 이전 수정: 2026-10-07 (GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정). 이전 수정: 2026-10-06 (운영 서버 HTTPS 배포 완료(Nginx·Let's Encrypt·`dist/` 서빙)와 팀원 PortOne V2 테스트 결제 연동 반영 — 신규 API 4종·테이블 2개 추가, §9 외부 결제 정책 갱신. 상세는 §2·§3·§4·§5·§6·§7·§8·§9 참고. 이전 수정 2026-09-30 (배포 서버 백엔드 배치·도메인 연결 반영, 코드 변경 없음 — §7·§8 참고. 이전 수정 2026-09-21: React 전체 화면 이전(`frontend-react/`, 화면 39개)·공통 디자인·로딩·자동완성·게시글 상세 개선 반영, 공개 공지 API 미구현·게시글 수정 범위 정정. 상세는 §2·§3·§5·§6·§7·§8·§9·§10·§11 참고)
+> 최종 수정: 2026-10-12 (팀원 박준기 푸시 2건 반영 — `fc80abd`(10/11): QR 스캔 화면 구성 변경·영수증 분석 중 표시·프로필 사진 업로드·신뢰온도 게이지. `b6859f0`(10/12): **Supabase(PostgreSQL)·Supabase Storage 선택 지원**(`DATABASE_URL`·`SUPABASE_URL` 설정 시에만 활성, 미설정이면 기존 SQLite·로컬 `uploads/`), 사진 업로드·영수증 API 로그인 필수·본인 영수증 전용, 영수증 이미지 서명 URL, `migrations/001_supabase.sql`·`scripts/`·`docs/SUPABASE_MIGRATION.md` 신규. **배포 방식은 Oracle 유지 / Vercel+Supabase 전환 두 방향 모두 열어 두고 10/16 체크포인트(부하테스트 후)에서 확정**, 그 전에 배포 방안 검증 예정. pytest 32개 통과(2026-10-12 확인). 상세는 §2·§3·§4·§5·§6·§7·§8·§9·§10 참고. 이전 수정: 2026-10-08 (2026-10-08 구현 완료 — 그룹 채팅 거래 액션 바(B안: 약속·정산·GPS·QR 링크)·로그인 상태 비밀번호 변경 API(`PATCH /api/users/me/password`)·공개 공지 API(`GET /api/notices`)·게시글 수정 API 확장(사진·유형·인원·가격)·정산 흐름 자동화 테스트(`tests/test_settlement_flow.py` 등 pytest 12개 신규)·QR 발급 화면 토큰 표시·복사 줄 추가(`qr.tsx`). 같은 날 수동 UI 검증(액션 바·비밀번호 변경·공지·게시글 수정) 통과. 남은 작업: PWA·PortOne 서버 검증·실환경(기기) 검증·서버 운영 마무리. 이전 수정: 2026-10-08 (2026-10-08 잔여 작업 방침 확정 — 시연·발표 전 처리(그룹 채팅 액션 바·PortOne 서버 검증·실환경 검증·서버 운영 마무리)와 구현/제외 결정 항목(비밀번호 변경·공개 공지·게시글 수정 API·PWA)은 모두 작업 예정, 정적 HTML 폐기는 구현 100% 완료 후 영향 점검 뒤 진행, 선택 사항은 별도 시점에 처리). 이전 수정: 2026-10-07 (GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정). 이전 수정: 2026-10-06 (운영 서버 HTTPS 배포 완료(Nginx·Let's Encrypt·`dist/` 서빙)와 팀원 PortOne V2 테스트 결제 연동 반영 — 신규 API 4종·테이블 2개 추가, §9 외부 결제 정책 갱신. 상세는 §2·§3·§4·§5·§6·§7·§8·§9 참고. 이전 수정 2026-09-30 (배포 서버 백엔드 배치·도메인 연결 반영, 코드 변경 없음 — §7·§8 참고. 이전 수정 2026-09-21: React 전체 화면 이전(`frontend-react/`, 화면 39개)·공통 디자인·로딩·자동완성·게시글 상세 개선 반영, 공개 공지 API 미구현·게시글 수정 범위 정정. 상세는 §2·§3·§5·§6·§7·§8·§9·§10·§11 참고)
 > 2026-09-08 수정: 기술 스택 사용 목적 서술 추가, 디렉토리 구조를 README.md와 정합화 / 존재하지 않는 `receipt_items` 테이블 언급 2곳 정정 — 영수증 품목은 `receipts.items`/`selected_items` JSON 컬럼으로만 저장
 > 2026-09-12 업데이트: 관리자 기능 실데이터 연동 완료(가드 공용화·회원 관리·신고 상세·운영진 관리·대시보드 통계), 미납 정산 참여 차단 리팩터링, 주최자 귀책/먹튀 trust_score 자동 페널티, `seed_admin.py` 복원, CORS `.env` 동적 분기 준비. 상세는 §7 개발 이력 참고.
 > 2026-09-14 업데이트: `frontend-react/` 워크스페이스 신규 추가 — 홈 화면(`HomePage.tsx`)만 React로 재구현한 부분 마이그레이션. 기존 정적 HTML 프런트엔드(`frontend/`)와 하이브리드로 병행 운영하며, 신규 백엔드 API는 없음(기존 `GET /posts` 재사용). 상세는 §7 개발 이력 참고.
@@ -8,9 +8,10 @@
 > 2026-09-20~21 업데이트: `frontend-react/`가 기존 HTML 39개 화면 식별자를 모두 React(TypeScript)로 이전(§6·§7 참고, 구현 완료 — 실제 브라우저·기기 검증은 진행 중). 기존 정적 HTML은 최종 점검 전까지 병행 보존. 신규 백엔드 API·DB 변경 없음. 문서 정정: 공개 공지 API(`GET /api/notices`)는 코드에 없음, `PATCH /posts/{id}`는 인원·가격을 반영하지 않음.
 > 2026-09-30 업데이트: 배포 환경 구성 착수 — Oracle Cloud Micro 서버에 저장소 클론·가상환경·`.env`·systemd 서비스(`127.0.0.1:8000`)로 백엔드를 배치하고 도메인 `neighborfood.duckdns.org`를 연결. Nginx 리버스 프록시·HTTPS·`dist/` 서빙은 미완료. 신규 API·DB 변경 없음. 상세는 §7·§8 참고.
 > 2026-10-03~10-06 업데이트: ① 작성자 매너 평가 표시·`frontend-react/README.md` 교체·`main.py` `dist/` 서빙 코드(10/3). ② 운영 서버 완성(10/3): Nginx 리버스 프록시 → Let's Encrypt HTTPS(만료 2027-01-01, 자동 갱신) → 로컬 빌드 `dist/` 업로드 → 카카오 지도 확인. ③ 팀원 PortOne V2 **테스트 결제**·QR 스캔 UI 통합 푸시(10/5, `ec1da57`): `app/routers/portone.py`·`portone_*` 테이블 2개·`/api/payments/portone/*` 4종·`portone.tsx`·`Scanner.tsx`. 정산 납부 상태는 바꾸지 않음. ④ 서버 운영 가이드·배포 방식 비교 문서 작성(10/5~6). 상세는 §7 참고.
-> 상태: **핵심 거래 흐름(채팅→약속→GPS 100m 실검증→QR→납부→정산완료→매너평가) 완성 + 관리자·UX 갭 해소 + 영수증 파서 v2.1 마트형 개선 + React 전체 화면 이전(구현 완료, 실제 환경 검증 진행 중) + 운영 서버 HTTPS 배포(2026-10-03) + PortOne 테스트 결제 연동(2026-10-05 푸시, 서버 반영 확인 필요)**
-> 배포: Oracle Cloud Micro(Ubuntu 24.04) + Nginx + Let's Encrypt(`https://neighborfood.duckdns.org`), FastAPI는 systemd로 `127.0.0.1:8000`에서 실행하며 로컬에서 빌드한 `frontend-react/dist/`를 서빙
-> 서버: 단일 FastAPI / DB: 단일 SQLite(`data/neighborfood.db`) / 프런트엔드: React·Vite(`frontend-react/`, 화면 39개 이전) + 정적 HTML(`frontend/`, 최종 점검 전까지 병행 보존)
+> 2026-10-11~12 업데이트: 팀원 박준기 푸시 2건(`fc80abd`, `b6859f0`) 반영. Supabase(PostgreSQL)·Storage는 **환경변수로 켜는 선택 모드**이며 기본 동작(SQLite·로컬 `uploads/`)은 그대로입니다. 배포 방식(Oracle 유지 vs Vercel+Supabase 전환)은 두 방향을 모두 열어 두고 10/16에 확정합니다. 실제 Supabase 연결·Vercel 배포는 미검증, 정적 점검에서 `messages.is_system`이 마이그레이션 SQL에 없는 점을 확인했습니다(§4·§8). 상세는 §7 "2026-10-11~12" 절 참고.
+> 상태: **핵심 거래 흐름(채팅→약속→GPS 100m 실검증→QR→납부→정산완료→매너평가) 완성 + 관리자·UX 갭 해소 + 영수증 파서 v2.1 마트형 개선 + React 전체 화면 이전(구현 완료, 실제 환경 검증 진행 중) + 운영 서버 HTTPS 배포(2026-10-03) + PortOne 테스트 결제 연동(2026-10-05 푸시, 서버 반영 확인 필요) + Supabase·Vercel 배포 준비 코드 완료(2026-10-12, 실환경 검증·방식 확정은 10/16 전 잔여)**
+> 배포(현재 운영): Oracle Cloud Micro(Ubuntu 24.04) + Nginx + Let's Encrypt(`https://neighborfood.duckdns.org`), FastAPI는 systemd로 `127.0.0.1:8000`에서 실행하며 로컬에서 빌드한 `frontend-react/dist/`를 서빙. **대안(준비 완료, 미검증): Vercel(API·React 2개 프로젝트) + Supabase(PostgreSQL·Storage)** — 최종 선택은 10/16
+> 서버: 단일 FastAPI / DB: 단일 SQLite(`data/neighborfood.db`, 기본) — `DATABASE_URL` 설정 시 Supabase PostgreSQL(선택) / 프런트엔드: React·Vite(`frontend-react/`, 화면 39개 이전) + 정적 HTML(`frontend/`, 최종 점검 전까지 병행 보존)
 
 ---
 
@@ -32,7 +33,9 @@ NeighborFood는 이웃 간 식재료 나눔·교환·공동구매를 중개하�
 | 구분 | 기술 | 사용 목적 |
 |---|---|---|
 | 백엔드 | FastAPI (Python), Uvicorn | 비동기 I/O 기반으로 REST API를 빠르게 구축하고, Swagger(`/docs`) 문서를 자동 생성하기 위해 사용 |
-| DB | SQLite 3 단일 파일 (`data/neighborfood.db`) | 별도 DB 서버 운영 부담 없이 단일 파일로 배포·백업·로컬 개발을 단순화하기 위해 사용 |
+| DB | SQLite 3 단일 파일 (`data/neighborfood.db`) — 기본 | 별도 DB 서버 운영 부담 없이 단일 파일로 배포·백업·로컬 개발을 단순화하기 위해 사용 |
+| DB(선택, 2026-10-12 신규) | Supabase PostgreSQL(서울 리전, Transaction pooler) + `psycopg[binary]`, `python-dotenv` | `DATABASE_URL` 설정 시에만 사용. 서버리스(Vercel)에서는 SQLite 파일을 영속 저장할 수 없으므로 전환 방안으로 준비. 코드는 SQLite 문법을 유지하고 `app/db/postgres.py`가 변환하며 DDL은 `migrations/001_supabase.sql`(`scripts/supabase_migrate.py`)로만 적용. 모든 테이블 RLS 활성·공개 권한 제거, 권한 검사는 서버가 담당 |
+| 파일 저장소(선택, 2026-10-12 신규) | Supabase Storage — 공개 버킷 `food-images`, 비공개 버킷 `receipts` (`app/storage.py`, `requests`) | `SUPABASE_URL`·`SUPABASE_SECRET_KEY` 설정 시에만 사용(미설정 시 로컬 `uploads/`). 영수증은 5분 서명 URL로만 조회. 이미지 한 요청 합계 4MB 제한 |
 | 인증 | Bearer 세션 토큰 (`sessions` 테이블), PBKDF2-SHA256 비밀번호 해시 (표준 라이브러리) | 외부 인증 라이브러리 의존 없이 표준 라이브러리만으로 안전한 비밀번호 저장과 세션 기반 인증을 구현하기 위해 사용 |
 | 프론트엔드 | Vanilla HTML/JS, Tailwind CSS CDN, Material Symbols | 별도 빌드 도구 없이 정적 파일만으로 화면을 빠르게 구성하고, 39개 화면에 일관된 디자인 토큰을 적용하기 위해 사용 |
 | 프론트엔드(React, 2026-09-14 신규 → 2026-09-20~21 전체 이전) | `frontend-react/` — Vite 8 + React 19 + TypeScript, Oxlint, Node.js 20+, `qrcode`·`jsqr` | 기존 정적 HTML 39개 화면을 React로 이전해 컴포넌트 기반 구조·공통 디자인·공통 로딩·자동완성을 적용하고 향후 PWA 전환에 대비(PWA 기능 자체는 미구현). 의존성 설치는 `npm ci`(lockfile 기준 재현성 보장). 개발/preview 서버가 API 요청을 FastAPI로 프록시하며 신규 백엔드 API 없음. 기존 정적 HTML은 병행 보존 |
@@ -41,6 +44,7 @@ NeighborFood는 이웃 간 식재료 나눔·교환·공동구매를 중개하�
 | 영수증 OCR | CLOVA OCR 연동 + Tesseract fallback (parser v2.1: 마트형·카페형 구조 동시 지원) | 1차로 CLOVA OCR의 인식 정확도를 활용하고, 키가 없거나 호출이 실패해도 Tesseract로 대체해 영수증 인증 기능이 항상 동작하도록 하기 위해 사용 |
 | 결제(테스트, 2026-10-05 신규) | PortOne V2 (`@portone/browser-sdk/v2`) + 토스페이먼츠 **테스트 채널**, 서버 `requests`로 결제 조회 | 실결제 없이 결제 흐름(주문 생성 → 결제창 → 서버 검증)을 시연하기 위해 사용. 금액·결제 ID·통화·채널 TEST·PAID를 서버가 PortOne REST API로 재검증하며, `.env`의 `PORTONE_*`가 없으면 503. API 시크릿은 서버 `.env`에만 저장 |
 | 배포(2026-10-03) | Oracle Cloud `VM.Standard.E2.1.Micro`(Ubuntu 24.04, 1GB+스왑 1GB), Nginx(`client_max_body_size 20M`), certbot(Let's Encrypt), DuckDNS, systemd | 무료 티어 서버 1대에서 HTTPS(카메라 QR·GPS 필수 조건)를 제공. 앱은 `127.0.0.1:8000`에만 바인딩하고 Nginx만 외부 노출. 프런트는 서버(1GB)에서 빌드하지 않고 PC에서 빌드한 `dist/`를 scp로 업로드 |
+| 배포 대안(2026-10-12 준비 완료, 미검증) | Vercel(API 프로젝트: 저장소 루트 `main.py`, React 프로젝트: `frontend-react`·Vite·`npm run build`·`dist`) + Supabase | Oracle 부하테스트 결과에 따라 전환할 수 있도록 준비. `VERCEL` 환경에서는 SQLite 대체·로컬 업로드를 거부하고 `DATABASE_URL`·`SUPABASE_*`를 필수로 요구. 필요 환경변수: API `DATABASE_URL`·`SUPABASE_URL`·`SUPABASE_SECRET_KEY`·`ALLOWED_ORIGINS`(+기존 OCR·PortOne·Kakao), React `VITE_API_BASE_URL`. Tesseract는 Vercel 전제가 아님(CLOVA HTTP OCR 사용). 절차: `docs/SUPABASE_MIGRATION.md` |
 
 ---
 
@@ -52,12 +56,14 @@ project_root/
 ├── seed_admin.py                관리자 계정 생성/승격 (2026-09-12 복원)
 ├── reset_db.py                  DB 초기화 — 전체 데이터 삭제 + Admin 재생성
 ├── app/
-│   ├── config.py                DB_PATH, UPLOAD_DIR, SESSION_TTL_DAYS=30, RECEIPT_TRUST_DELTA=0.3 등
+│   ├── config.py                DB_PATH, UPLOAD_DIR, SESSION_TTL_DAYS=30, RECEIPT_TRUST_DELTA=0.3 등, `.env` 로드(python-dotenv), `VERCEL` 시 데이터·업로드 경로 `/tmp/neighborfood` (2026-10-12)
+│   ├── storage.py               Supabase Storage HTTP API — save·public_url·signed_receipt_url, MAX_BYTES=4MB [신규 2026-10-12]
 │   ├── core/
 │   │   ├── deps.py              get_current_user / get_current_admin / get_bearer_token
 │   │   └── utils.py             now_utc, to_iso, hash_password, verify_password, parse_token
 │   ├── db/
-│   │   ├── base.py              make_conn() — sqlite3 Row factory + WAL 설정
+│   │   ├── base.py              make_conn() — sqlite3 Row factory + WAL 설정 (`DATABASE_URL`이 있으면 PostgreSQL 연결 반환, `VERCEL`에서 SQLite 대체 거부)
+│   │   ├── postgres.py          SQLite→PostgreSQL 호환 계층 — `?`→`%s`, `INSERT OR IGNORE/REPLACE`, `date('now')`, `MAX(a,b)`→`GREATEST` 변환, `PRAGMA table_info` 대체, DDL 미실행(마이그레이션 필요 시 오류), IntegrityError 호환 [신규 2026-10-12]
 │   │   ├── auth_db.py           users · sessions · auth_codes · posts DDL
 │   │   ├── member_db.py         wishlists · conversations · messages(is_system) · conversation_members DDL
 │   │   ├── transaction_db.py    transactions · groupbuy_participants · manner_ratings
@@ -85,7 +91,7 @@ project_root/
 │       ├── admin.py             관리자 전용 API
 │       ├── location_verify.py   GPS 위치 인증 (Haversine 100m 검증)
 │       ├── qr.py                QR 거래 인증
-│       ├── receipt.py           영수증 OCR 인증
+│       ├── receipt.py           영수증 OCR 인증 (2026-10-12: 로그인·본인 소유 검증, Storage 저장·서명 URL 이미지 조회)
 │       └── portone.py           PortOne V2 테스트 결제 (`/api/payments/portone/*`, `portone_*` 테이블 `init_db()`) [신규 2026-10-05]
 │
 ├── frontend/                    정적 HTML 프런트엔드
@@ -121,7 +127,8 @@ project_root/
 │   │   │   ├── loading.tsx       화면 전환·최초 조회 공통 로딩
 │   │   │   ├── autocomplete.tsx  검색·회원·주소 공통 자동완성
 │   │   │   ├── PostGallery.tsx   게시글 상세 사진 갤러리
-│   │   │   ├── auth.tsx · posts.tsx · fridge.tsx · trades.tsx   인증·프로필 / 게시글·검색·찜·등록·신고 / 냉장고 / 채팅·내 활동·정산
+│   │   │   ├── auth.tsx · posts.tsx · fridge.tsx · trades.tsx   인증·프로필(사진 업로드·신뢰온도 게이지) / 게시글·검색·찜·등록·신고 / 냉장고 / 채팅·내 활동·정산
+│   │   │   ├── TrustTemperature.tsx · trust-temperature.css · profile.css   신뢰온도 게이지(canvas, 0~40°, 호버 물결·reduced-motion 대응)·프로필 사진 스타일 [신규 2026-10-11]
 │   │   │   ├── location.tsx · qr.tsx · receipt.tsx · admin.tsx  지도·GPS / QR / 영수증 / 관리자
 │   │   │   └── portone.tsx · Scanner.tsx · scanner.css · interface.css  PortOne 테스트 결제 화면(Payment_*) / QR·영수증 공용 카메라 스캐너 / 스캐너·인터페이스 스타일 [신규 2026-10-05]
 │   │   ├── App.css · App.tsx(해시 라우팅 + AppLayout + 접근 가드, 홈은 HomePage) · index.css · main.tsx(StrictMode 진입점)
@@ -133,13 +140,22 @@ project_root/
 │   ├── README.md                프로젝트 설명·실행·폴더 구조·배포 절차 (2026-10-03 교체 완료)
 │   └── dist/                    `npm run build` 결과 — Git 미포함, 로컬 빌드 후 서버로 업로드(FastAPI가 `/`에서 서빙)
 │
-├── sql/neighborfood_schema.sql  전체 테이블 DDL (단일 진실 소스)
+├── sql/neighborfood_schema.sql  전체 테이블 DDL (SQLite 기준 단일 진실 소스 — `portone_*`·PostgreSQL용은 미포함)
+├── migrations/001_supabase.sql  PostgreSQL(Supabase)용 초기 스키마 — 28190b4 시점 초기화 스키마에서 생성, 앱 테이블 21개 + `neighborfood_schema_version`('28190b4-v1'), RLS 활성·공개 권한 제거 [신규 2026-10-12]
+├── scripts/                     Supabase 적용·점검·이전 [신규 2026-10-12]
+│   ├── configure_supabase.py    DB 비밀번호·secret key 숨김 입력 → `.env` 기록(기존 값 보존·`.env.supabase.bak` 백업, `.env`가 Git 추적 중이면 거부)
+│   ├── supabase_migrate.py      빈 public 스키마에만 마이그레이션 적용(advisory lock, 재실행 안전)
+│   ├── check_supabase.py        연결·스키마 버전·버킷 존재/공개 여부 읽기 전용 점검
+│   └── import_sqlite.py · import_uploads.py   (선택) 기존 SQLite 데이터·uploads 이미지 이전
 ├── tests/
 │   ├── test_receipt_parser_v212.py  영수증 파서 회귀·유닛 테스트 [신규] — pytest 없이 단독 실행 가능
 │   ├── conftest.py                  pytest 공용 픽스처 — 임시 SQLite DB로 전체 앱(TestClient) 구동 [신규 2026-10-08]
 │   ├── test_account_notice_post.py  비밀번호 변경·공개 공지·게시글 수정 확장 API 테스트 [신규 2026-10-08]
 │   ├── test_settlement_flow.py      정산 흐름 자동화 테스트(약속→GPS 100m→QR→납부→완료→매너 평가, 노쇼·취소·미납 참여 차단) [신규 2026-10-08]
-│   └── test_portone.py      PortOne 테스트 결제 검증(금액·권한·게이트·반복 요청·취소·오류, 외부 API는 mock) [신규 2026-10-05]
+│   ├── test_portone.py      PortOne 테스트 결제 검증(금액·권한·게이트·반복 요청·취소·오류, 외부 API는 mock) [신규 2026-10-05]
+│   └── test_supabase_storage.py     Storage 라우팅·업로드/영수증 로그인 필수·본인 소유 검증·4MB 제한(외부 서비스 mock, 실제 Supabase 미연결) [신규 2026-10-12] — 전체 pytest 32개 통과(2026-10-12)
+├── docs/SUPABASE_MIGRATION.md   Supabase 전환 패치 적용·로컬 실행·Vercel 배포 준비·롤백 안내 (팀원 작성, 2026-10-12 — 기준 커밋 `28190b4`, 작성자 PC 경로가 예시로 적혀 있음)
+├── supabase.env.example         `DATABASE_URL`·`DATABASE_SSLMODE`·`SUPABASE_URL`·`SUPABASE_SECRET_KEY`·`ALLOWED_ORIGINS` 템플릿 — 기존 `.env`에 **추가**(OCR·PortOne·Kakao 값 보존) [신규 2026-10-12]
 ├── docs/PORTONE_TEST_SETUP.md   PortOne 테스트 연동 범위·설정·제한 (팀원 작성, 2026-09-28 — ⚠️ 2026-09-28 기준 작성본이라 `quick-prepare`·`Payment_Quick`/`Payment_Preview`(2026-10-05 추가)를 반영하지 않고 API를 3종으로 기술함 — 현행 API는 4종(팀원 문서는 수정하지 않음))
 ├── portone.env.example          `PORTONE_*` 4개 환경변수 템플릿 (값은 서버 `.env`에만)
 ├── data/neighborfood.db         실제 SQLite DB
@@ -152,7 +168,7 @@ project_root/
 
 > ⚠️ **문서-저장소 정합성 안내 (2026-09-08 확인, README.md와 동일)**
 > [2026-09-19 정정] 아래 7개 중 `seed_admin.py`(09-12 복원)와 `reset_db.py`는 저장소에 **존재**합니다. 나머지 5개(`seed_posts.py`, `Seed_Account.py`, `Seed_capstone_settlement.py`, `Seed_settlement_verify.py`, `nf_functional_test.py`)만 없습니다.
-> 이전 버전에는 `seed_posts.py`, `seed_admin.py`, `Seed_Account.py`, `Seed_capstone_settlement.py`, `Seed_settlement_verify.py`, `nf_functional_test.py`, `reset_db.py` 7개 루트 스크립트가 있었으나, 저장소 최신 구조 확인 결과 더 이상 존재하지 않아 트리에서 제거함(각 스크립트의 과거 역할은 README.md "폴더 구조" 절의 표 참고). 자동화 테스트는 현재 `tests/test_receipt_parser_v212.py`(영수증 파서 전용)와 `tests/test_portone.py`(PortOne 테스트 결제, 2026-10-05 추가) 두 개가 존재하며, 정산 등 나머지 기능의 자동화 테스트는 §8(`Settlement_Implementation_Plan.md`) 기준 미구현 상태로 수동 테스트 병행 중.
+> 이전 버전에는 `seed_posts.py`, `seed_admin.py`, `Seed_Account.py`, `Seed_capstone_settlement.py`, `Seed_settlement_verify.py`, `nf_functional_test.py`, `reset_db.py` 7개 루트 스크립트가 있었으나, 저장소 최신 구조 확인 결과 더 이상 존재하지 않아 트리에서 제거함(각 스크립트의 과거 역할은 README.md "폴더 구조" 절의 표 참고). 자동화 테스트는 당시 `tests/test_receipt_parser_v212.py`(영수증 파서 전용)와 `tests/test_portone.py`(PortOne 테스트 결제, 2026-10-05 추가) 두 개였으며, **[2026-10-12 정정]** 현재는 2026-10-08 추가된 `conftest.py`·`test_account_notice_post.py`·`test_settlement_flow.py`(정산 흐름 포함)와 2026-10-12 추가된 `test_supabase_storage.py`를 포함해 pytest 32개가 통과합니다.
 > **2026-09-12 갱신**: 위 7개 중 `seed_admin.py`는 관리자 계정 부트스트랩/승격 스크립트로 복원되어 정상 동작합니다 (§10 참고). 나머지 6개는 여전히 저장소에 존재하지 않습니다.
 > **2026-09-14 갱신 [당시 기준 — 아래 2026-09-21 갱신 참고]**: `frontend-react/`(Vite + React 19 + TypeScript) 워크스페이스가 신규 추가되었습니다. 현재는 홈 화면(`HomePage.tsx`)만 구현되어 있고, 나머지 화면은 `src/neighborfood/api.ts`의 `legacy()` 헬퍼를 통해 기존 정적 HTML(`frontend/*.html`)로 하드 네비게이션합니다. 신규 백엔드 API는 없으며 기존 `GET /posts` 목록 API를 그대로 재사용합니다. `.env.example`에 `VITE_API_BASE_URL` 항목이 아직 없고 `frontend-react/README.md`도 Vite 기본 템플릿 그대로입니다 — §8 잔여 작업 목록 참고.
 > **2026-09-21 갱신**: `frontend-react/`는 위 트리와 같이 기존 HTML 39개 화면 식별자를 모두 React로 이전한 상태입니다(§6 참고). 신규 백엔드 API는 없으며, 기존 정적 HTML은 최종 점검이 끝나기 전까지 유지합니다. `frontend-react/README.md`는 이 시점에는 Vite 기본 템플릿이었으나 2026-10-03 프로젝트 설명으로 교체되었습니다. **※ 2026-10-07 보충 — 화면 수: 기존 HTML 이전분 39개 + PortOne 결제 화면 4개(`Payment_Checkout`·`Payment_Result`·`Payment_Quick`·`Payment_Preview`, 2026-10-05 신규) = `routes.tsx` `screens` 기준 총 43개.**
@@ -186,6 +202,9 @@ project_root/
 | `portone_quick_test_payments` | PortOne 빠른 테스트(1,000원) 주문 (payment_id PK, user_id, amount, status, checked_at) | routers/portone.py `init_db()` |
 
 > `frontend-react/` 추가(2026-09-14) 및 전체 화면 이전(2026-09-20~21)으로 인한 DB 스키마 변경은 없습니다. React 화면은 기존 테이블 조회·수정 API만 사용합니다. **단, 2026-10-05 PortOne 테스트 결제 연동으로 `portone_test_payments`·`portone_quick_test_payments` 2개 테이블이 추가**되었습니다(`sql/neighborfood_schema.sql`에는 없고 서버 시작 시 `portone.init_db()`가 생성하며 물리 FK는 없는 논리 참조입니다. 상세는 `neighborfood_ERD.md` §9-8).
+>
+> **PostgreSQL(Supabase) 모드 (2026-10-12)**: 위 21개 테이블은 `migrations/001_supabase.sql`에도 동일하게 정의되어 있고(`id`는 `BIGINT GENERATED BY DEFAULT AS IDENTITY`, 실수는 `DOUBLE PRECISION`, 시각은 SQLite와 같이 `TEXT` ISO 문자열), 별도로 `neighborfood_schema_version`(1행, `28190b4-v1`) 테이블이 있어 앱 테이블 21개 + 버전 테이블 1개입니다. `portone_*` 2개 테이블도 이 마이그레이션에 포함됩니다. 서버는 DDL을 실행하지 않으므로 스키마 변경은 마이그레이션으로만 반영해야 합니다.
+> ⚠️ **정적 점검 결과 (실행 검증 전)**: `messages.is_system`은 SQLite에서 `posts.py` `cancel_join_groupbuy`가 `PRAGMA table_info` 확인 후 `ALTER TABLE`로 지연 추가하는 컬럼인데, 마이그레이션 SQL에는 없고 PostgreSQL 모드의 `ALTER`는 실행되지 않습니다. 따라서 PostgreSQL 모드에서 그룹 채팅방이 있는 공동구매의 참여 취소(시스템 메시지 `INSERT ... is_system`)가 실패할 수 있습니다. 그 외 지연 추가 컬럼(`conversations.kind`, `posts.appointment_*`, `settlements.appointment_*`, `settlement_shares.gps_verified`, `receipts` OCR 확장 컬럼, `fridge_items.expiry_date/memo/quantity_text`, `location_verify_sessions` 보강 컬럼 등)은 마이그레이션에 포함되어 있음을 확인했습니다. 실제 Supabase에서 검증·보완이 필요합니다(§8).
 
 ---
 
@@ -212,7 +231,7 @@ project_root/
 ### 게시글 (Posts)
 | Method | Path | 인증 | 설명 |
 |---|---|---|---|
-| POST | `/upload-images` | - | 이미지 업로드 |
+| POST | `/upload-images` | ✅ **(2026-10-12 로그인 필수)** | 이미지 업로드 — 허용 확장자 jpg/jpeg/png/webp/gif, **요청 합계 4MB 이하(초과 413)**, Supabase 설정 시 `food-images` 버킷·미설정 시 `uploads/`에 저장하고 응답은 기존처럼 파일명 배열. 프로필 사진도 이 API로 올린 뒤 `PATCH /api/users/me`의 `profile_image`에 파일명 저장 |
 | POST | `/posts` | ✅ | 게시글 등록 (author_id=세션 회원) |
 | GET | `/posts` | - | 목록 (타입·카테고리 필터, 자동 만료 처리 포함) — **`frontend-react/` `HomePage.tsx`가 재사용** |
 | GET | `/posts/{id}` | - | 단건 (작성자 닉네임·trust_score 조인) |
@@ -335,10 +354,18 @@ project_root/
 | GET | `/api/location-verify/history/list` | ✅ | 이력 (일반: 본인만, admin: 전체) |
 
 ### QR 인증 — `/api/qr/*`
-`request`, `verify`, `verify/{token}`, `history`
+`request`, `verify`, `verify/{token}`(GET·POST), `history`, `my-history`
 
 ### 영수증 인증 — `/api/receipt/*`
-`scan`, `verify`, `issue`, `confirm`, `token/{token}`, `{id}`, `history`
+| Method | Path | 인증 | 설명 |
+|---|---|---|---|
+| GET | `/api/receipt/health` | - | 상태 확인 |
+| POST | `/api/receipt/scan` | ✅ | 이미지 업로드(4MB 이하, 초과 413) → OCR → 파싱 결과 저장. `subjectId`가 본인 id가 아니면 403, 항상 로그인 회원 id로 기록. Supabase 모드에서는 `receipts` 버킷에 저장하고 OCR은 임시 파일로 처리 후 삭제, 응답 `imageUrl`은 5분 서명 URL |
+| POST | `/api/receipt/verify` | ✅ | 선택 품목 최종 인증(trust_score 가산). 본인 영수증만(타인 403, 없는 `scanId` 404) |
+| GET | `/api/receipt/history` | ✅ | **본인** 인증 이력만 (2026-10-12 이전에는 전체 이력) |
+| GET | `/api/receipt/image/{name}` | ✅ 소유자 | 소유자에게만 새 서명 URL로 307 리다이렉트, 그 외 404 [신규 2026-10-12] |
+
+> 2026-10-12 정정: 이전 문서에 있던 `issue`·`confirm`·`token/{token}`·`{id}`는 현재 코드의 영수증 라우터에 없습니다(실존 엔드포인트는 위 5개).
 
 > **참고**: `frontend-react/`는 위 목록의 기존 API를 사용합니다. 신규 엔드포인트는 2026-10-05 PortOne 테스트 결제 4종과 2026-10-08 `PATCH /api/users/me/password`·`GET /api/notices` 2종입니다. `PATCH /posts/{id}`는 제목·설명·카테고리·상태·교환 희망·주소·좌표에 더해 **사진(`images`, 최대 10장)·거래 유형(`type`)·목표 인원(`gb_target`)·1인 금액(`gb_price`)**을 반영합니다(2026-10-08). 참여자가 있거나 진행 중/완료 정산이 있으면 유형·인원·가격은 409로 잠깁니다.
 
@@ -400,7 +427,7 @@ project_root/
 | Home | `neighborfood/HomePage.tsx` — 카테고리 필터·검색·게시글 카드 그리드, `GET /posts` 재사용 |
 | Login, Signup | `migration/auth.tsx` — 로그인·가입·토큰 저장 |
 | Password_Reset, Verify | `auth.tsx` — 인증번호 요청→비밀번호 변경 공통 흐름 (Verify는 별도 OTP 성공 페이지 대신 이 흐름 공유) |
-| My_Page, Edit_Profile, Withdraw | `auth.tsx` — 프로필 조회·수정·탈퇴·로그아웃 |
+| My_Page, Edit_Profile, Withdraw | `auth.tsx` — 프로필 조회·수정·탈퇴·로그아웃. 2026-10-11: 마이페이지 요약 카드에 프로필 사진(`ProfilePhoto`, 로드 실패 시 닉네임 첫 글자)과 신뢰온도 게이지(`TrustTemperature.tsx`, 0~40°, 값 없으면 "—")를 표시하고, 프로필 수정에서 사진 선택·업로드(JPG/PNG/WebP/GIF, 5MB 이하, `POST /upload-images` → `profile_image`)·기본 이미지 복귀 지원 |
 | Search, Search_Results, Wishlist | `migration/posts.tsx` — 검색·분류·찜 목록 |
 | Product_Detail, Group_Buy_Detail | `posts.tsx`(+`PostGallery.tsx`) — 상세·찜·신고·작성자 작업·공동구매 |
 | Create_Post, Reservation, Report | `posts.tsx` — 사진 업로드·등록/수정·거래 신청·신고 |
@@ -410,9 +437,9 @@ project_root/
 | Settlement | `trades.tsx` — 정산 생성·약속·인증·납부 표시·불참·완료/취소 |
 | Map, Location_Detail, Neighborhood_Setting | `migration/location.tsx` — Kakao 지도·검색·위치·동네 설정 |
 | Local_Verify_Demo | `location.tsx` — 서버 GPS 검증·정산·QR 연결 |
-| QR_Scan | `migration/qr.tsx` — QR 발급(2026-10-08 발급 직후 QR 토큰 읽기 전용 표시·"토큰 복사" 추가, 발급 상태일 때만 노출)·카메라 스캔(공용 `Scanner.tsx`, 2026-10-05 통합)·토큰 검증·정산 연결 |
+| QR_Scan | `migration/qr.tsx` — QR 발급(2026-10-08 발급 직후 QR 토큰 읽기 전용 표시·"토큰 복사" 추가, 발급 상태일 때만 노출)·카메라 스캔(공용 `Scanner.tsx`, 2026-10-05 통합)·토큰 검증·정산 연결. 2026-10-11: 스캔 모드에서는 상단 탭을 숨기고 스캔 영역 아래 "내 QR 발급"·"인증 내역 확인" 보조 버튼으로 전환(발급·내역 모드에서는 탭 표시) |
 | Payment_Checkout, Payment_Result, Payment_Quick, Payment_Preview (정적 HTML에 없는 신규 화면 4종, 2026-10-05) | `migration/portone.tsx` — 정산 상세의 "결제 확인으로" → 결제 확인 → PortOne 테스트 결제창 → 결과 조회 / 빠른 테스트 / 예시 미리보기. PG 리다이렉트 복귀는 `acceptPaymentReturn()`으로 `#/Payment_Result`에 연결(모바일 동작 미검증) |
-| Receipt_Verify | `migration/receipt.tsx` — OCR 업로드·항목 편집/선택·인증·냉장고 등록 |
+| Receipt_Verify | `migration/receipt.tsx` — OCR 업로드·항목 편집/선택·인증·냉장고 등록. 2026-10-11: 분석 중 상태(`analyzing`)를 `Scanner`에 전달해 "영수증 인식 중…" 표시. 2026-10-12: 서버가 로그인·본인 소유를 요구(React는 Bearer 토큰을 자동 전송) |
 | Admin_Dashboard, Admin_Users, Admin_Notices | `migration/admin.tsx` — 관리자 데이터·회원·공지 |
 | Admin_Report_Detail, Admin_Chat_History, Admin_Staff_Invite | `admin.tsx` — 신고 처리·채팅 기록·회원 권한 관리 |
 | Help | `migration/routes.tsx` — 현재 기능에 맞춘 도움말 (미구현 안내는 옮기지 않음) |
@@ -579,6 +606,20 @@ project_root/
 - `NeighborFood_배포방식_비교_Oracle_vs_Vercel.md`: Oracle VM 유지 vs Vercel+Supabase 비교 → **Oracle 유지 + 리스크 보강** 권고(서버 구축 완료, 세션·QR·GPS 상태는 이미 SQLite에 저장되어 "메모리→DB 이전"은 불필요, 전환 시 실제 작업은 SQLite→PostgreSQL 이전·업로드 저장소 이전) ← 해당 문서 (저장소 미포함 — 개별 보관)
 - 졸업작품집 원고·시스템 구성도·ERD 산출물 작성(`졸업작품집_원고_작업_기록.md`, `졸업작품집_원고_유의사항.md`) ← 해당 문서 2종 (저장소 미포함 — 개별 보관)
 - 문서 정합화: ERD 21테이블, §4·§5·§6 PortOne 반영, §9 결제 정책 갱신
+- **[2026-10-12 갱신]** 위 "Oracle 유지 권고"는 당시 판단이며, 이후 팀원이 Vercel+Supabase 전환 준비(아래 "2026-10-11~12" 절)를 마쳐 **두 방향을 모두 열어 둔 채 10/16 체크포인트에서 최종 확정**하는 것으로 정리했습니다(§9 배포 방식).
+
+### 2026-10-08 그룹 채팅 액션 바·계정·공지·게시글 수정·정산 테스트 (커밋 `28190b4`)
+- 상세는 §5(비밀번호 변경·공개 공지·게시글 수정)·§6(`TradeBar`·QR 토큰 표시)·§8 참고. 신규 pytest 12개(`tests/conftest.py`·`test_account_notice_post.py`·`test_settlement_flow.py`), 같은 날 수동 UI 검증 통과
+
+### 2026-10-11~12 QR·영수증·프로필 UI + Supabase 전환 지원 (팀원 박준기, 커밋 `fc80abd`·`b6859f0`)
+- **`fc80abd`(10/11) 프런트만**: `qr.tsx` 스캔 모드 구성 변경(탭 숨김·발급/내역 보조 버튼), `receipt.tsx`·`Scanner.tsx` 분석 중 표시, `auth.tsx` 프로필 사진 업로드·표시, `TrustTemperature.tsx` 신뢰온도 게이지(`trust-temperature.css`), `profile.css`·`scanner.css`. 백엔드·DB 변경 없음
+- **`b6859f0`(10/12) Supabase DB·파일 저장소 전환 지원**(18개 파일, 기본 동작 불변):
+  - DB: `app/db/base.py`(`DATABASE_URL`이면 `postgres.Connection`, `VERCEL`에서 SQLite 대체 거부), `app/db/postgres.py` 신규(변환 호환 계층), `migrations/001_supabase.sql`·`scripts/*` 5종 신규
+  - 저장소: `app/storage.py` 신규, `main.py`가 Supabase 설정 시 `/uploads/{파일명}`을 공개 URL 307 리다이렉트(미설정 시 기존 정적 마운트), Vercel에서 Supabase 설정 누락 시 시작 거부
+  - 접근 제어: `/upload-images` 로그인 필수·4MB 제한, 영수증 `scan`/`verify`/`history` 로그인 필수·본인 소유 검증, `GET /api/receipt/image/{name}` 신규
+  - 설정·문서: `app/config.py` `.env` 로드·`/tmp` 경로 분기, `requirements.txt`(`psycopg[binary]`·`python-dotenv`), `.gitignore`(`.env.*`·`.supabase_patch_backups/`), `supabase.env.example`, `docs/SUPABASE_MIGRATION.md`, `tests/test_supabase_storage.py` 3개
+- **검증 현황**: 로컬 pytest 32개 전부 통과(2026-10-12 확인 — 외부 서비스 mock이라 실제 Supabase·Vercel은 미검증). 작성자 문서 기준으로도 실제 서울 Supabase 연결·업로드·Clova·휴대폰 카메라·PortOne 외부 호출·Vercel 배포는 사용자 환경 검증 대기. 정적 점검에서 `messages.is_system` 마이그레이션 누락 가능성 확인(§4)
+- **방침**: 배포 방식(Oracle 유지 / Vercel+Supabase 전환)은 두 방향 모두 열어 두고, **10/16 이전에 배포 방안을 검증한 뒤 최종 결정**. 결정 전에는 기본 SQLite·로컬 `uploads/` 동작을 깨지 않는 변경만 허용
 
 ---
 
@@ -600,7 +641,11 @@ project_root/
 | 🟡 **권장 (신규 2026-10-06)** | **PortOne 테스트 결제 서버 반영·검증** | 코드는 GitHub에 있으나 서버 `git pull`·`.env`(`PORTONE_*`, TEST 채널)·`dist/` 재빌드/업로드·재시작은 미확인. 반영 후 정산 → GPS → QR → 테스트 결제 흐름과 포트원 콘솔 허용 도메인 확인. 시연은 테스트 모드 고정, 모바일 리다이렉트 복귀는 미검증<br>**[2026-10-08 방침] 구현·보완 예정(시연·발표 전 처리)**. 서버 반영·검증을 마친 뒤 팀원 문서 `docs/PORTONE_TEST_SETUP.md`를 함께 갱신 예정 |
 | ✅ **완료 (2026-10-08)** | ~~그룹 채팅 거래 액션 바 복원~~ | `trades.tsx`의 `TradeBar`: 방장 약속 정하기/변경(`POST /posts/{id}/appointment`) → 정산 시작/상세 링크 → GPS 인증 → QR 발급/스캔 링크, 진행 현황(GPS·QR 완료 수). **B안(GPS·QR 링크까지 포함)으로 구현** |
 | ✅ **완료 (2026-10-08)** | ~~QR 발급 화면 토큰 확인 줄~~ | `qr.tsx` 발급 카드에 토큰 읽기 전용 입력칸·복사 버튼 추가(카메라 스캔이 어려울 때 상대방 스캔 입력칸에 붙여 넣어 인증, 개발자도구 없이 확인). 서버 변경 없음 |
-| 🟢 **선택 (신규 2026-10-06)** | **ERD·원고 정합성** | 졸업작품집 ERD 그림은 핵심 18개 테이블(`auth_codes`·결제 테이블 제외). 결제 테이블까지 보이려면 그림 갱신 필요<br>**[2026-10-08 방침] 작업 동기가 그림을 갱신한 뒤 문서에 반영 예정** |
+| 🔴 **필수 (신규 2026-10-12, 기준일 10/16)** | **배포 방식 최종 결정** | Oracle 유지 / Vercel+Supabase 전환 중 선택. **두 방향 모두 열어 둔 상태**: Vercel+Supabase 쪽 코드·마이그레이션·적용 안내는 팀원이 준비 완료, Oracle 쪽은 부하테스트(`ab -n 100 -c 6`, 5~6명 동시·OCR 겹침)로 판단. **10/16 이전에 두 방안의 검증을 마치고 결정**. 결정 전에는 SQLite·로컬 `uploads/` 기본 동작을 깨지 않는 변경만 허용 |
+| 🔴 **필수 (신규 2026-10-12)** | **Supabase·Vercel 실환경 검증** | 서울 Supabase 연결, `scripts/check_supabase.py`, 마이그레이션 적용, Storage 업로드·서명 URL(영수증 소유자 확인), 기존 데이터 이전(`import_sqlite.py`·`import_uploads.py`), Vercel 두 프로젝트 배포(`ALLOWED_ORIGINS`·카카오 지도 허용 도메인·PortOne 허용 도메인), 4MB 업로드 제한, Clova OCR·휴대폰 카메라·PortOne 외부 호출 |
+| 🟡 **권장 (신규 2026-10-12)** | **`messages.is_system` 마이그레이션 보완 확인** | PostgreSQL 모드에서 공동구매 참여 취소(그룹 채팅방 존재 시) 시스템 메시지 삽입이 실패할 수 있음(§4 정적 점검). 실제 Supabase에서 재현 확인 후 마이그레이션에 컬럼 추가(또는 동등한 보완). 이후 컬럼 추가 시 SQLite용 `ALTER`와 `migrations/`를 함께 갱신하는 규칙 필요 |
+| 🟢 **선택 (신규 2026-10-12)** | **`docs/SUPABASE_MIGRATION.md` 정합화** | 팀원 문서의 기준 커밋이 `28190b4`이고 작성자 PC 경로(`C:\Users\...`)·패치 스크립트(`apply_neighborfood_supabase.py`, `.gitignore`의 `apply_*.py`로 커밋 금지) 안내가 포함됨. 팀원 문서는 수정하지 않고 필요 시 본인 확인 후 갱신 |
+| 🟢 **선택 (신규 2026-10-06)** | **ERD·원고 정합성** | 졸업작품집 ERD 그림은 핵심 18개 테이블(`auth_codes`·결제 테이블 제외). 결제 테이블까지 보이려면 그림 갱신 필요(그림은 별도 작업, 문서 `neighborfood_ERD.md`는 2026-10-12 최신 코드 기준으로 갱신 완료)<br>**[2026-10-08 방침] 작업 동기가 그림을 갱신한 뒤 문서에 반영 예정** |
 
 > 완료된 항목(미납 정산 참여 차단, `Admin_Staff_Invite.html` 연동, 관리자 사이드바 배지 동적화)은 §7 "2026-09-12" 절 참고. React 홈 화면 추가 경과는 §7 "2026-09-14" 절, 전체 화면 이전은 §7 "2026-09-20"·"2026-09-21" 절 참고.
 
@@ -623,9 +668,11 @@ project_root/
 | React 프런트엔드 도입 범위 (2026-09-14 → 2026-09-21 갱신) | 2026-09-14 홈 화면 1개만 우선 도입 → 2026-09-20~21 기존 화면 39개 전체 React 이전(구현). Node.js 20+, `npm ci`, 해시 라우팅, Vite 프록시 사용. 기존 정적 HTML은 최종 점검이 끝나기 전까지 유지 |
 | 인증 방식(React) | React는 자체 로그인·토큰 처리(`auth.tsx`·`core.tsx`)를 가지며 정적 HTML과 `localStorage`를 공유하지 않음(출처 분리) — 각자 로그인 방식으로 정리 |
 | 외부 결제 연동 (2026-10-06 갱신) | **실결제·자동 송금은 미예정**. 2026-10-05 팀원이 PortOne V2 **테스트 채널** 결제만 연동(서버 재검증·TEST 채널만 성공 인정·`portone_*` 테이블). 정산의 납부 표시는 여전히 사용자가 입금 사실을 표시하는 기능이며 결제 승인·자동 송금이 아니고, 테스트 결제는 납부 상태·정산 완료·판매자 지급을 바꾸지 않음. 발표·문서에서는 "테스트 결제"로 표기. LIVE 채널 키는 사용 금지 |
-| 배포 방식 (2026-10-06) | Oracle Cloud Micro 1대 + Nginx + Let's Encrypt 유지(Vercel+Supabase 전환은 비권장, `NeighborFood_배포방식_비교_Oracle_vs_Vercel.md`). 체크포인트 1(10/16) 부하테스트로 최종 확정(비교 문서 (저장소 미포함 — 개별 보관)), 미달 시 유료 shape 전환을 D-10~D-7에 착수 |
-| 프런트 배포 방식 | 서버에서 `npm run build` 금지(1GB 메모리). PC에서 빌드한 `dist/`를 업로드하고 FastAPI가 서빙. 같은 도메인이라 `VITE_API_BASE_URL`은 비워 둠 |
-| 업로드 이미지 저장 | 서버 디스크 `uploads/`에 저장하고 DB에는 파일명만 저장. 백업·이전 시 `data/`와 `uploads/`를 함께 처리 |
+| 배포 방식 (2026-10-12 갱신) | **현재 운영은 Oracle Cloud Micro 1대 + Nginx + Let's Encrypt.** 2026-10-06 검토에서는 "Oracle 유지 + 리스크 보강"을 권고했으나(`NeighborFood_배포방식_비교_Oracle_vs_Vercel.md`), 2026-10-12 팀원이 Vercel+Supabase 전환 준비(코드·마이그레이션·적용 안내)를 마침에 따라 **두 방향을 모두 열어 두고 10/16 체크포인트에서 확정**한다(Oracle 부하테스트 후, 미달 시 유료 shape 전환을 D-10~D-7에 착수하는 기존 계획도 유지). 10/16 이전에 두 방안을 검증한다. 확정 전에는 기본 SQLite·로컬 `uploads/` 동작과 Supabase 선택 모드가 **모두 깨지지 않게** 유지한다 |
+| DB·저장소 선택 방식 (2026-10-12) | 기본은 SQLite·로컬 `uploads/`. `DATABASE_URL` 설정 시 PostgreSQL, `SUPABASE_URL`·`SUPABASE_SECRET_KEY` 설정 시 Supabase Storage. 환경변수 유무만으로 전환하며 화면·URL·필드·Bearer 인증은 동일. PostgreSQL 모드의 스키마 변경은 `migrations/`로만 적용(서버는 DDL 미실행). 키·비밀번호는 서버 `.env`(또는 Vercel 환경변수)에만 두고 문서·채팅·Git에 적지 않음 |
+| 업로드·영수증 접근 정책 (2026-10-12) | 사진 업로드는 로그인 필수, 영수증은 로그인한 본인 데이터만 처리·조회(타인 `subjectId` 403). 영수증 이미지는 비공개 버킷 + 5분 서명 URL(소유자 확인 후 발급), 게시글 사진은 공개 버킷. 이미지 한 요청 합계 4MB 이하 |
+| 프런트 배포 방식 | 서버에서 `npm run build` 금지(1GB 메모리). PC에서 빌드한 `dist/`를 업로드하고 FastAPI가 서빙. 같은 도메인이라 `VITE_API_BASE_URL`은 비워 둠. (Vercel 방식을 택하면 React를 별도 프로젝트로 배포하고 `VITE_API_BASE_URL`에 API 배포 주소를 지정) |
+| 업로드 이미지 저장 | Oracle/로컬 모드: 서버 디스크 `uploads/`에 저장하고 DB에는 파일명만 저장(백업·이전 시 `data/`와 `uploads/`를 함께 처리). Supabase 모드: 파일명은 그대로 DB에 저장하고 파일은 Storage 버킷에 저장(기존 이미지는 `scripts/import_uploads.py`로 이전) |
 | 서버 노출 범위 | 앱은 `127.0.0.1:8000`에만 바인딩, 외부는 Nginx(80/443)만. 방화벽은 OCI Security List + 서버 iptables 이중 |
 | 비밀 정보 취급 | 비밀번호·API 키·OCID·개인키 경로·실제 IP·DuckDNS token·PortOne 시크릿은 문서·채팅에 적지 않고 서버 `.env`에만 둠 |
 
@@ -669,8 +716,15 @@ python reset_db.py --pw <비밀번호>     # Admin 비밀번호 지정 (기본 a
 # 영수증 파서 회귀 테스트 [신규] — (PortOne 테스트 `tests/test_portone.py`와 함께 현재 저장소에 존재하는 자동화 테스트)
 python tests/test_receipt_parser_v212.py
 
-# API 자동화 테스트 [신규 2026-10-08] — 임시 DB 사용(실제 data/neighborfood.db 미변경). pip install pytest httpx
-python -m pytest tests -q
+# API 자동화 테스트 [신규 2026-10-08, 2026-10-12 갱신] — 임시 SQLite DB 사용(실제 data/neighborfood.db 미변경). pip install pytest httpx
+python -m pytest tests -q              # 2026-10-12 기준 32개 통과 (Supabase 저장소 테스트 3개 포함 — 외부 서비스 mock)
+
+# Supabase(PostgreSQL)·Storage 선택 모드 [신규 2026-10-12] — 절차 전체: docs/SUPABASE_MIGRATION.md
+python scripts/configure_supabase.py   # DB 비밀번호·secret key 숨김 입력 → .env 기록
+python scripts/supabase_migrate.py     # 빈 DB에 migrations/001_supabase.sql 적용
+python scripts/check_supabase.py       # 연결·스키마 버전·버킷 읽기 전용 점검
+python scripts/import_sqlite.py data/neighborfood.db   # (선택) 기존 데이터 이전 — 대상 테이블이 비어 있을 때만
+python scripts/import_uploads.py uploads               # (선택) 기존 이미지 이전
 ```
 
 > 위 명령 중 더미 데이터·테스트 시드·전체 기능 테스트(4개 스크립트)는 대응 스크립트가 저장소에서 제거되어 현재 실행되지 않습니다. `reset_db.py`(DB 초기화)는 2026-09-19 존재를 확인했습니다. §3의 "문서-저장소 정합성 안내" 참고. `seed_admin.py`는 2026-09-12 복원되어 정상 동작합니다.

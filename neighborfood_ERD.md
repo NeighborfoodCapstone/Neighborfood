@@ -3,7 +3,7 @@
 동네 식재료 나눔·공동구매·교환 플랫폼의 데이터베이스 구조 및 프로젝트 디렉토리 문서입니다.
 3개로 분리돼 있던 SQLite(`auth.db` / `qr_auth.db` / `receipt_auth.db`)를 **단일 SQLite 파일(`data/neighborfood.db`)** 로 통합하고, 회원 기능 도입에 맞춰 `users`·`sessions`·`transactions`·`groupbuy_participants`를 추가한 현행 구조를 정리합니다.
  
-> 최종 갱신: 2026-10-07 — GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정(테이블 21개·`portone_*` 2개의 스키마 파일 미포함 서술은 GitHub 코드와 일치함을 확인). 이전 갱신: 2026-10-06
+> 최종 갱신: 2026-10-12 — GitHub `b6859f0`(main) 기준. ① **`fridge_items` 실제 컬럼으로 정정**(다이어그램·§9-2: 이전 문서의 `name`·`quantity`·`active/consumed`·FK CASCADE는 실제 코드와 달랐음 — 실제는 `id TEXT`(`frg_…`)·`item_name`·`qty`·`unit`·`price`·`store_name`·`purchased_at`·`quantity_text`·`ACTIVE/CONSUMED/EXPIRED/DISCARDED`, 물리 FK 없음), ② **`receipts` 확장 컬럼 7개 반영**(`safe_ocr_text`·`ocr_result_json`·`raw_ocr_json`·`shopping_matches_json`·`shopping_match_status`·`shopping_matched_at`·`fridge_added_at`), ③ **Supabase(PostgreSQL) 선택 모드 반영**(2026-10-12 `b6859f0`: `DATABASE_URL`이 있으면 PostgreSQL, `migrations/001_supabase.sql`·`neighborfood_schema_version`·`scripts/`·`app/storage.py`, §10.7), ④ `messages.is_system`의 마이그레이션 누락 가능성 표기(§9-1, §10.7), ⑤ §0·§11 디렉토리·관련 파일 갱신. **논리적 테이블 수는 21개 그대로**(PostgreSQL에는 버전 관리용 `neighborfood_schema_version`이 1개 더 있어 22개). 이전 갱신: 2026-10-07 — GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정(테이블 21개·`portone_*` 2개의 스키마 파일 미포함 서술은 GitHub 코드와 일치함을 확인). 이전 갱신: 2026-10-06
 > 2026-10-06 PortOne 테스트 결제 테이블 반영: 2026-10-05 팀원 푸시(`ec1da57`)로 추가된 `portone_test_payments`·`portone_quick_test_payments` 2개 테이블을 다이어그램·§2·§9-8·§11에 추가(테이블 19 → **21개**). 두 테이블은 `app/routers/portone.py`의 `init_db()`가 서버 시작 시 생성하며 `sql/neighborfood_schema.sql`에는 없고 **물리 FK 없이 논리 참조**입니다. 정산 납부 상태(`settlement_shares.status`)는 변경하지 않는 테스트 전용 기록입니다. 졸업작품집 ERD 그림은 핵심 18개 테이블(`auth_codes`·결제 테이블 제외)이므로 이 문서와 수가 다릅니다.
 > 2026-09-21 React 전체 화면 이전 반영: §0 디렉토리 트리의 `frontend-react/`를 전체 이전 구조(`src/migration/`, `docs/`)로 갱신, 공개 공지 API(`GET /api/notices`) 미구현 정정. **DB 스키마 변경 없음**(React 화면은 기존 테이블·API 재사용).
 > 2026-09-19 문서-소스 정합성 점검: `settlements` 약속 컬럼 4개(`appointment_place/at/lat/lng`) 누락 보완(다이어그램·§9-6), `seed_admin.py` 복원·`reset_db.py` 존재 반영(§0·§10.5), `adminGuard.js`·`frontend-react/`·`Neighborfood_React_실행_안내.md` 트리 반영, §11 정산 DB 레이어 설명 정정(GPS 자동확인은 제거된 기능). **DB 스키마 자체의 변경은 없음**(2026-09-12 관리자 연동·2026-09-14 React 추가는 기존 테이블/API 재사용).
@@ -19,10 +19,10 @@
 > · `users` 프로필 확장(`email`·`bio`·`interests`·`dietary`) · `transactions.appointment_at` 추가 (2026-06-11)
 > · ID/비밀번호 인증 전환 + `wishlists`·`conversations`·`messages` (2026-06-10)
  
-- **DBMS**: SQLite 3 (단일 파일 `data/neighborfood.db`)
-- **테이블 수**: 21개 (`users`, `sessions`, `auth_codes`, `posts`, `transactions`, `groupbuy_participants`, `manner_ratings`, `settlements`, `settlement_shares`, `qr_sessions`, `receipts`, `fridge_items`, `location_verify_sessions`, `wishlists`, `conversations`, `messages`, `conversation_members`, `notices`, `reports`, `portone_test_payments`, `portone_quick_test_payments`)
-- **접속 계층**: `db/*.py` — 모든 연결이 `make_conn(DB_PATH, foreign_keys=True)`로 동일 파일을 공유
-- **스키마 원본**: `neighborfood_schema.sql`
+- **DBMS**: SQLite 3 (단일 파일 `data/neighborfood.db`) — 기본. **선택(2026-10-12)**: `DATABASE_URL` 설정 시 Supabase PostgreSQL(§10.7). 두 모드가 같은 `db/*.py` 코드를 공유합니다.
+- **테이블 수**: 21개 (PostgreSQL 모드에는 `neighborfood_schema_version` 버전 관리 테이블이 1개 추가되어 22개) (`users`, `sessions`, `auth_codes`, `posts`, `transactions`, `groupbuy_participants`, `manner_ratings`, `settlements`, `settlement_shares`, `qr_sessions`, `receipts`, `fridge_items`, `location_verify_sessions`, `wishlists`, `conversations`, `messages`, `conversation_members`, `notices`, `reports`, `portone_test_payments`, `portone_quick_test_payments`)
+- **접속 계층**: `db/*.py` — 모든 연결이 `make_conn(DB_PATH, foreign_keys=True)`로 동일 파일을 공유 (`DATABASE_URL`이 있으면 `make_conn()`이 `app/db/postgres.py`의 PostgreSQL 연결을 반환)
+- **스키마 원본**: `sql/neighborfood_schema.sql`(SQLite 기준 참조 문서) · `migrations/001_supabase.sql`(PostgreSQL용, 28190b4 시점). 실제 런타임 DDL은 `db/*.py`이며 `portone_*`는 `app/routers/portone.py`가 생성합니다. 참조 문서와 런타임이 다른 곳이 있습니다(예: 참조 문서의 `fridge_items.user_id`는 `REFERENCES users(id)`지만 런타임 DDL에는 FK가 없음, `location_verify_sessions.radius_m` 기본값은 참조 문서 300·런타임 100).
 ---
  
 ## 0. 프로젝트 디렉토리 구조
@@ -32,12 +32,14 @@
 ```
 NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 ├── app/                            ▶ 서버 파일 (FastAPI 백엔드)
-│   ├── config.py                     경로 상수, DB_PATH, SESSION_TTL_DAYS
+│   ├── config.py                     경로 상수, DB_PATH, SESSION_TTL_DAYS, .env 로드(python-dotenv), VERCEL 시 /tmp 경로
+│   ├── storage.py                    Supabase Storage HTTP API (food-images 공개 / receipts 비공개·서명 URL, 4MB 제한) [신규 2026-10-12]
 │   ├── core/
 │   │   ├── utils.py                  시간/해시/토큰 헬퍼
 │   │   └── deps.py                   인증·인가 의존성(get_current_user / get_current_admin)
 │   ├── db/                           DB 접속 계층 (모두 neighborfood.db 공유)
-│   │   ├── base.py                   make_conn()(WAL+busy_timeout), init_all_databases()
+│   │   ├── base.py                   make_conn()(WAL+busy_timeout, DATABASE_URL이 있으면 PostgreSQL 연결 반환), init_all_databases()
+│   │   ├── postgres.py               SQLite→PostgreSQL 호환 계층(자리표시자·함수 변환, DDL 미실행) [신규 2026-10-12]
 │   │   ├── auth_db.py                users · sessions · auth_codes · posts
 │   │   ├── transaction_db.py         transactions · groupbuy_participants · settlements · settlement_shares
 │   │   ├── settlement_db.py          settlements · settlement_shares CRUD (신규 2026-08-04)
@@ -85,22 +87,34 @@ NEIGHBORFOOD/                       프로젝트 루트 (Git 저장소)
 │   ├── docs/                         DESIGN_CONTEXT.md(공통 디자인·로딩·자동완성 기준) · MIGRATION_REPORT.md(화면 매핑·검증 범위)
 │   ├── src/neighborfood/             api.ts(백엔드 주소·getPosts()·legacy() 해시 경로) · AppLayout.tsx · HomePage.tsx · home.css · Icon.tsx
 │   ├── src/migration/                routes.tsx · core.tsx · design.css · loading.tsx · autocomplete.tsx · PostGallery.tsx ·
-│   │                                 auth.tsx · posts.tsx · fridge.tsx · trades.tsx · location.tsx · qr.tsx · receipt.tsx · admin.tsx
+│   │                                 auth.tsx · posts.tsx · fridge.tsx · trades.tsx · location.tsx · qr.tsx · receipt.tsx · admin.tsx ·
+│   │                                 portone.tsx · Scanner.tsx · TrustTemperature.tsx(+ *.css)  (결제 테스트 화면·공용 스캐너·신뢰온도 게이지, DB 변경 없음)
 │   ├── src/                          App.tsx(해시 라우팅) · main.tsx · App.css · index.css
 │   └── package.json · vite.config.ts(개발/preview API 프록시) · tsconfig*.json · .oxlintrc.json   (Vite 8 + React 19 + TypeScript, Oxlint, qrcode·jsqr)
 │
 
 ├── sql/                            ▶ 현재 프로젝트 스키마
-│   └── neighborfood_schema.sql       전체 테이블 DDL (단일 진실 소스)
+│   └── neighborfood_schema.sql       전체 테이블 DDL (SQLite 기준 참조 문서 — `portone_*`·PostgreSQL 전용 항목 없음)
+│
+├── migrations/                     ▶ PostgreSQL(Supabase)용 스키마 [신규 2026-10-12]
+│   └── 001_supabase.sql              28190b4 시점 초기화 스키마 — 앱 테이블 21개 + neighborfood_schema_version('28190b4-v1'), RLS 활성·공개 권한 제거
+├── scripts/                        ▶ Supabase 적용·점검·이전 스크립트 [신규 2026-10-12]
+│   └── configure_supabase.py · supabase_migrate.py · check_supabase.py · import_sqlite.py · import_uploads.py
 │
 ├── tests/                          ▶ 자동화 테스트 [신규]
 │   ├── test_receipt_parser_v212.py   영수증 파서 v2.1.2 회귀 테스트 (pytest 없이 단독 실행)
-│   └── test_portone.py               PortOne 테스트 결제 테스트 (pytest, 외부 API mock) [신규 2026-10-05]
+│   ├── conftest.py                   pytest 공용 픽스처 (임시 SQLite DB + TestClient) [신규 2026-10-08]
+│   ├── test_account_notice_post.py   비밀번호 변경·공개 공지·게시글 수정 확장 [신규 2026-10-08]
+│   ├── test_settlement_flow.py       정산 흐름 자동화 [신규 2026-10-08]
+│   ├── test_portone.py               PortOne 테스트 결제 테스트 (pytest, 외부 API mock) [신규 2026-10-05]
+│   └── test_supabase_storage.py      Storage 라우팅·영수증 소유권(외부 서비스 mock) [신규 2026-10-12] — 전체 pytest 32개 통과(2026-10-12)
 │
 ├── data/                           ▶ 실제 데이터베이스
 │   └── neighborfood.db               단일 SQLite 파일 (startup 시 자동 생성)
 │
-├── uploads/                        업로드 이미지 저장소
+├── uploads/                        업로드 이미지 저장소 (로컬 모드. Supabase 모드에서는 Storage 버킷 사용)
+├── docs/                           PORTONE_TEST_SETUP.md(팀원, 2026-09-28) · SUPABASE_MIGRATION.md(팀원, 2026-10-12)
+├── supabase.env.example · portone.env.example   선택 모드 환경변수 템플릿 (기존 .env에 추가)
 ├── venv/  .venv/                   파이썬 가상환경
 ├── .vscode/  __pycache__/          에디터 설정 / 바이트코드 캐시
 │
@@ -178,14 +192,21 @@ erDiagram
         TEXT joined_at
     }
     fridge_items {
-        INTEGER id PK
-        INTEGER user_id FK "users.id (CASCADE)"
-        TEXT name
+        TEXT id PK "frg_ + 랜덤 hex"
+        INTEGER user_id "users.id (논리적 참조, 물리 FK 없음)"
+        TEXT receipt_id "receipts.id (논리적, 영수증 등록 시)"
+        TEXT source "receipt(기본) / manual(직접 등록)"
+        TEXT item_name "식재료 이름"
+        INTEGER qty "수량(기본 1)"
+        TEXT quantity_text "수량 표기 (예: 1단, 500g)"
+        TEXT unit
+        INTEGER price "기본 0"
         TEXT category
-        TEXT quantity
-        TEXT expiry_date "YYYY-MM-DD"
+        TEXT store_name
+        TEXT purchased_at
+        TEXT expiry_date "YYYY-MM-DD (D-day 계산)"
         TEXT memo
-        TEXT status "active / consumed"
+        TEXT status "ACTIVE / CONSUMED / EXPIRED / DISCARDED"
         TEXT created_at
         TEXT updated_at
     }
@@ -316,11 +337,18 @@ erDiagram
         TEXT status "SCANNED / VERIFIED / FAILED"
         REAL trust_delta "신뢰 온도 가산치"
         TEXT ocr_engine
-        TEXT image_path
+        TEXT image_path "파일명만 저장 (로컬 uploads/ 또는 receipts 버킷)"
         TEXT scanned_at
         TEXT verified_at
         TEXT created_at
         TEXT updated_at
+        TEXT safe_ocr_text "PII 마스킹 OCR 텍스트"
+        TEXT ocr_result_json
+        TEXT raw_ocr_json
+        TEXT shopping_matches_json "장보기 매칭 결과 JSON (기본 []) "
+        TEXT shopping_match_status "NOT_REQUESTED 등 (기본 NOT_REQUESTED)"
+        TEXT shopping_matched_at
+        TEXT fridge_added_at "냉장고 등록 시각"
     }
     location_verify_sessions {
         TEXT id PK
@@ -579,7 +607,7 @@ erDiagram
 | `content` | `TEXT` | NOT NULL | 본문(최대 1000자) |
 | `created_at` | `TEXT` | | 전송 시각(ISO) |
 | `read_at` | `TEXT` | | 상대가 읽은 시각(미독이면 NULL) |
-| `is_system` | `INTEGER` | DEFAULT 0 | 0=일반 메시지, 1=시스템 알림. 공동구매 참여 취소 시 `"OOO님이 참여를 취소하셨습니다."` 자동 삽입. `posts.py`의 `cancel_join_groupbuy`에서 멱등 ALTER 후 사용 (2026-08-12) |
+| `is_system` | `INTEGER` | DEFAULT 0 | 0=일반 메시지, 1=시스템 알림. 공동구매 참여 취소 시 `"OOO님이 참여를 취소하셨습니다."` 자동 삽입. `posts.py`의 `cancel_join_groupbuy`에서 멱등 ALTER 후 사용 (2026-08-12). ⚠️ **PostgreSQL 모드(2026-10-12)**: 이 컬럼은 `migrations/001_supabase.sql`에 없고 PostgreSQL 모드는 `ALTER`를 실행하지 않으므로 참여 취소 시 시스템 메시지 삽입이 실패할 수 있음(정적 점검, 실행 검증 전 — §10.7) |
  
 ---
  
@@ -617,11 +645,19 @@ erDiagram
 | `status` | `TEXT` | | `SCANNED`/`VERIFIED`/`FAILED` (CHECK) |
 | `trust_delta` | `REAL` | | 가산 점수(기본 0.3) |
 | `ocr_engine` | `TEXT` | | `tesseract`/`demo` 등 |
-| `image_path` | `TEXT` | | PII 마스킹 후 저장 경로 |
+| `image_path` | `TEXT` | | PII 마스킹 후 저장된 **파일명**(로컬 `uploads/` 또는 Supabase `receipts` 비공개 버킷). 조회는 `GET /api/receipt/image/{name}`(소유자 확인 후 서명 URL) |
 | `scanned_at` / `verified_at` | `TEXT` | | 스캔·인증 완료 시각 |
 | `created_at` / `updated_at` | `TEXT` | | 생성·수정 일시 |
+| `safe_ocr_text` | `TEXT` | | PII 마스킹된 OCR 텍스트 (멱등 `ALTER`로 추가) |
+| `ocr_result_json` / `raw_ocr_json` | `TEXT` | | OCR 결과·원본 응답 JSON (멱등 `ALTER`로 추가) |
+| `shopping_matches_json` | `TEXT` | NOT NULL, 기본 `'[]'` | 장보기 매칭 결과 JSON |
+| `shopping_match_status` | `TEXT` | NOT NULL, 기본 `NOT_REQUESTED` | 장보기 매칭 진행 상태 |
+| `shopping_matched_at` | `TEXT` | | 장보기 매칭 시각 |
+| `fridge_added_at` | `TEXT` | | 냉장고 등록 시각(처음 등록 시 `COALESCE`로 1회 기록) |
  
 **인덱스**: `(subject_id, scanned_at)`, `(status, scanned_at)`
+ 
+> 확장 컬럼 7개는 `receipt_db.py`·`fridge_db.py`의 호환 컬럼 추가 함수가 지연 추가하며, 마이그레이션 SQL(`migrations/001_supabase.sql`)에는 모두 포함되어 있습니다. 2026-10-12부터 `/api/receipt/*`(health 제외)는 로그인이 필요하고 `subject_id`는 로그인 회원 id(`users.id` 문자열)로 강제되며, 이력(`/history`)은 본인 것만 반환합니다.
  
 ---
  
@@ -642,21 +678,31 @@ erDiagram
  
 ## 9-2. `fridge_items` — 내 냉장고
  
-회원의 보유 식재료와 유통기한(D-day)을 관리한다. 홈·마이페이지의 '소비 임박' 요약과 목록 화면(`Fridge.html`)에서 사용하며, 회원 탈퇴 시 함께 삭제(CASCADE)된다.
+회원의 보유 식재료와 유통기한(D-day)을 관리한다. 영수증 인증 품목을 자동 등록(`POST /api/fridge/from-receipt`)하거나 직접 등록(`POST /api/fridge/items`, `source='manual'`)하며, 홈·마이페이지의 '소비 임박' 요약과 목록 화면(`Fridge.html`·React `Fridge`)에서 사용한다. `user_id`는 **물리 FK 없이 논리 참조**이므로 회원 탈퇴 시 자동 삭제(CASCADE)되지 않는다(2026-10-12 코드 기준 정정 — 이전 문서는 FK CASCADE로 기재).
  
 | 컬럼 | 타입 | 키 | 설명 |
 |------|------|----|------|
-| `id` | `INTEGER` | PK (AUTOINCREMENT) | 식재료 번호 |
-| `user_id` | `INTEGER` | FK → `users.id` (CASCADE), NOT NULL | 소유 회원 |
-| `name` | `TEXT` | NOT NULL | 식재료 이름 |
+| `id` | `TEXT` | PK | `frg_` + 랜덤 hex(8바이트) |
+| `user_id` | `INTEGER` | (논리적 `users.id`) | 소유 회원. 런타임 DDL에는 FK 없음(참조용 `sql/neighborfood_schema.sql`에는 `REFERENCES users(id)`가 있어 서로 다름) |
+| `receipt_id` | `TEXT` | (논리적 `receipts.id`) | 영수증에서 등록된 경우의 원본 영수증. 직접 등록은 NULL |
+| `source` | `TEXT` | NOT NULL, 기본 `receipt` | `receipt`(영수증 등록) / `manual`(직접 등록) |
+| `item_name` | `TEXT` | NOT NULL | 식재료 이름 (이전 문서의 `name`) |
+| `qty` | `INTEGER` | NOT NULL, 기본 1 | 정수 수량 |
+| `quantity_text` | `TEXT` | | 수량 표기(예: 1단, 500g). 응답의 `quantity`는 이 값이 없으면 `qty` 문자열 |
+| `unit` | `TEXT` | | 단위 |
+| `price` | `INTEGER` | 기본 0 | 금액(원) |
 | `category` | `TEXT` | | 분류(채소·과일 등) |
-| `quantity` | `TEXT` | | 수량 표기(예: 1단, 500g) |
+| `store_name` | `TEXT` | | 영수증 매장명 |
+| `purchased_at` | `TEXT` | | 영수증 결제 일시 |
 | `expiry_date` | `TEXT` | | 유통기한 `YYYY-MM-DD` (D-day 계산) |
 | `memo` | `TEXT` | | 메모 |
-| `status` | `TEXT` | NOT NULL, 기본 `active` | `active` / `consumed` |
-| `created_at` / `updated_at` | `TEXT` | | ISO 시각 |
+| `status` | `TEXT` | NOT NULL, 기본 `ACTIVE` (CHECK) | `ACTIVE` / `CONSUMED` / `EXPIRED` / `DISCARDED` (대문자, 이전 문서의 `active/consumed`는 오기) |
+| `created_at` / `updated_at` | `TEXT` | NOT NULL | ISO 시각 |
  
-**인덱스**: `(user_id, status, expiry_date)`
+**제약**: `UNIQUE(receipt_id, item_name, purchased_at)` — 같은 영수증의 같은 품목 중복 등록은 건너뜀(응답 `skippedCount`/`skippedNames`).
+**인덱스**: `(user_id, status, created_at)`, `(receipt_id)` (이전 문서의 `(user_id, status, expiry_date)`는 오기)
+ 
+> `expiry_date`·`memo`·`quantity_text`는 직접 등록 기능을 위해 `fridge_db.py` `init_fridge_db()`가 멱등 `ALTER`로 추가한 컬럼이며 마이그레이션 SQL에도 포함되어 있습니다.
  
 ---
  
@@ -849,15 +895,28 @@ Step 2: QR 대면 인증 (주최자가 참여자 QR 스캔)
 - `gb_current` 갱신: 반드시 `SET gb_current = gb_current + 1` 원자적 UPDATE 사용.
 - `trust_score` 갱신: 반드시 `SET trust_score = trust_score + ?` 원자적 UPDATE 사용.
 - 단일 SQLite + 채팅 폴링(4초): 사용자 증가 시 `database is locked` 드물게 발생 가능. WAL + `busy_timeout`으로 완화 중.
+
+### 10.7 PostgreSQL(Supabase) 선택 모드 (2026-10-12, 팀원 박준기, `b6859f0`)
+- **활성 조건**: 환경변수 `DATABASE_URL`이 있을 때만. 없으면 기존 SQLite 그대로이며 `VERCEL` 환경에서는 SQLite 대체를 거부(오류). 이미지 저장소는 별도로 `SUPABASE_URL`이 있을 때만 Supabase Storage를 사용(버킷 `food-images` 공개 / `receipts` 비공개).
+- **호환 방식**: 앱 코드는 SQLite 문법을 그대로 두고 `app/db/postgres.py`가 변환합니다 — `?`→`%s`(문자열 리터럴 제외), `INSERT OR IGNORE`→`ON CONFLICT DO NOTHING`, `INSERT OR REPLACE INTO auth_codes`→`ON CONFLICT (phone_number) DO UPDATE`, `date('now')`·`datetime('now')`·`datetime(col)` 변환, 스칼라 `MAX(a,b)`/`MIN(a,b)`→`GREATEST`/`LEAST`, `LIKE`→`ILIKE`, `PRAGMA table_info`→`information_schema` 조회, 자동 증가 테이블(`notices`·`posts`·`transactions`·`settlements`·`users`·`manner_ratings`·`reports`·`conversations`·`messages`) INSERT에 `RETURNING id`로 `lastrowid` 호환, `IntegrityError` 호환. 연결은 Transaction pooler(prepared statements 비활성, 세션 시간대 UTC, SSL 기본 require).
+- **스키마는 마이그레이션으로만**: PostgreSQL 모드의 `CREATE TABLE/INDEX`·`ALTER TABLE`은 실행되지 않으며 테이블이 없으면 "Run scripts/supabase_migrate.py before starting the API" 오류가 납니다. `scripts/supabase_migrate.py`가 빈 `public` 스키마에만 `migrations/001_supabase.sql`을 적용하고(advisory lock, 재실행 안전), `neighborfood_schema_version`에 `28190b4-v1`을 기록합니다. `scripts/check_supabase.py`가 연결·버전·버킷을 읽기 전용으로 점검합니다.
+- **타입 매핑**: 정수 PK는 `BIGINT GENERATED BY DEFAULT AS IDENTITY`, `REAL`→`DOUBLE PRECISION`, `INTEGER`→`BIGINT`, 시각·JSON은 SQLite와 같은 `TEXT`. 모든 앱 테이블에 RLS를 켜고 `PUBLIC`·`anon`·`authenticated` 권한을 제거하며(Data API 비사용), 권한 검사는 기존처럼 서버가 담당합니다.
+- ⚠️ **알려진 점검 사항(정적 점검, 실제 Supabase 검증 전)**: `messages.is_system`은 SQLite에서 `posts.py` `cancel_join_groupbuy`가 지연 `ALTER`로 추가하는 컬럼인데 마이그레이션 SQL에는 없습니다. 따라서 PostgreSQL 모드에서 그룹 채팅방이 있는 공동구매의 참여 취소(시스템 메시지 `INSERT`)가 실패할 수 있습니다. 그 외 지연 추가 컬럼(`conversations.kind`, `posts.appointment_*`, `settlements.appointment_*`, `settlement_shares.gps_verified`, `receipts` 확장 7개, `fridge_items.expiry_date/memo/quantity_text`, `location_verify_sessions` 보강 컬럼)은 마이그레이션에 포함되어 있습니다. **앞으로 컬럼을 추가할 때는 SQLite용 `ALTER`와 별개로 `migrations/`에도 새 마이그레이션을 반영해야 합니다.**
+- **데이터 이전(선택)**: `scripts/import_sqlite.py`는 대상 테이블이 비어 있을 때만 복사하고(원본은 읽기 전용·스냅샷 사용, 위반 시 전체 롤백, ID 시퀀스 조정), `scripts/import_uploads.py`는 `uploads/` 이미지를 버킷으로 옮깁니다(영수증은 `receipts`, 나머지는 `food-images`, 같은 이름이 있으면 중단). DB 롤백과 Storage 롤백은 별개입니다.
+- **방침**: 배포 방식(Oracle+SQLite 유지 / Vercel+Supabase 전환)은 두 방향을 모두 열어 두고 10/16 체크포인트에서 확정하며, 확정 전에는 두 모드가 모두 동작하도록 유지합니다. 실제 Supabase 연결·Vercel 배포는 그 전에 검증할 예정입니다.
 ---
  
 ## 11. 관련 파일
  
 | 파일 | 역할 |
 |------|------|
-| `sql/neighborfood_schema.sql` | 전체 테이블 생성 스크립트 (단일 진실 소스) |
-| `data/neighborfood.db` | 단일 SQLite 데이터 파일 (startup 시 자동 생성) |
-| `app/db/base.py` | 연결 팩토리(WAL+busy_timeout), `init_all_databases()` |
+| `sql/neighborfood_schema.sql` | 전체 테이블 생성 스크립트 (SQLite 기준 참조 문서 — 런타임 DDL과 일부 다름, `portone_*` 미포함) |
+| `migrations/001_supabase.sql` | PostgreSQL(Supabase)용 초기 스키마 — `28190b4` 시점, 앱 테이블 21개 + `neighborfood_schema_version`, RLS·권한 제거 포함 (2026-10-12) |
+| `scripts/configure_supabase.py` · `supabase_migrate.py` · `check_supabase.py` · `import_sqlite.py` · `import_uploads.py` | Supabase 설정(.env 기록)·스키마 적용·점검·기존 데이터/이미지 이전 (2026-10-12) |
+| `data/neighborfood.db` | 단일 SQLite 데이터 파일 (startup 시 자동 생성, SQLite 모드) |
+| `app/db/base.py` | 연결 팩토리(WAL+busy_timeout, `DATABASE_URL`이 있으면 PostgreSQL 연결 반환, `VERCEL`에서 SQLite 대체 거부), `init_all_databases()` |
+| `app/db/postgres.py` | SQLite→PostgreSQL 호환 계층(SQL 변환·`RETURNING id`·`PRAGMA table_info` 대체, DDL 미실행) (2026-10-12) |
+| `app/storage.py` | Supabase Storage HTTP API — `food-images` 공개 / `receipts` 비공개(5분 서명 URL), 4MB 제한 (2026-10-12) |
 | `app/db/auth_db.py` | `users`·`sessions`·`auth_codes`·`posts` |
 | `app/db/transaction_db.py` | `transactions`·`groupbuy_participants`·`manner_ratings`·`settlements`·`settlement_shares` (DDL·멱등 마이그레이션) |
 | `app/db/member_db.py` | `wishlists`·`conversations`(+`kind`)·`messages`·`conversation_members` |
@@ -877,9 +936,12 @@ Step 2: QR 대면 인증 (주최자가 참여자 QR 스캔)
 | `app/routers/ratings.py` | 매너 평가 API (`/api/ratings/*`) |
 | `app/routers/portone.py` | PortOne V2 테스트 결제 API (`/api/payments/portone/*`) + `portone_test_payments`·`portone_quick_test_payments` DDL(`init_db()`) |
 | `docs/PORTONE_TEST_SETUP.md` · `portone.env.example` | PortOne 테스트 연동 범위·설정 / `PORTONE_*` 환경변수 템플릿 — 앞 문서는 ⚠️ 2026-09-28 기준 작성본이라 `quick-prepare`·`Payment_Quick`/`Payment_Preview`(2026-10-05 추가)를 반영하지 않고 API를 3종으로 기술함 — 현행 API는 4종(팀원 문서는 수정하지 않음) |
+| `docs/SUPABASE_MIGRATION.md` · `supabase.env.example` | Supabase 전환 패치 적용·로컬 실행·Vercel 배포 준비·롤백 안내(팀원 작성, 기준 커밋 `28190b4`) / `DATABASE_URL`·`DATABASE_SSLMODE`·`SUPABASE_URL`·`SUPABASE_SECRET_KEY`·`ALLOWED_ORIGINS` 템플릿 — 기존 `.env`에 추가(2026-10-12) |
+| `app/routers/receipt.py` | 영수증 API(`/api/receipt/*`: `health`·`scan`·`verify`·`history`·`image/{name}`) — 2026-10-12부터 health 외 로그인·본인 소유 검증, Storage 저장·서명 URL |
+| `tests/test_supabase_storage.py` | Storage 라우팅·업로드/영수증 로그인 필수·소유권·4MB 제한 (외부 서비스 mock, 전체 pytest 32개 통과 — 2026-10-12) |
 | `frontend/shared/auth.js` | 토큰 저장 + fetch 자동 인증 주입 |
 | `frontend/shared/guard.js` | 회원 전용 페이지 접근 가드 (`nfRequireMember()`) |
 | `frontend/shared/adminGuard.js` | 관리자 전용 페이지 접근 가드 (`nfRequireAdmin()`) — 6개 `Admin_*.html` 공통 |
-| `frontend-react/` | React(Vite) 홈 화면 — DB 접근 없이 `GET /posts`만 사용 |
+| `frontend-react/` | React(Vite) 전체 화면 이전 — DB 직접 접근 없이 기존 FastAPI API만 사용 |
 | `seed_admin.py` / `reset_db.py` | 관리자 계정 생성·승격 / DB 데이터 전체 초기화 |
 | `main.py` | FastAPI 서버 본체 (정적 마운트·라우터 등록) |

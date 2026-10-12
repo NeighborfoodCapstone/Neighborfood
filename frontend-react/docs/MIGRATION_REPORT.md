@@ -93,3 +93,12 @@ git push origin main
 ```
 
 push가 원격 변경 때문에 거절되면 강제 푸시하지 말고 상태를 확인한다. 이 패치는 Git 명령을 자동 실행하지 않는다.
+
+## 후속 변경 기록 (2026-10-12 추가)
+
+이 보고서의 본문은 2026-09-20 적용 시점 기준이며, 이후 변경은 아래와 같다. 화면 식별자 매핑은 변하지 않았다(`routes.tsx` `screens` 기준 총 43개 = 39 + PortOne 결제 4).
+
+- 2026-10-05: PortOne 테스트 결제 화면 4종(`Payment_Checkout`·`Payment_Result`·`Payment_Quick`·`Payment_Preview`, `portone.tsx`) 추가.
+- 2026-10-11(`fc80abd`): QR_Scan 스캔 모드 탭 숨김·보조 버튼, Receipt_Verify 분석 중 `processing` 표시, 프로필 사진(`ProfilePhoto`), 신뢰 온도 게이지(`TrustTemperature.tsx`) 추가.
+- 2026-10-12(`b6859f0`): 백엔드의 Supabase(DB·Storage) 선택 지원. 프런트 화면 변경은 없으며, 프런트와 API가 다른 도메인이면 `VITE_API_BASE_URL`·`ALLOWED_ORIGINS` 설정이 필요하다. 업로드 이미지는 요청당 4MB 제한.
+- 이 후속 변경들의 실제 브라우저·모바일 카메라·Supabase·Vercel 동작은 아직 검증하지 않았다(배포 방식은 10/16 확정 예정).
