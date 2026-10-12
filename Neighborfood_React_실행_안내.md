@@ -2,9 +2,9 @@
 
 이 문서는 GitHub 저장소를 공유받은 사람이 Neighborfood의 FastAPI 백엔드와 React 프론트엔드를 로컬에서 실행하기 위한 안내서입니다.
 
-> 문서 최종 갱신: 2026-10-07 (GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정) · 이전: 2026-10-06 (운영 서버 배포·PortOne 테스트 결제 안내 추가) · 이전: 2026-09-21 (React 전체 화면 이전 반영)
+> 문서 최종 갱신: 2026-10-12 (팀원 `fc80abd`·`b6859f0` 반영 — QR/영수증 화면 개선·프로필 사진·신뢰 온도 게이지, Supabase 선택 모드·배포 방식 병행 안내) · 이전: 2026-10-07 (GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정) · 이전: 2026-10-06 (운영 서버 배포·PortOne 테스트 결제 안내 추가) · 이전: 2026-09-21 (React 전체 화면 이전 반영)
 
-현재 `frontend-react`는 기존 정적 HTML 39개 화면 식별자를 모두 React(TypeScript)로 이전한 구현입니다(홈 화면은 2026-09-14, 나머지 화면은 2026-09-20~21 이전). 기존 정적 HTML(`frontend/`)은 삭제하지 않고 최종 점검이 끝나기 전까지 병행 보존하며, FastAPI·SQLite 백엔드는 변경하지 않았습니다. React 화면은 백엔드 API를 사용하므로 백엔드와 React 서버를 함께 실행해야 합니다. ※ 화면 수: 기존 HTML 이전분 39개 + PortOne 결제 화면 4개(`Payment_Checkout`·`Payment_Result`·`Payment_Quick`·`Payment_Preview`, 2026-10-05 신규) = `routes.tsx` `screens` 기준 총 43개.
+현재 `frontend-react`는 기존 정적 HTML 39개 화면 식별자를 모두 React(TypeScript)로 이전한 구현입니다(홈 화면은 2026-09-14, 나머지 화면은 2026-09-20~21 이전). 기존 정적 HTML(`frontend/`)은 삭제하지 않고 최종 점검이 끝나기 전까지 병행 보존하며, 백엔드는 기본 SQLite이며 2026-10-12부터 환경변수로 Supabase(PostgreSQL)를 선택할 수도 있습니다(§9-3). 로컬 실행에는 영향이 없습니다. React 화면은 백엔드 API를 사용하므로 백엔드와 React 서버를 함께 실행해야 합니다. ※ 화면 수: 기존 HTML 이전분 39개 + PortOne 결제 화면 4개(`Payment_Checkout`·`Payment_Result`·`Payment_Quick`·`Payment_Preview`, 2026-10-05 신규) = `routes.tsx` `screens` 기준 총 43개.
 
 > ⚠️ 이전 구현은 빌드와 자동 테스트를 통과했지만, 실제 브라우저·모바일·카메라(QR)·GPS·Kakao 지도·CLOVA OCR 동작은 실제 환경에서 확인이 필요합니다(상세: `frontend-react/docs/MIGRATION_REPORT.md`). PWA 설치·오프라인 기능은 구현되지 않았습니다.
 
@@ -161,7 +161,7 @@ FastAPI 서버가 8000번 포트에서 실행 중인지 확인합니다. 백엔�
 
 ### 메인 화면에 게시글이 없습니다
 
-SQLite 데이터베이스 파일은 Git에 포함하지 않습니다. 새로 복제한 환경에서는 게시글 데이터가 없어 빈 화면 안내가 표시될 수 있습니다.
+데이터베이스(SQLite 파일 `data/neighborfood.db`)는 Git에 포함하지 않습니다. 새로 복제한 환경에서는 게시글 데이터가 없어 빈 화면 안내가 표시될 수 있습니다.
 
 ### `npm` 명령에서 package.json 오류가 납니다
 
@@ -195,7 +195,7 @@ API 요청은 React 서버가 실행 PC의 FastAPI로 전달하므로 `frontend-
 기본 화면 확인에는 별도의 비밀키가 필요하지 않습니다. OCR(CLOVA), 카카오 지도 등 외부 서비스를 사용하는 기능은 각자의 로컬 `.env` 설정이 필요합니다(템플릿: 루트 `.env.example`). 실제 키가 들어 있는 `.env` 파일은 GitHub에 올리지 않습니다.
 
 - `NEIGHBORFOOD_BACKEND`(React 개발 서버, 선택): Vite 프록시가 API 요청을 전달할 백엔드 주소. 기본값은 `http://127.0.0.1:8000`입니다.
-- `VITE_API_BASE_URL`(React 전용, 선택): 공개 API 주소를 직접 사용할 때만 `frontend-react/.env.local`에 넣습니다. 미설정 시 상대경로와 Vite 프록시를 사용하므로 로컬 개발에는 필요하지 않으며, 루트 `.env.example`에는 템플릿 항목이 없습니다. React 환경변수에는 비밀키를 넣지 않습니다.
+- `VITE_API_BASE_URL`(React 전용, 선택): 공개 API 주소를 직접 사용할 때만(프런트와 API를 다른 도메인에 두는 Vercel+Supabase 방식을 택할 경우 필요) `frontend-react/.env.local`에 넣습니다. 미설정 시 상대경로와 Vite 프록시를 사용하므로 로컬 개발에는 필요하지 않으며, 루트 `.env.example`에는 템플릿 항목이 없습니다. React 환경변수에는 비밀키를 넣지 않습니다.
 - 배포 시에는 루트 `.env`의 `ALLOWED_ORIGINS`에 React 앱이 서빙되는 도메인을 반드시 추가해야 합니다(로컬 개발은 비워 두면 전체 허용). 정적 빌드(`dist`)로 배포할 때는 Vite 프록시가 없으므로 같은 API 프록시를 배포 서버에 구성하거나 `VITE_API_BASE_URL`로 공개 API 주소를 지정해야 합니다.
 
 ## 9-1. PortOne 테스트 결제 실행 (선택, 2026-10-05 추가)
@@ -220,13 +220,19 @@ PORTONE_API_SECRET=<API 시크릿>
 - **프런트**: 서버에서 빌드하지 말고(메모리 1GB) PC에서 `npm run build` 후 `dist/`를 서버 `~/Neighborfood/frontend-react/dist/`로 교체 업로드합니다(첫 업로드 후에만 서비스 재시작). 같은 도메인이므로 `VITE_API_BASE_URL`은 비워 둡니다.
 - 운영 주소 `https://neighborfood.duckdns.org`(Nginx + Let's Encrypt). 점검·백업·장애 대응은 `NeighborFood_서버_실행_점검_가이드.md`를 따릅니다 (저장소 미포함 — 개별 보관).
 
+## 9-3. (선택) Supabase 모드와 배포 방식 (2026-10-12 추가)
+
+- 로컬 개발은 지금까지처럼 SQLite로 동작하며 **추가 설정이 없습니다**. 루트 `.env`에 `DATABASE_URL`(DB), `SUPABASE_URL`+`SUPABASE_SECRET_KEY`(이미지 Storage)를 넣을 때만 Supabase를 사용합니다. 템플릿은 `supabase.env.example`, 절차는 `docs/SUPABASE_MIGRATION.md`와 `README.md` 4-1절입니다. 비밀키는 React(`VITE_*`)에 넣지 않습니다.
+- 배포 방식은 **Oracle 서버 유지(위 9-2)** 와 **Vercel+Supabase 전환** 두 방향을 열어 두고, 10/16 체크포인트(부하 테스트 후)에서 확정합니다. 확정 전에는 두 방식 모두 동작하도록 유지하며, 실제 Supabase 연결·Vercel 배포 검증은 그 전에 진행할 예정입니다(현재 미검증).
+- Vercel+Supabase를 택하면 프런트(React)와 API가 서로 다른 주소가 되므로 `VITE_API_BASE_URL`과 서버 `ALLOWED_ORIGINS`를 실제 주소로 맞춥니다. 이 모드에서 이미지 업로드는 요청당 4MB 이하입니다.
+
 ## 10. 다음 점검 순서
 
 1. 새로 받은 저장소에서 React 빌드와 API 시작을 확인합니다.
 2. 로그인 → 메인 검색 → 게시글 상세 → 찜/신청 → 채팅 → 내 활동 흐름을 확인합니다.
 3. 자동완성 폭·키보드 조작·로딩 종료·실패 후 재시도를 확인합니다.
 4. 모바일 화면에서 사진·본문·하단 메뉴 배치를 확인합니다.
-5. 카메라·GPS·QR·OCR 등 실제 기기 및 외부 API 기능을 점검합니다.
+5. 카메라·GPS·QR·OCR 등 실제 기기 및 외부 API 기능을 점검합니다. (2026-10-12 화면 변경: QR 스캔 모드에서 탭이 숨고 보조 버튼이 표시되며, 영수증은 분석 중 스캐너가 처리 상태를 보여주고, 마이페이지/프로필 수정에서 프로필 사진(5MB 이하)·신뢰 온도 게이지(0~40°)를 확인합니다.)
 
 ## 11. 관련 문서
 
@@ -240,3 +246,4 @@ PORTONE_API_SECRET=<API 시크릿>
 | `frontend-react/docs/MIGRATION_REPORT.md` | 화면 39개 React 이전 매핑·검증 범위·미검증 범위 |
 | `NeighborFood_서버_실행_점검_가이드.md` | 운영 서버 실행·점검·갱신 배포·장애 대응 | *(저장소 미포함 — 개별 보관)*
 | `docs/PORTONE_TEST_SETUP.md` | PortOne 테스트 결제 설정·범위·제한 |
+| `docs/SUPABASE_MIGRATION.md` · `supabase.env.example` | Supabase(DB·Storage) 선택 모드 설정·마이그레이션·Vercel 준비 (팀원 작성) |

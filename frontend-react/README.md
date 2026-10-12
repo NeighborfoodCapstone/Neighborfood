@@ -4,7 +4,8 @@
 기존 정적 HTML 39개 화면을 모두 React(TypeScript)로 이전한 구현이며, **배포 시 사용자에게 보이는 UI는 이 앱**입니다.
 (루트의 `frontend/` 정적 HTML은 최종 점검 전까지 병행 보존하는 이전 버전이며, 배포 UI가 아닙니다.)
 
-> 상태(2026-10-06): 화면 39개 이전·빌드 통과 + PortOne 테스트 결제 화면 4종(`Payment_*`, 2026-10-05) 추가, 운영 서버(`https://neighborfood.duckdns.org`)에 `dist/` 배포됨(PortOne 반영본은 서버 재배포 확인 필요). 실제 모바일·카메라(QR)·GPS·Kakao 지도·OCR 동작은 실환경 검증 단계입니다.
+> 상태(2026-10-12): 2026-10-11~12 팀원 작업으로 QR/영수증 화면 개선, 프로필 사진, 신뢰 온도 게이지(`TrustTemperature.tsx`)가 추가되었고, 백엔드는 환경변수로 Supabase를 선택할 수 있게 되었습니다(프런트 코드 변경 없이 API 주소만 영향). 배포 방식(Oracle 유지 / Vercel+Supabase)은 10/16에 확정 예정입니다.
+> 이전 상태(2026-10-06): 화면 39개 이전·빌드 통과 + PortOne 테스트 결제 화면 4종(`Payment_*`, 2026-10-05) 추가, 운영 서버(`https://neighborfood.duckdns.org`)에 `dist/` 배포됨(PortOne 반영본은 서버 재배포 확인 필요). 실제 모바일·카메라(QR)·GPS·Kakao 지도·OCR 동작은 실환경 검증 단계입니다.
 > **PWA(설치·오프라인)는 아직 구현되지 않았습니다**(`vite-plugin-pwa` 도입 예정).
 
 ## 기술 스택
@@ -15,7 +16,7 @@
 | 린터 | Oxlint (`.oxlintrc.json`, `react/rules-of-hooks` error) |
 | 주요 라이브러리 | `qrcode`(QR 생성), `jsqr`(QR 스캔), `@portone/browser-sdk`(PortOne V2 테스트 결제창, 2026-10-05) |
 | 라우팅 | 해시 라우팅 (`#/화면이름?쿼리`) — 새로고침·직접 접속에 서버 설정이 필요 없음 |
-| 백엔드 | FastAPI + SQLite (저장소 루트, 이 폴더는 API만 호출) |
+| 백엔드 | FastAPI + SQLite 기본, 선택적으로 Supabase(PostgreSQL) (저장소 루트, 이 폴더는 API만 호출) |
 | 요구 사항 | Node.js 20 이상, npm |
 
 ## 빠른 시작 (로컬 개발)
@@ -67,6 +68,7 @@ frontend-react/
       ├─ loading.tsx            공통 로딩 컨텍스트
       ├─ autocomplete.tsx       공통 자동완성(검색·회원·주소)
       ├─ routes.tsx             화면 목록(screens)·공개 화면(publicScreens)·Screen 분기·Guard
+      ├─ TrustTemperature.tsx · trust-temperature.css · profile.css   신뢰 온도 캔버스 게이지(0~40°)·프로필 사진 스타일 (2026-10-11)
       ├─ auth.tsx · posts.tsx · PostGallery.tsx · fridge.tsx · trades.tsx
       ├─ location.tsx · receipt.tsx · qr.tsx · admin.tsx
       ├─ portone.tsx · Scanner.tsx · scanner.css · interface.css   PortOne 테스트 결제(Payment_Checkout/Result/Quick/Preview) · QR·영수증 공용 카메라 스캐너 · 스타일 (2026-10-05)
@@ -89,7 +91,7 @@ frontend-react/
 | 변수 | 위치 | 용도 |
 |---|---|---|
 | `NEIGHBORFOOD_BACKEND` | 개발 서버 실행 환경 | Vite 프록시가 API를 전달할 주소. 기본 `http://127.0.0.1:8000` |
-| `VITE_API_BASE_URL` | `frontend-react/.env.local` | 공개 API 주소를 직접 쓸 때만 지정. **FastAPI가 `dist/`를 함께 서빙하는 배포에서는 비워 둡니다** |
+| `VITE_API_BASE_URL` | `frontend-react/.env.local` (또는 Vercel 빌드 환경변수) | 공개 API 주소를 직접 쓸 때만 지정. **FastAPI가 `dist/`를 함께 서빙하는 배포(Oracle)에서는 비워 두고**, 프런트를 Vercel 등 다른 도메인에 둘 때(Vercel+Supabase 방식)는 API 주소를 지정하고 서버 `ALLOWED_ORIGINS`에 프런트 도메인을 추가합니다 |
 
 ## 배포 (FastAPI가 `dist/`를 서빙)
 
@@ -115,6 +117,14 @@ frontend-react/
 
 > 코드(백엔드)를 갱신할 때는 서버에서 `git pull` 후 `sudo systemctl restart neighborfood`를 실행합니다. 프런트를 갱신할 때는 로컬에서 다시 빌드해 `dist/`를 교체합니다.
 
+> 배포 방식은 위의 Oracle(같은 도메인) 방식과 Vercel+Supabase 방식이 병행 검토 중이며 10/16에 확정합니다. Vercel 방식의 백엔드 준비는 `../docs/SUPABASE_MIGRATION.md`를 참고하세요(현재 실환경 미검증, 이미지 업로드 요청당 4MB 제한).
+
+## 최근 화면 변경 (2026-10-11)
+
+- **QR_Scan**(`qr.tsx`): 스캔 모드에서는 상단 탭을 숨기고 보조 버튼으로 모드를 오갑니다.
+- **Receipt_Verify**(`receipt.tsx`): OCR 분석 중에는 `Scanner`가 `processing` 상태를 표시합니다.
+- **My_Page / Edit_Profile**(`auth.tsx`): 프로필 사진(5MB 이하)을 `/upload-images`로 올려 `profile_image`에 저장하고, 신뢰 온도를 게이지로 표시합니다. 업로드와 영수증 API는 로그인이 필요합니다.
+
 ## 자주 발생하는 문제
 
 | 증상 | 확인 |
@@ -131,5 +141,6 @@ frontend-react/
 |---|---|
 | `../README.md` | 프로젝트 개요·전체 실행 가이드·API 라우터 목록 |
 | `../NeighborFood_Architecture_Plan.md` | 아키텍처·API 전체 목록·개발 이력·잔여 작업 |
+| `../docs/SUPABASE_MIGRATION.md` | Supabase·Vercel 선택 모드 (팀원 작성) |
 | `docs/DESIGN_CONTEXT.md` | 공통 디자인 기준 |
 | `docs/MIGRATION_REPORT.md` | 화면 이전 매핑·검증 범위 |
