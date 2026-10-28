@@ -15,9 +15,9 @@ from fastapi   import APIRouter, HTTPException, Depends
 from pydantic  import BaseModel, Field
 
 from app.core.deps  import get_current_user
-from app.core.utils import now_utc, to_iso
+from app.core.utils import now_utc, to_iso, from_iso
 from app.db.transaction_db import get_conn
-from app.db import settlement_db as sdb
+from app.db import settlement_db as sdb, trade_verification as tv
 
 router = APIRouter()
 
@@ -178,55 +178,86 @@ async def participants_gps_status(settlement_id: int,
 
 @router.post("/{settlement_id}/shares/me/pay")
 async def pay_my_share(settlement_id: int, user: dict = Depends(get_current_user)):
-    """내 분담 납부 표시. 순차 2단계(GPS→QR) 인증 완료 후에만 가능."""
-    s, is_requester, share = _load_and_authorize(settlement_id, user)
-    if share is None:
-        raise HTTPException(403, "이 정산의 분담 대상이 아닙니다.")
-    if s["status"] != "pending":
-        raise HTTPException(400, "진행 중인 정산이 아닙니다.")
-    if share["status"] == "paid":
-        raise HTTPException(409, "이미 납부 처리되었습니다.")
-    if share["status"] == "noshow":
-        raise HTTPException(400, "노쇼 처리된 분담은 납부할 수 없습니다.")
-    # Step 1(GPS) → Step 2(QR) 순차 게이트
-    if not share.get("gps_verified"):
-        raise HTTPException(400, "먼저 거래 지점 GPS 인증을 완료해 주세요.")
-    if not share["quality_agreed"]:
-        raise HTTPException(400, "GPS 인증 후 대면 QR 인증을 완료해 주세요.")
-
-    sdb.mark_paid(settlement_id, user["id"])
+    """Record payment only for this settlement's verified participant."""
+    with get_conn() as conn:
+        tv.begin(conn)
+        settlement = tv.lock_row(conn, "settlements", settlement_id)
+        if not settlement:
+            raise HTTPException(404, "정산을 찾을 수 없습니다.")
+        share = conn.execute("SELECT * FROM settlement_shares WHERE settlement_id = ? AND user_id = ?",
+                             (settlement_id, user["id"])).fetchone()
+        if not share:
+            raise HTTPException(403, "이 정산의 분담 대상이 아닙니다.")
+        if settlement["status"] != "pending":
+            raise HTTPException(400, "진행 중인 정산이 아닙니다.")
+        if share["status"] == "paid":
+            raise HTTPException(409, "이미 납부 처리되었습니다.")
+        if share["status"] != "unpaid":
+            raise HTTPException(400, "노쇼 처리된 분담은 납부할 수 없습니다.")
+        evidence = conn.execute("""SELECT id FROM qr_sessions WHERE settlement_id = ? AND subject_id = ?
+            AND scanner_id = ? AND status = 'VERIFIED' AND used_at IS NOT NULL LIMIT 1""",
+            (settlement_id, str(user["id"]), settlement["requester_id"])).fetchone()
+        if not share["gps_verified"] or not share["quality_agreed"] or not evidence:
+            raise HTTPException(400, "이 정산의 GPS와 주최자 QR 인증을 먼저 완료해 주세요.")
+        conn.execute("""UPDATE settlement_shares SET status = 'paid', paid_at = ?
+                        WHERE settlement_id = ? AND user_id = ? AND status = 'unpaid'""",
+                     (to_iso(now_utc()), settlement_id, user["id"]))
+        conn.commit()
     return {"ok": True, "settlement": _serialize_full(sdb.get_settlement(settlement_id))}
 
 
 @router.post("/{settlement_id}/complete")
 async def complete(settlement_id: int, user: dict = Depends(get_current_user)):
-    """정산 완료 처리 — 주최자만. 미납(unpaid)이 하나도 없어야 완료 가능
-    (전원 paid 또는 noshow)."""
-    s, _, _ = _load_and_authorize(settlement_id, user, require_requester=True)
-    if s["status"] != "pending":
-        raise HTTPException(400, "이미 완료되었거나 취소된 정산입니다.")
-
-    shares = sdb.list_shares(settlement_id)
-    if not shares:
-        raise HTTPException(400, "분담 대상이 없습니다.")
-    if any(sh["status"] == "unpaid" for sh in shares):
-        raise HTTPException(400, "아직 미납 참여자가 있어요. 전원 납부 또는 노쇼 처리 후 완료할 수 있어요.")
-
-    sdb.complete_settlement(settlement_id)
-    # 정산 완료 → transactions 행 생성 (거래 내역·매너 평가 흐름 연동)
-    sdb.create_transactions_for_settlement(settlement_id)
+    """Complete settlement and create its transaction records in one DB transaction."""
+    with get_conn() as conn:
+        tv.begin(conn)
+        settlement = tv.lock_row(conn, "settlements", settlement_id)
+        if not settlement:
+            raise HTTPException(404, "정산을 찾을 수 없습니다.")
+        if settlement["requester_id"] != user["id"] and user.get("role") != "admin":
+            raise HTTPException(403, "정산 주최자만 할 수 있습니다.")
+        if settlement["status"] != "pending":
+            raise HTTPException(400, "이미 완료되었거나 취소된 정산입니다.")
+        shares = conn.execute("SELECT * FROM settlement_shares WHERE settlement_id = ?", (settlement_id,)).fetchall()
+        if not shares:
+            raise HTTPException(400, "분담 대상이 없습니다.")
+        if any(share["status"] == "unpaid" for share in shares):
+            raise HTTPException(400, "아직 미납 참여자가 있어요.")
+        now = to_iso(now_utc())
+        for share in shares:
+            if share["status"] != "paid":
+                continue
+            qr = conn.execute("""SELECT id FROM qr_sessions WHERE settlement_id = ? AND subject_id = ?
+                AND scanner_id = ? AND status = 'VERIFIED' AND used_at IS NOT NULL
+                ORDER BY used_at DESC LIMIT 1""",
+                (settlement_id, str(share["user_id"]), settlement["requester_id"])).fetchone()
+            if not qr or not share["gps_verified"] or not share["quality_agreed"]:
+                raise HTTPException(409, "정산에 연결된 인증 기록이 없습니다. 해당 참여자가 GPS와 QR을 다시 인증해 주세요.")
+            conn.execute("""INSERT INTO transactions
+                (post_id, provider_id, receiver_id, status, settlement_id, qr_session_id,
+                 appointment_at, completed_at, created_at)
+                VALUES (?, ?, ?, 'completed', ?, ?, ?, ?, ?)""",
+                (settlement["post_id"], settlement["requester_id"], share["user_id"], settlement_id,
+                 qr["id"], settlement["appointment_at"], now, now))
+        conn.execute("UPDATE settlements SET status = 'completed', completed_at = ? WHERE id = ? AND status = 'pending'",
+                     (now, settlement_id))
+        conn.commit()
     return {"ok": True, "settlement": _serialize_full(sdb.get_settlement(settlement_id))}
 
 
 @router.post("/{settlement_id}/cancel")
 async def cancel(settlement_id: int, user: dict = Depends(get_current_user)):
-    """정산 취소 — 주최자만. 완료된 정산은 취소 불가."""
-    s, _, _ = _load_and_authorize(settlement_id, user, require_requester=True)
-    if s["status"] == "completed":
-        raise HTTPException(400, "완료된 정산은 취소할 수 없습니다.")
-    if s["status"] == "canceled":
-        raise HTTPException(400, "이미 취소된 정산입니다.")
-    sdb.cancel_settlement(settlement_id)
+    with get_conn() as conn:
+        tv.begin(conn)
+        settlement = tv.lock_row(conn, "settlements", settlement_id)
+        if not settlement:
+            raise HTTPException(404, "정산을 찾을 수 없습니다.")
+        if settlement["requester_id"] != user["id"] and user.get("role") != "admin":
+            raise HTTPException(403, "정산 주최자만 할 수 있습니다.")
+        if settlement["status"] != "pending":
+            raise HTTPException(400, "이미 완료되었거나 취소된 정산입니다.")
+        conn.execute("UPDATE settlements SET status = 'canceled' WHERE id = ? AND status = 'pending'", (settlement_id,))
+        conn.commit()
     return {"ok": True, "settlement": _serialize_full(sdb.get_settlement(settlement_id))}
 
 
@@ -234,18 +265,25 @@ async def cancel(settlement_id: int, user: dict = Depends(get_current_user)):
 async def report_noshow(settlement_id: int, target_user_id: int,
                         user: dict = Depends(get_current_user)):
     """참여자 노쇼 신고 — 주최자만. trust_score 페널티 + reports 자동 기록."""
-    s, _, _ = _load_and_authorize(settlement_id, user, require_requester=True)
-    if s["status"] != "pending":
-        raise HTTPException(400, "진행 중인 정산이 아닙니다.")
-
-    share = sdb.get_share(settlement_id, target_user_id)
-    if share is None:
-        raise HTTPException(404, "해당 참여자의 분담을 찾을 수 없습니다.")
-    if share["status"] == "noshow":
-        raise HTTPException(409, "이미 노쇼 처리된 참여자입니다.")
 
     now = to_iso(now_utc())
     with get_conn() as conn:
+        tv.begin(conn)
+        s = tv.lock_row(conn, "settlements", settlement_id)
+        if not s:
+            raise HTTPException(404, "정산을 찾을 수 없습니다.")
+        if s["requester_id"] != user["id"] and user.get("role") != "admin":
+            raise HTTPException(403, "정산 주최자만 할 수 있습니다.")
+        if s["status"] != "pending":
+            raise HTTPException(400, "진행 중인 정산이 아닙니다.")
+        share = conn.execute("SELECT * FROM settlement_shares WHERE settlement_id = ? AND user_id = ?",
+                             (settlement_id, target_user_id)).fetchone()
+        if not share:
+            raise HTTPException(404, "해당 참여자의 분담을 찾을 수 없습니다.")
+        if share["status"] == "noshow":
+            raise HTTPException(409, "이미 노쇼 처리된 참여자입니다.")
+        if share["status"] != "unpaid":
+            raise HTTPException(400, "납부된 분담은 노쇼 처리할 수 없습니다.")
         # 노쇼 처리 + trust_score 페널티 + 신고 자동 기록 (같은 트랜잭션)
         conn.execute("""
             UPDATE settlement_shares SET status = 'noshow'
@@ -273,17 +311,22 @@ async def cancel_noshow(settlement_id: int, target_user_id: int,
     share.status → unpaid 복원 / trust_score +1.0 복원 / 자동 기록된 신고 삭제.
     이미 완료·취소된 정산이거나 share가 noshow 상태가 아니면 거부.
     """
-    s, _, _ = _load_and_authorize(settlement_id, user, require_requester=True)
-    if s["status"] != "pending":
-        raise HTTPException(400, "진행 중인 정산에서만 노쇼 취소가 가능합니다.")
-
-    share = sdb.get_share(settlement_id, target_user_id)
-    if share is None:
-        raise HTTPException(404, "해당 참여자의 분담을 찾을 수 없습니다.")
-    if share["status"] != "noshow":
-        raise HTTPException(400, "노쇼 상태인 분담만 취소할 수 있습니다.")
 
     with get_conn() as conn:
+        tv.begin(conn)
+        s = tv.lock_row(conn, "settlements", settlement_id)
+        if not s:
+            raise HTTPException(404, "정산을 찾을 수 없습니다.")
+        if s["requester_id"] != user["id"] and user.get("role") != "admin":
+            raise HTTPException(403, "정산 주최자만 할 수 있습니다.")
+        if s["status"] != "pending":
+            raise HTTPException(400, "진행 중인 정산에서만 노쇼 취소가 가능합니다.")
+        share = conn.execute("SELECT * FROM settlement_shares WHERE settlement_id = ? AND user_id = ?",
+                             (settlement_id, target_user_id)).fetchone()
+        if not share:
+            raise HTTPException(404, "해당 참여자의 분담을 찾을 수 없습니다.")
+        if share["status"] != "noshow":
+            raise HTTPException(400, "노쇼 상태인 분담만 취소할 수 있습니다.")
         # 1) share → unpaid 복원 (paid_at 초기화)
         conn.execute("""
             UPDATE settlement_shares
@@ -322,6 +365,9 @@ class AppointmentBody(BaseModel):
     lat:            Optional[float] = Field(None, description="약속 장소 위도 — 참여자 GPS 100m 검증 기준")
     lng:            Optional[float] = Field(None, description="약속 장소 경도 — 참여자 GPS 100m 검증 기준")
 
+class SettlementGpsBody(BaseModel):
+    locationSessionId: str
+
 
 @router.post("/{settlement_id}/appointment")
 async def set_appointment(settlement_id: int, body: AppointmentBody,
@@ -336,66 +382,63 @@ async def set_appointment(settlement_id: int, body: AppointmentBody,
         raise HTTPException(400, "진행 중인 정산에서만 약속을 정할 수 있습니다.")
     if not (body.place or body.appointment_at):
         raise HTTPException(400, "약속 장소 또는 시간을 입력해 주세요.")
-    sdb.set_appointment(settlement_id, body.place, body.appointment_at,
-                        body.lat, body.lng)
+    try:
+        sdb.set_appointment(settlement_id, body.place, body.appointment_at, body.lat, body.lng)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from None
     return {"ok": True, "settlement": _serialize_full(sdb.get_settlement(settlement_id))}
 
 
 @router.post("/{settlement_id}/shares/me/gps-done")
-async def gps_done(settlement_id: int, user: dict = Depends(get_current_user)):
-    """[Step 1] 참여자 GPS 인증 완료 보고.
-
-    약속 좌표(appointment_lat/lng)가 저장된 경우:
-      → 서버가 DB에서 participant의 current_lat/lng를 가져와 약속 좌표까지
-        Haversine 거리를 재계산, 100m 이내일 때만 gps_verified=1 을 기록합니다.
-      → 프론트가 보낸 값을 신뢰하지 않고 서버 DB 재검증 (self-referencing 우회 방지)
-
-    약속 좌표가 없는 경우(레거시 fallback):
-      → LOCATION_VERIFIED 세션 존재 여부만 확인합니다.
-    """
-    s, _, share = _load_and_authorize(settlement_id, user)
-    if share is None:
-        raise HTTPException(403, "이 정산의 분담 대상이 아닙니다.")
-    if s["status"] != "pending":
-        raise HTTPException(400, "진행 중인 정산이 아닙니다.")
-    if not (s.get("appointment_at") or s.get("appointment_place")):
-        raise HTTPException(400, "주최자가 아직 거래 장소·시간을 정하지 않았어요.")
-
-    appt_lat = s.get("appointment_lat")
-    appt_lng = s.get("appointment_lng")
-
-    if appt_lat is not None and appt_lng is not None:
-        # ── 약속 좌표 있음: 실제 거리 서버 재검증 ──────────────────────────
-        result = sdb.verify_participant_gps(
-            user["id"], float(appt_lat), float(appt_lng), threshold_m=100.0
-        )
-        if not result["ok"]:
-            raise HTTPException(400, result["reason"])
-    else:
-        # ── 약속 좌표 없음: 세션 존재 여부 확인(레거시) ────────────────────
-        if not sdb.has_verified_gps_session(user["id"]):
-            raise HTTPException(
-                400, "GPS 위치 인증 기록을 찾을 수 없어요. 인증을 먼저 완료해 주세요."
-            )
-
-    sdb.set_gps_verified(settlement_id, user["id"])
+async def gps_done(settlement_id: int, body: SettlementGpsBody, user: dict = Depends(get_current_user)):
+    """Bind this participant's recent GPS reading to this settlement."""
+    with get_conn() as conn:
+        tv.begin(conn)
+        settlement = tv.lock_row(conn, "settlements", settlement_id)
+        if not settlement:
+            raise HTTPException(404, "정산을 찾을 수 없습니다.")
+        share = conn.execute("SELECT * FROM settlement_shares WHERE settlement_id = ? AND user_id = ?",
+                             (settlement_id, user["id"])).fetchone()
+        if not share:
+            raise HTTPException(403, "이 정산의 분담 대상이 아닙니다.")
+        if settlement["status"] != "pending" or share["status"] not in ("unpaid", "paid"):
+            raise HTTPException(409, "진행 중인 정산의 참여자만 인증할 수 있습니다.")
+        session = tv.lock_row(conn, "location_verify_sessions", body.locationSessionId)
+        if not session or session["subject_id"] != str(user["id"]):
+            raise HTTPException(403, "본인의 GPS 인증 기록이 필요합니다.")
+        if session["transaction_id"] is not None or session["settlement_id"] not in (None, settlement_id):
+            raise HTTPException(409, "다른 거래에 사용한 위치 인증입니다.")
+        if (session["status"] not in ("LOCATION_VERIFIED", "QR_ISSUED", "QR_VERIFIED")
+                or not session["verified_at"] or from_iso(session["verified_at"]) < now_utc() - tv.GPS_MAX_AGE):
+            raise HTTPException(400, "최근 GPS 인증을 다시 진행해 주세요.")
+        distance = tv.assert_location(session["current_lat"], session["current_lng"], session["current_accuracy"],
+                                      settlement["appointment_lat"], settlement["appointment_lng"])
+        conn.execute("""UPDATE location_verify_sessions
+                        SET settlement_id = ?, target_lat = ?, target_lng = ?, distance_m = ?, radius_m = ?
+                        WHERE id = ?""", (settlement_id, settlement["appointment_lat"], settlement["appointment_lng"],
+                                         distance, tv.GPS_RADIUS_M, body.locationSessionId))
+        conn.execute("UPDATE settlement_shares SET gps_verified = 1 WHERE settlement_id = ? AND user_id = ?",
+                     (settlement_id, user["id"]))
+        conn.commit()
     return {"ok": True, "settlement": _serialize_full(sdb.get_settlement(settlement_id))}
 
 
 @router.post("/{settlement_id}/shares/me/qr-done")
 async def qr_done(settlement_id: int, user: dict = Depends(get_current_user)):
-    """[Step 2] 참여자 대면 QR 인증 완료 보고.
-    GPS(Step 1) 선행 필수. 서버가 이 사용자 소유의 VERIFIED qr_session을 재검증한 뒤
-    quality_agreed=1. (qr.py 라우터에 의존하지 않고 qr_sessions 테이블을 직접 확인)"""
-    s, _, share = _load_and_authorize(settlement_id, user)
-    if share is None:
-        raise HTTPException(403, "이 정산의 분담 대상이 아닙니다.")
-    if s["status"] != "pending":
-        raise HTTPException(400, "진행 중인 정산이 아닙니다.")
-    if not share.get("gps_verified"):
-        raise HTTPException(400, "먼저 GPS 위치 인증을 완료해 주세요.")
-    if not sdb.has_verified_qr_session(user["id"]):
-        raise HTTPException(400, "QR 인증 기록을 찾을 수 없어요. 대면 QR 인증을 완료해 주세요.")
-
-    sdb.set_qr_verified(settlement_id, user["id"])
+    """Confirm the organizer scanned this participant's QR for this settlement."""
+    with get_conn() as conn:
+        settlement = conn.execute("SELECT * FROM settlements WHERE id = ?", (settlement_id,)).fetchone()
+        if not settlement:
+            raise HTTPException(404, "정산을 찾을 수 없습니다.")
+        share = conn.execute("SELECT * FROM settlement_shares WHERE settlement_id = ? AND user_id = ?",
+                             (settlement_id, user["id"])).fetchone()
+        if not share:
+            raise HTTPException(403, "이 정산의 분담 대상이 아닙니다.")
+        if settlement["status"] != "pending" or share["status"] not in ("unpaid", "paid"):
+            raise HTTPException(409, "진행 중인 정산이 아닙니다.")
+        evidence = conn.execute("""SELECT id FROM qr_sessions WHERE settlement_id = ? AND subject_id = ?
+            AND scanner_id = ? AND status = 'VERIFIED' AND used_at IS NOT NULL LIMIT 1""",
+            (settlement_id, str(user["id"]), settlement["requester_id"])).fetchone()
+        if not share["gps_verified"] or not share["quality_agreed"] or not evidence:
+            raise HTTPException(400, "주최자가 이 정산의 QR을 스캔해야 합니다.")
     return {"ok": True, "settlement": _serialize_full(sdb.get_settlement(settlement_id))}

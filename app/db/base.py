@@ -30,6 +30,7 @@ def init_all_databases() -> None:
     from app.db.fridge_db          import init_fridge_db
     from app.db.admin_db           import init_admin_db
     from app.db.location_verify_db import init_location_verify_db
+    from app.db.ocr_guard          import init_ocr_guard
 
     init_auth_db()              # ① users · sessions · auth_codes · posts
     init_transaction_db()       # ② transactions · groupbuy_participants
@@ -39,3 +40,4 @@ def init_all_databases() -> None:
     init_fridge_db()            # ⑥ fridge_items
     init_admin_db()             # ⑦ notices · reports
     init_location_verify_db()   # ⑧ location_verify_sessions
+    init_ocr_guard()            # ⑨ SQLite 전용 OCR 안전 설정 (PostgreSQL은 별도 마이그레이션)

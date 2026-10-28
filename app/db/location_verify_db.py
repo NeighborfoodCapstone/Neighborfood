@@ -13,7 +13,7 @@ from app.core.utils  import now_utc, to_iso
 from app.db.base     import make_conn
 
 DEFAULT_RADIUS_M        = 100.0   # 거래 지점 반경 (프론트 UI와 동기화: '약속 장소 100m 이내')
-DEFAULT_ACCURACY_LIMIT_M = 1500.0  # 시연용 GPS 정확도 허용치 (거리 반경과 별개)
+DEFAULT_ACCURACY_LIMIT_M = 100.0  # GPS 정확도 허용치 (거리 반경과 별개)
 
 
 def _now() -> str:
@@ -100,6 +100,8 @@ def init_location_verify_db() -> None:
             "qr_session_id":    "ALTER TABLE location_verify_sessions ADD COLUMN qr_session_id TEXT",
             "verified_at":      "ALTER TABLE location_verify_sessions ADD COLUMN verified_at TEXT",
             "updated_at":       "ALTER TABLE location_verify_sessions ADD COLUMN updated_at TEXT",
+            "transaction_id":   "ALTER TABLE location_verify_sessions ADD COLUMN transaction_id INTEGER REFERENCES transactions(id)",
+            "settlement_id":    "ALTER TABLE location_verify_sessions ADD COLUMN settlement_id INTEGER REFERENCES settlements(id)",
         }
         for col, ddl in migrations.items():
             if col not in existing:
@@ -148,7 +150,7 @@ def gps_check(session_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
 
     lat      = _float(_pick(payload, "lat", "currentLat", "current_lat"))
     lng      = _float(_pick(payload, "lng", "currentLng", "current_lng"))
-    accuracy = _float(_pick(payload, "accuracy", "currentAccuracy", "current_accuracy"), 9999.0) or 9999.0
+    accuracy = _float(_pick(payload, "accuracy", "currentAccuracy", "current_accuracy"), 9999.0)
     if lat is None or lng is None:
         raise ValueError("현재 lat/lng 값이 필요합니다.")
 
@@ -176,12 +178,14 @@ def gps_check(session_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     now         = _now()
     verified_at = now if ok else session.get("verified_at")
     with get_conn() as conn:
-        conn.execute("""
+        updated = conn.execute("""
             UPDATE location_verify_sessions
                SET current_lat = ?, current_lng = ?, current_accuracy = ?, distance_m = ?,
                    radius_m = ?, status = ?, verified_at = ?, updated_at = ?
-             WHERE id = ?
+             WHERE id = ? AND transaction_id IS NULL AND settlement_id IS NULL
         """, (lat, lng, accuracy, dist, radius_m, status, verified_at, now, session_id))
+        if updated.rowcount != 1:
+            raise ValueError("거래에 연결된 위치 기록은 수정할 수 없습니다. 새로 인증해 주세요.")
         conn.commit()
 
     updated = get_session(session_id) or {}

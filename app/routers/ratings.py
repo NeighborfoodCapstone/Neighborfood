@@ -4,6 +4,7 @@ from typing               import Optional
 from app.core.deps        import get_current_user
 from app.core.utils       import now_utc, to_iso
 from app.db.transaction_db import get_conn
+from app.db import trade_verification as tv
 
 router = APIRouter()
 
@@ -127,9 +128,8 @@ async def update_rating(rating_id: int, body: RatingUpdate,
     uid = user["id"]
 
     with get_conn() as conn:
-        r = conn.execute(
-            "SELECT * FROM manner_ratings WHERE id = ?", (rating_id,)
-        ).fetchone()
+        tv.begin(conn)
+        r = tv.lock_row(conn, "manner_ratings", rating_id)
         if r is None:
             raise HTTPException(status_code=404, detail="평가를 찾을 수 없습니다.")
         if r["rater_id"] != uid:
@@ -186,9 +186,8 @@ async def delete_rating(rating_id: int, user: dict = Depends(get_current_user)):
     uid = user["id"]
 
     with get_conn() as conn:
-        r = conn.execute(
-            "SELECT * FROM manner_ratings WHERE id = ?", (rating_id,)
-        ).fetchone()
+        tv.begin(conn)
+        r = tv.lock_row(conn, "manner_ratings", rating_id)
         if r is None:
             raise HTTPException(status_code=404, detail="평가를 찾을 수 없습니다.")
         if r["rater_id"] != uid:

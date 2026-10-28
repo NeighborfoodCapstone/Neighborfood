@@ -255,11 +255,16 @@ def clova_ocr_text(image_path: str) -> Tuple[str, Dict[str, Any]]:
             res = requests.post(invoke_url, headers=headers, data=data, files=files, timeout=20)
         res.raise_for_status()
         raw = res.json()
+        images = raw.get("images") if isinstance(raw, dict) else None
+        if not isinstance(images, list) or not images or any(
+            not isinstance(image, dict) or image.get("inferResult") != "SUCCESS" for image in images
+        ):
+            return "", {"enabled": True, "ok": False}
         text = _flatten_clova_text(raw)
         return text, {"enabled": True, "ok": True, "raw": raw}
-    except Exception as exc:
-        print(f"[CLOVA OCR] 호출 실패: {exc}")
-        return "", {"enabled": True, "ok": False, "error": str(exc)}
+    except Exception:
+        # Never log provider URLs, credentials, receipt text, or response bodies.
+        return "", {"enabled": True, "ok": False}
 
 # ── 로컬 Tesseract fallback ───────────────────────────────────────────────
 def tesseract_ocr_text(image_path: str) -> str:

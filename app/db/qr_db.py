@@ -30,6 +30,22 @@ def init_qr_db() -> None:
                 updated_at         TEXT NOT NULL
             )
         """)
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(qr_sessions)").fetchall()}
+        for name, sql in {
+            "transaction_id": "ALTER TABLE qr_sessions ADD COLUMN transaction_id INTEGER REFERENCES transactions(id)",
+            "settlement_id": "ALTER TABLE qr_sessions ADD COLUMN settlement_id INTEGER REFERENCES settlements(id)",
+            "scanner_id": "ALTER TABLE qr_sessions ADD COLUMN scanner_id INTEGER REFERENCES users(id)",
+            "location_session_id": "ALTER TABLE qr_sessions ADD COLUMN location_session_id TEXT REFERENCES location_verify_sessions(id)",
+        }.items():
+            if name not in columns:
+                conn.execute(sql)
+        conn.execute("""CREATE TABLE IF NOT EXISTS qr_verification_events (
+            id TEXT PRIMARY KEY,
+            qr_session_id TEXT REFERENCES qr_sessions(id),
+            actor_id INTEGER NOT NULL REFERENCES users(id),
+            outcome TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )""")
         conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_qr_sessions_subject_issued
             ON qr_sessions (subject_id, issued_at)

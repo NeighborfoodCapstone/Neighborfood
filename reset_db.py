@@ -5,19 +5,16 @@ NeighborFood DB 초기화 스크립트
 - 모든 회원·게시글 및 연관 데이터를 삭제합니다.
 - Admin 계정을 지정한 비밀번호로 새로 생성합니다.
 
-실행:  python reset_db.py
-       python reset_db.py --yes          (확인 프롬프트 생략)
-       python reset_db.py --pw MyPass1!  (비밀번호 직접 지정)
+실행: python reset_db.py  (테스트용 SQLite만; 관리자 암호는 대화형 입력)
 """
 
-import sqlite3, hashlib, secrets, sys, importlib, argparse
+import sqlite3, hashlib, secrets, sys, importlib, argparse, getpass
 from datetime import datetime
 from pathlib import Path
 
 # ── 설정 ──────────────────────────────────────────────────────────────────
 DB_PATH        = Path("data/neighborfood.db")
-ADMIN_LOGIN_ID = "Admin"
-ADMIN_PASSWORD = "admin0000"   # --pw 옵션으로 덮어쓸 수 있음
+ADMIN_LOGIN_ID = ""
 ADMIN_PHONE    = "01000000000"
 ADMIN_NICKNAME = "관리자"
 
@@ -204,10 +201,19 @@ def create_admin(conn: sqlite3.Connection, pw: str):
 
 # ── 메인 ──────────────────────────────────────────────────────────────────
 def main():
+    global ADMIN_LOGIN_ID
     parser = argparse.ArgumentParser(description="NeighborFood DB 초기화")
     parser.add_argument("--yes", action="store_true", help="확인 프롬프트 생략")
-    parser.add_argument("--pw", default=ADMIN_PASSWORD, help="Admin 비밀번호 지정")
+    parser.add_argument("--pw", help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.pw:
+        sys.exit("--pw는 명령 기록에 비밀번호가 남으므로 사용할 수 없습니다. 대화형 입력을 이용하세요.")
+    ADMIN_LOGIN_ID = getpass.getpass("새 관리자 로그인 ID: ").strip()
+    if not ADMIN_LOGIN_ID:
+        sys.exit("관리자 로그인 ID가 필요합니다.")
+    args.pw = getpass.getpass("새 관리자 비밀번호: ")
+    if len(args.pw) < 8:
+        sys.exit("비밀번호는 8자 이상이어야 합니다.")
 
     if not DB_PATH.exists():
         err(f"DB 파일 없음: {DB_PATH}")
@@ -216,7 +222,7 @@ def main():
     if not args.yes:
         print(f"\n{YELLOW}{BOLD}⚠  경고{RESET}")
         print(f"  {DB_PATH} 의 모든 회원·게시글 데이터가 삭제됩니다.")
-        print(f"  Admin 계정이 login_id='{ADMIN_LOGIN_ID}' / pw='{args.pw}' 로 새로 생성됩니다.\n")
+        print("  관리자 계정이 대화형으로 입력한 자격으로 새로 생성됩니다.\n")
         ans = input("  계속하시겠습니까? (y/N): ").strip().lower()
         if ans != "y":
             print("  취소됨.")
@@ -242,13 +248,7 @@ def main():
     hdr("완료")
     if success:
         print(f"  {GREEN}{BOLD}DB 초기화 성공{RESET}\n")
-        print(f"  Admin 로그인 정보")
-        print(f"    login_id : {ADMIN_LOGIN_ID}")
-        print(f"    password : {args.pw}\n")
-        print(f"  다음 단계:")
-        print(f"    1. python seed_admin.py     (role 확인, 선택사항)")
-        print(f"    2. python nf_functional_test.py")
-        print(f"       또는: set ADMIN_PW={args.pw} && python nf_functional_test.py")
+        print("  테스트용 관리자 계정이 생성되었습니다. 비밀번호는 출력하지 않습니다.")
     else:
         print(f"  {YELLOW}테이블 삭제는 완료됐으나 Admin 계정 생성에 실패했습니다.{RESET}")
         print(f"  users 테이블 컬럼명을 확인한 뒤 스크립트 상단 col_map을 수정하세요.")

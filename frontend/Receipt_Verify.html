@@ -235,8 +235,12 @@ const API = {
   fridgeFromReceipt: API_BASE + "/api/fridge/from-receipt"
 };
 
-// 이 영수증이 증빙할 거래/게시글 식별자 (실제 서비스에서는 거래정보로 채움)
-const SUBJECT_ID = "pickup_minji_spinach";
+const SUBJECT_ID = localStorage.getItem("nf_userId") || sessionStorage.getItem("nf_userId") || "";
+const receiptRequestKeys = new WeakMap();
+function receiptAuthHeaders() {
+  const token = localStorage.getItem("nf_token") || sessionStorage.getItem("nf_token") || "";
+  return token ? { Authorization: "Bearer " + token } : {};
+}
 
 const $ = (id) => document.getElementById(id);
 
@@ -426,14 +430,16 @@ async function scanReceipt(file) {
 
   const fd = new FormData();
   fd.append("file", file);
+  if (!receiptRequestKeys.has(file)) receiptRequestKeys.set(file, crypto.randomUUID());
 
   try {
     const res = await fetch(API.scan + "?subjectId=" + encodeURIComponent(SUBJECT_ID), {
       method: "POST",
+      headers: { ...receiptAuthHeaders(), "Idempotency-Key": receiptRequestKeys.get(file) },
       body: fd
     });
     const data = await res.json();
-    if (!data.ok) throw new Error(data.message || "분석 실패");
+    if (!res.ok || !data.ok) throw new Error(data.detail || data.message || "분석 실패");
 
     const s = data.scan;
     state.scanId = s.id;
@@ -467,7 +473,7 @@ async function verifySelected() {
   try {
     const res = await fetch(API.verify, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...receiptAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({
         scanId: state.scanId,
         subjectId: SUBJECT_ID,

@@ -578,7 +578,7 @@ project_root/
 - **실행 방식**: systemd 서비스 `neighborfood`가 `uvicorn main:app --host 127.0.0.1 --port 8000`(`--reload` 없음, worker 1개 — SQLite 사용)을 상시 실행. 재시작 후 `active`, `GET /docs` 200 확인. 시작 시 `data/neighborfood.db`가 자동 생성됨
 - **도메인**: DuckDNS `neighborfood.duckdns.org`를 서버 Public IP에 연결(IP는 문서에 기재하지 않음). 현재는 Nginx 기본 화면만 응답하며, 앱은 `127.0.0.1`에만 열려 있어 외부 접속은 Nginx 프록시 설정 이후 가능
 - **점검**: `.env`·DB·키 파일이 저장소 추적 대상·커밋 이력에 없음, `.gitignore`에 `.env`·`*.db`·`venv/`·`dist/` 포함, 하드코딩된 키 없음 확인(2026-09-30). 이 시점 GitHub `main`에는 팀원의 React 잔여 화면·결제 관련 후속 작업이 포함되어 있지 않음
-- **[2026-10-03 갱신 — 아래 절에서 대부분 완료]** 미완료였던 항목: Nginx 리버스 프록시, HTTPS(certbot), `dist/` 업로드와 `main.py`의 SPA 마운트, 관리자 계정 생성(앱에 비밀번호 변경 API가 없어 기본 비밀번호 계정 대신 일반 가입 후 `python seed_admin.py <login_id>`로 승격 권장), 실환경 검증, PWA
+- **[2026-10-03 당시 미완료]** Nginx·HTTPS·`dist/`·관리자·실환경 검증·PWA. 현재 관리자 절차는 `python seed_admin.py promote` / `revoke`이며 `docs/INTEGRATION_REPORT.md`가 최신 기준이다.
 
 
 ### 2026-10-01~03 매너 평가 표시·README 교체·`dist/` 서빙 (코드 변경)
@@ -629,7 +629,7 @@ project_root/
 |---|---|---|
 | ✅ **완료 (2026-10-03)** | **작성자 매너 평가 표시** | React `posts.tsx` 상세 작성자 카드에 `GET /api/ratings/received?user_id=` 요약(👍/👎) 연동 완료. 정적 HTML 상세는 미적용 |
 | 🟢 **준비 완료** | **배포 CORS 도메인 제한** | `main.py`가 `.env`의 `ALLOWED_ORIGINS`를 읽어 동적 분기하도록 구현 완료(2026-09-12). 값 미설정 시 개발 편의를 위해 `*` 유지. **2026-09-30: 배포 서버 `.env`에 `ALLOWED_ORIGINS=https://neighborfood.duckdns.org` 반영 완료**(다른 도메인에서 서빙하게 되면 값을 함께 수정해야 함). 정적 빌드(`dist`) 배포 시에는 Vite 프록시가 없으므로 API 프록시를 배포 서버에 구성하거나 `VITE_API_BASE_URL`로 공개 API 주소를 지정해야 함 |
-| 🟡 **권장 (2026-10-06 갱신)** | **배포 서버 운영 마무리(2-5)** | Nginx·HTTPS·`dist/` 서빙은 2026-10-03 완료. 남은 것: 관리자 계정 승격(`seed_admin.py <login_id>`, 기본 비밀번호 `admin0000` 계정 생성 금지), 재부팅 후 서비스·nginx 자동 시작 확인, systemd `Restart=` 정책, SSH 비밀번호 로그인 차단 확인, 부하테스트(`ab -n 100 -c 6`, OCR 겹침), `apt` 업데이트<br>**[2026-10-08 방침] 구현·보완 예정(시연·발표 전 처리)** |
+| 🟡 **권장 (2026-10-06 이력)** | **배포 서버 운영 마무리** | 관리자 권한은 대화형 `seed_admin.py promote`/`revoke`로 관리한다. 서비스 자동 시작, SSH 정책, 부하테스트와 업데이트는 실제 환경에서 확인해야 한다. |
 | 🟢 **선택 (2026-09-21 갱신)** | **`VITE_API_BASE_URL` 템플릿 정리** | React는 미설정 시 상대경로 + Vite 프록시를 사용하므로 필수 아님. 공개 API 주소를 직접 쓰는 경우에만 `frontend-react/.env.local`에 지정. 템플릿 항목 추가는 선택 사항<br>**[2026-10-08 방침] 차후 필요하다고 판단될 때 처리** |
 | ✅ **완료 (2026-10-03)** | **`frontend-react/README.md` 교체** | 프로젝트 설명·실행·폴더 구조·배포 절차로 교체됨. 보정 필요: 배포 절차의 `scp -r dist/* …/dist/`는 서버에 `dist/`가 이미 있어야 동작하므로 최초 업로드용 명령(`rm -rf` 후 `scp -r dist …/frontend-react/`)으로 수정 권장 |
 | ✅ **완료 (2026-10-08)** | ~~로그인 상태 비밀번호 변경 API~~ | `PATCH /api/users/me/password` 구현(현재 세션 유지·타 세션 폐기), React `Edit_Profile` 폼, pytest(`tests/test_account_notice_post.py`) |
@@ -697,9 +697,9 @@ http://127.0.0.1:8000/docs
 # 더미 데이터
 python seed_posts.py                  # ⚠️ 2026-09-08 기준 저장소에 미존재 (아래 안내 참고)
 
-# 관리자 계정 생성/승격 [2026-09-12 복원 완료]
-python seed_admin.py                  # 신규 생성 (login_id=Admin, pw=admin0000)
-python seed_admin.py <login_id>       # 기존 계정을 admin 역할로 승격
+# 기존 시연 계정 관리자 권한 부여/회수 (대화형)
+python seed_admin.py promote
+python seed_admin.py revoke
 
 # 테스트 계정 시드 (정산 수동 테스트용)
 python Seed_Account.py               # ⚠️ 2026-09-08 기준 저장소에 미존재
@@ -710,8 +710,7 @@ python nf_functional_test.py
 
 # DB 초기화 (전체 데이터 삭제 + Admin 재생성) — [2026-09-19 존재 확인] ⚠️ 전 데이터 삭제, 서버 종료 후 실행
 python reset_db.py                    # 확인 프롬프트 표시
-python reset_db.py --yes              # 확인 생략
-python reset_db.py --pw <비밀번호>     # Admin 비밀번호 지정 (기본 admin0000)
+# 비밀번호는 대화형으로 입력한다. 운영 DB에는 실행하지 않는다.
 
 # 영수증 파서 회귀 테스트 [신규] — (PortOne 테스트 `tests/test_portone.py`와 함께 현재 저장소에 존재하는 자동화 테스트)
 python tests/test_receipt_parser_v212.py
@@ -752,14 +751,7 @@ npm run preview             # 빌드 결과 로컬 프리뷰 (API 프록시 포�
 > React(`localhost:5173`)와 정적 HTML(`127.0.0.1:8000`)은 접속 출처가 달라 로그인 상태가 공유되지 않으므로 React에서 별도 로그인합니다. 카메라(QR)·GPS 화면은 HTTPS 또는 localhost에서만 동작합니다.
 
 
-**테스트 계정 기본값:**
-
-| 계정 | login_id | password | 역할 |
-|---|---|---|---|
-| 관리자 | `Admin` | `admin0000` | admin |
-| 일반1 | `Capstone_1` | `capstone1` | user |
-| 일반2 | `Capstone_2` | `capstone2` | user |
-| 일반3 | `Capstone_3` | `capstone3` | user |
+**시연 계정:** 운영과 분리된 가상 계정을 사용하고 자격증명은 저장소에 기록하지 않는다.
 
 ---
 

@@ -38,6 +38,9 @@ def init_transaction_db() -> None:
         existing = {r["name"] for r in conn.execute("PRAGMA table_info(transactions)")}
         if "appointment_at" not in existing:
             conn.execute("ALTER TABLE transactions ADD COLUMN appointment_at TEXT")
+        if "settlement_id" not in existing:
+            conn.execute("ALTER TABLE transactions ADD COLUMN settlement_id INTEGER REFERENCES settlements(id)")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tx_settlement_receiver ON transactions (settlement_id, receiver_id) WHERE settlement_id IS NOT NULL")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_tx_provider ON transactions (provider_id, created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_tx_receiver ON transactions (receiver_id, created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_tx_post     ON transactions (post_id)")

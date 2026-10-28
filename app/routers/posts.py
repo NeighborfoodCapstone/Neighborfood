@@ -9,7 +9,7 @@ from app import storage
 from app.core.deps   import get_current_user
 from app.core.utils  import now_utc, to_iso
 from app.db.auth_db  import get_conn
-from app.db          import settlement_db
+from app.db          import settlement_db, trade_verification as tv
 from app.models.post import PostCreate
 from pydantic import BaseModel, Field
 
@@ -182,9 +182,8 @@ async def set_post_appointment(post_id: int, body: PostAppointment,
     이후 정산이 생성되면 settlements가 이 값을 승계합니다.
     """
     with get_conn() as conn:
-        row = conn.execute(
-            "SELECT author_id, status FROM posts WHERE id = ?", (post_id,)
-        ).fetchone()
+        tv.begin(conn)
+        row = tv.lock_row(conn, "posts", post_id)
         if not row or row["status"] == "deleted":
             raise HTTPException(404, "해당 게시글을 찾을 수 없습니다.")
         if row["author_id"] != user["id"] and user["role"] != "admin":
@@ -200,7 +199,6 @@ async def set_post_appointment(post_id: int, body: PostAppointment,
         """, ((body.place or "").strip() or None,
               (body.appointment_at or "").strip() or None,
               body.lat, body.lng, post_id))
-        conn.commit()
 
         # 이미 정산이 있으면 정산에도 동기화(승계)
         stl = conn.execute(
@@ -208,6 +206,8 @@ async def set_post_appointment(post_id: int, body: PostAppointment,
             (post_id,),
         ).fetchone()
         if stl:
+            stl = tv.lock_row(conn, "settlements", stl["id"])
+        if stl and stl["status"] == "pending":
             conn.execute("""
                 UPDATE settlements
                    SET appointment_place = ?, appointment_at = ?,
@@ -216,7 +216,9 @@ async def set_post_appointment(post_id: int, body: PostAppointment,
             """, ((body.place or "").strip() or None,
                   (body.appointment_at or "").strip() or None,
                   body.lat, body.lng, stl["id"]))
-            conn.commit()
+            conn.execute("""UPDATE settlement_shares SET gps_verified = 0, quality_agreed = 0
+                            WHERE settlement_id = ? AND status IN ('unpaid', 'paid')""", (stl["id"],))
+        conn.commit()
 
     return {
         "ok": True,

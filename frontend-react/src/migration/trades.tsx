@@ -310,6 +310,7 @@ export function Activity({ history = false }: { history?: boolean }) {
         </>
       )}
       <h2>거래</h2>
+      <button type="button" disabled={tx.loading} onClick={() => tx.reload()}>거래 상태 새로고침</button>
       <Select
         label="상태"
         value={filter}
@@ -336,10 +337,8 @@ export function Activity({ history = false }: { history?: boolean }) {
             <p>{t.appointmentAt}</p>
             <div className="rx-actions">
               {(t.status === "pending"
-                ? ["confirmed", "canceled"]
-                : t.status === "confirmed"
-                  ? ["completed", "canceled"]
-                  : []
+                ? t.myRole === "provider" ? ["confirmed", "canceled"] : ["canceled"]
+                : t.status === "confirmed" ? ["canceled"] : []
               ).map((next) => (
                 <button
                   key={next}
@@ -361,6 +360,30 @@ export function Activity({ history = false }: { history?: boolean }) {
                 </button>
               ))}
             </div>
+            {t.status === "confirmed" && <>
+              <p>약속 장소: {t.appointmentPlace || "제공자가 설정해야 합니다"}</p>
+              {t.myRole === "provider" ? <>
+                <details>
+                  <summary>약속 장소 설정</summary>
+                  <Form onSubmit={(f) => a.run(async () => {
+                    await send("/posts/" + t.postId + "/appointment", {
+                      place: text(f, "place"),
+                      lat: text(f, "lat") ? Number(text(f, "lat")) : null,
+                      lng: text(f, "lng") ? Number(text(f, "lng")) : null,
+                    });
+                    tx.reload();
+                  }, "약속 장소가 저장되었습니다.")}>
+                    <PlaceField addressName="place" initial={{ address: t.appointmentPlace || "", lat: t.targetLat, lng: t.targetLng }} />
+                    <button disabled={a.busy}>약속 저장</button>
+                  </Form>
+                </details>
+                <a href={href("QR_Scan", { transactionId: t.id, mode: "scan" })}>신청자의 QR 스캔</a>
+              </> : <div className="rx-actions">
+                <a href={href("Local_Verify_Demo", { transactionId: t.id })}>GPS 위치 인증</a>
+                <a href={href("QR_Scan", { transactionId: t.id, mode: "issue" })}>거래 QR 발급</a>
+              </div>}
+              {t.gpsVerifiedAt && <p className="rx-muted">최근 위치 인증: {when(t.gpsVerifiedAt)} (QR 인증 전 5분 이내 재확인)</p>}
+            </>}
             {t.status === "completed" && <Rating id={t.id} />}
           </article>
         ))}

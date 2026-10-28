@@ -16,6 +16,7 @@ from fastapi  import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.core.deps             import get_current_user
+from app.db import qr_db, trade_verification as tv
 from app.db.location_verify_db import (
     create_dummy_target,
     get_session,
@@ -43,7 +44,7 @@ class GpsCheckRequest(BaseModel):
     lng:            float
     accuracy:       Optional[float] = None
     radiusM:        float            = 100    # 거래 지점 허용 반경(100m)
-    accuracyLimitM: float            = 1500   # 시연용 GPS 정확도 허용치
+    accuracyLimitM: float            = 100    # 서버에서 강제 적용하는 GPS 정확도 허용치
 
 
 class QrIssuedRequest(BaseModel):
@@ -53,11 +54,8 @@ class QrIssuedRequest(BaseModel):
 # ── 내부 헬퍼 ─────────────────────────────────────────────────────────────────
 
 def _assert_owner(session: dict, user_id: int) -> None:
-    """세션 소유자가 아니면 403.
-    subject_id가 'demo_' 로 시작하는 데모 세션은 검증을 생략합니다."""
+    """세션 소유자만 접근할 수 있습니다."""
     sid = session.get("subject_id") or ""
-    if sid.startswith("demo_"):
-        return
     if sid != str(user_id):
         raise HTTPException(403, "본인 세션만 접근할 수 있습니다.")
 
@@ -70,6 +68,7 @@ async def create_target(body: DummyTargetRequest,
     """GPS 위치 인증 세션 생성.
     subject_id는 서버가 현재 사용자 ID로 강제 고정합니다(보안)."""
     payload = body.dict()
+    payload["radiusM"] = tv.GPS_RADIUS_M
     payload["subjectId"] = str(user["id"])   # 서버 강제 고정
     try:
         session = create_dummy_target(payload)
@@ -87,7 +86,11 @@ async def gps_check_endpoint(session_id: str, body: GpsCheckRequest,
         raise HTTPException(404, "GPS 세션을 찾을 수 없습니다.")
     _assert_owner(session, user["id"])
     try:
-        result = db_gps_check(session_id, body.dict())
+        tv.assert_location(body.lat, body.lng, body.accuracy, session["target_lat"], session["target_lng"])
+        payload = body.dict()
+        payload["radiusM"] = tv.GPS_RADIUS_M
+        payload["accuracyLimitM"] = tv.GPS_ACCURACY_LIMIT_M
+        result = db_gps_check(session_id, payload)
     except (LookupError, ValueError) as exc:
         raise HTTPException(400, str(exc))
     return {
@@ -106,6 +109,12 @@ async def qr_issued(session_id: str, body: QrIssuedRequest,
     if not session:
         raise HTTPException(404, "GPS 세션을 찾을 수 없습니다.")
     _assert_owner(session, user["id"])
+    if session.get("status") != "LOCATION_VERIFIED" or not body.qrSessionId:
+        raise HTTPException(400, "GPS 인증 후 본인의 QR을 연결해 주세요.")
+    with qr_db.get_conn() as conn:
+        qr = conn.execute("SELECT subject_id, status FROM qr_sessions WHERE id = ?", (body.qrSessionId,)).fetchone()
+    if not qr or qr["subject_id"] != str(user["id"]) or qr["status"] != "ISSUED":
+        raise HTTPException(403, "본인이 발급한 유효한 QR만 연결할 수 있습니다.")
     payload = {}
     if body.qrSessionId:
         payload["qrSessionId"] = body.qrSessionId

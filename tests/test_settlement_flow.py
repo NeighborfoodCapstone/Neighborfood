@@ -1,9 +1,5 @@
-"""정산 흐름 자동화 테스트: 약속 → GPS(100m, 서버 재검증) → QR → 납부 → 완료 → 매너 평가.
-
-GPS/QR '증거' 행(location_verify_sessions, qr_sessions)은 DB 에 직접 심고,
-정산 API 가 그 증거로 단계를 올바르게 통과/차단하는지를 검증합니다.
-(실제 GPS·QR 발급 라우터 자체는 별도 기능이며 여기서는 대상이 아닙니다.)
-"""
+"""실제 API를 이용한 정산 GPS·QR·납부·평가 흐름 테스트."""
+from concurrent.futures import ThreadPoolExecutor
 import sqlite3
 import pytest
 
@@ -12,26 +8,24 @@ NEAR = (37.5666, 126.9781)                    # 약 15m
 FAR  = (37.5800, 126.9780)                    # 약 1.5km
 
 
-_tick = iter(range(1, 10_000))
+def _gps_session(user, lat, lng):
+    created = user.post("/api/location-verify/dummy-target", {"lat": lat, "lng": lng})
+    assert created.status_code == 200, created.text
+    session_id = created.json()["session"]["id"]
+    checked = user.post(f"/api/location-verify/{session_id}/gps-check",
+                        {"lat": lat, "lng": lng, "accuracy": 10})
+    assert checked.status_code == 200, checked.text
+    return session_id
 
 
-def _seed_gps(db_path, user_id, lat, lng):
-    """가장 최근(verified_at 이 더 큰) 기록이 검증에 쓰이므로 호출 순서대로 시각을 증가시킨다."""
-    with sqlite3.connect(db_path) as db:
-        n = next(_tick)
-        db.execute("""INSERT INTO location_verify_sessions
-            (id, subject_id, target_lat, target_lng, status, current_lat, current_lng, verified_at)
-            VALUES (?, ?, ?, ?, 'LOCATION_VERIFIED', ?, ?, ?)""",
-            (f"gps-{n}", str(user_id), APPT_LAT, APPT_LNG, lat, lng,
-             f"2026-10-08T00:{n // 60:02d}:{n % 60:02d}Z"))
-
-
-def _seed_qr(db_path, user_id):
-    with sqlite3.connect(db_path) as db:
-        db.execute("""INSERT INTO qr_sessions
-            (id, subject_id, purpose, token_hash, status, issued_at, expires_at, created_at, updated_at)
-            VALUES (?, ?, 'trade', ?, 'VERIFIED', 't', 't', 't', 't')""",
-            (f"qr-{user_id}", str(user_id), f"hash-{user_id}"))
+def _scan_settlement_qr(t, user):
+    sid = t["sid"]
+    issued = user.post("/api/qr/request", {"subjectId": str(user.id), "settlementId": sid})
+    assert issued.status_code == 200, issued.text
+    token = issued.json()["session"]["token"]
+    scanned = t["host"].post("/api/qr/verify", {"token": token, "settlementId": sid})
+    assert scanned.status_code == 200 and scanned.json()["ok"], scanned.text
+    return token
 
 
 @pytest.fixture
@@ -55,9 +49,9 @@ def _appoint(t, lat=APPT_LAT, lng=APPT_LNG):
 
 def _complete_steps(t, user, lat_lng=NEAR):
     sid = t["sid"]
-    _seed_gps(t["db"], user.id, *lat_lng)
-    assert user.post(f"/api/settlements/{sid}/shares/me/gps-done").status_code == 200
-    _seed_qr(t["db"], user.id)
+    location_id = _gps_session(user, *lat_lng)
+    assert user.post(f"/api/settlements/{sid}/shares/me/gps-done", {"locationSessionId": location_id}).status_code == 200
+    _scan_settlement_qr(t, user)
     assert user.post(f"/api/settlements/{sid}/shares/me/qr-done").status_code == 200
 
 
@@ -76,34 +70,119 @@ def test_create_rules(trade, make_user):
     assert outsider.get(f"/api/settlements/{trade['sid']}").status_code == 403
 
 
+def test_concurrent_settlement_creation_only_creates_one(client, make_user):
+    host, participant = make_user("create_host"), make_user("create_participant")
+    pid = host.post("/posts", {"type": "groupbuy", "title": "공구", "gb_target": 2, "gb_price": 1000}).json()["id"]
+    assert participant.post(f"/posts/{pid}/join").status_code == 200
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(lambda _: host.post("/api/settlements", {"post_id": pid, "total_amount": 1000}), range(2)))
+    assert sum(response.status_code == 200 for response in responses) == 1
+    assert all(response.status_code in (200, 400, 409) for response in responses)
+    with sqlite3.connect(client.db_path) as db:
+        assert db.execute("SELECT COUNT(*) FROM settlements WHERE post_id = ?", (pid,)).fetchone()[0] == 1
+
+
+def test_post_appointment_and_settlement_rollback_together(trade):
+    host, pid, sid = trade["host"], trade["pid"], trade["sid"]
+    with sqlite3.connect(trade["db"]) as db:
+        db.execute(f"""CREATE TRIGGER reject_appointment BEFORE UPDATE ON settlement_shares
+            WHEN NEW.settlement_id = {sid}
+            BEGIN SELECT RAISE(ABORT, 'injected failure'); END""")
+    with pytest.raises(sqlite3.IntegrityError):
+        host.post(f"/posts/{pid}/appointment", {"place": "새 장소", "lat": APPT_LAT, "lng": APPT_LNG})
+    with sqlite3.connect(trade["db"]) as db:
+        assert db.execute("SELECT appointment_place FROM posts WHERE id = ?", (pid,)).fetchone()[0] is None
+        assert db.execute("SELECT appointment_place FROM settlements WHERE id = ?", (sid,)).fetchone()[0] is None
+
+
 # ── 약속 / GPS / QR 게이트 ────────────────────────────────────
 def test_gps_requires_appointment_then_distance(trade):
     sid, a, h = trade["sid"], trade["a"], trade["host"]
     assert a.post(f"/api/settlements/{sid}/appointment", {"place": "x"}).status_code == 403          # 주최자만
-    assert a.post(f"/api/settlements/{sid}/shares/me/gps-done").status_code == 400                    # 약속 없음
+    location_id = _gps_session(a, *NEAR)
+    assert a.post(f"/api/settlements/{sid}/shares/me/gps-done", {"locationSessionId": location_id}).status_code == 400
     _appoint(trade)
-    assert a.post(f"/api/settlements/{sid}/shares/me/gps-done").status_code == 400                    # GPS 기록 없음
-    _seed_gps(trade["db"], a.id, *FAR)
-    r = a.post(f"/api/settlements/{sid}/shares/me/gps-done")
-    assert r.status_code == 400 and "m" in r.json()["detail"]                                         # 100m 초과
-    _seed_gps(trade["db"], a.id, *NEAR)
-    assert a.post(f"/api/settlements/{sid}/shares/me/gps-done").status_code == 200                    # 100m 이내
-    # 주최자는 분담 대상이 아님
-    assert h.post(f"/api/settlements/{sid}/shares/me/gps-done").status_code == 403
+    assert a.post(f"/api/settlements/{sid}/shares/me/gps-done", {"locationSessionId": "missing"}).status_code == 403
+    far_id = _gps_session(a, *FAR)
+    r = a.post(f"/api/settlements/{sid}/shares/me/gps-done", {"locationSessionId": far_id})
+    assert r.status_code == 400 and "m" in r.json()["detail"]
+    assert a.post(f"/api/settlements/{sid}/shares/me/gps-done", {"locationSessionId": location_id}).status_code == 200
+    assert h.post(f"/api/settlements/{sid}/shares/me/gps-done", {"locationSessionId": location_id}).status_code == 403
 
 
 def test_qr_requires_gps_first_and_pay_requires_both(trade):
     sid, a = trade["sid"], trade["a"]
     _appoint(trade)
-    _seed_qr(trade["db"], a.id)
-    assert a.post(f"/api/settlements/{sid}/shares/me/qr-done").status_code == 400                     # GPS 선행
-    assert a.post(f"/api/settlements/{sid}/shares/me/pay").status_code == 400                         # GPS 없이 납부
-    _seed_gps(trade["db"], a.id, *NEAR)
-    assert a.post(f"/api/settlements/{sid}/shares/me/gps-done").status_code == 200
-    assert a.post(f"/api/settlements/{sid}/shares/me/pay").status_code == 400                         # QR 없이 납부
+    assert a.post("/api/qr/request", {"subjectId": str(a.id), "settlementId": sid}).status_code == 400
+    assert a.post(f"/api/settlements/{sid}/shares/me/qr-done").status_code == 400
+    assert a.post(f"/api/settlements/{sid}/shares/me/pay").status_code == 400
+    location_id = _gps_session(a, *NEAR)
+    assert a.post(f"/api/settlements/{sid}/shares/me/gps-done", {"locationSessionId": location_id}).status_code == 200
+    assert a.post(f"/api/settlements/{sid}/shares/me/pay").status_code == 400
+    _scan_settlement_qr(trade, a)
     assert a.post(f"/api/settlements/{sid}/shares/me/qr-done").status_code == 200
     assert a.post(f"/api/settlements/{sid}/shares/me/pay").status_code == 200
     assert a.post(f"/api/settlements/{sid}/shares/me/pay").status_code == 409                         # 중복 납부
+
+
+def test_settlement_qr_is_scoped_to_organizer_and_settlement(trade, make_user):
+    sid, participant, host = trade["sid"], trade["a"], trade["host"]
+    outsider = make_user("outsider")
+    _appoint(trade)
+    location_id = _gps_session(participant, *NEAR)
+    assert participant.post(f"/api/settlements/{sid}/shares/me/gps-done", {"locationSessionId": location_id}).status_code == 200
+    token = participant.post("/api/qr/request", {"subjectId": str(participant.id), "settlementId": sid}).json()["session"]["token"]
+    assert outsider.post("/api/qr/verify", {"token": token, "settlementId": sid}).status_code == 403
+    assert host.post("/api/qr/verify", {"token": token, "settlementId": sid + 1}).status_code == 403
+    assert host.post("/api/qr/verify", {"token": token, "settlementId": sid}).json()["ok"] is True
+    assert host.post("/api/qr/verify", {"token": token, "settlementId": sid}).json()["ok"] is False
+
+
+def test_settlement_completion_is_atomic_on_insert_failure(trade):
+    sid, host = trade["sid"], trade["host"]
+    _appoint(trade)
+    for user in (trade["a"], trade["b"]):
+        _complete_steps(trade, user)
+        assert user.post(f"/api/settlements/{sid}/shares/me/pay").status_code == 200
+    with sqlite3.connect(trade["db"]) as db:
+        db.execute(f"""CREATE TRIGGER reject_second_trade BEFORE INSERT ON transactions
+            WHEN NEW.settlement_id = {sid} AND NEW.receiver_id = {trade["b"].id}
+            BEGIN SELECT RAISE(ABORT, 'injected failure'); END""")
+    with pytest.raises(sqlite3.IntegrityError):
+        host.post(f"/api/settlements/{sid}/complete")
+    with sqlite3.connect(trade["db"]) as db:
+        assert db.execute("SELECT status FROM settlements WHERE id = ?", (sid,)).fetchone()[0] == "pending"
+        assert db.execute("SELECT COUNT(*) FROM transactions WHERE settlement_id = ?", (sid,)).fetchone()[0] == 0
+
+
+def test_legacy_paid_share_can_reverify_without_changing_payment(trade):
+    sid, host, participant = trade["sid"], trade["host"], trade["a"]
+    _appoint(trade)
+    with sqlite3.connect(trade["db"]) as db:
+        db.execute("UPDATE settlement_shares SET status='paid', gps_verified=1, quality_agreed=1 WHERE settlement_id=? AND user_id=?",
+                   (sid, participant.id))
+    assert host.post(f"/api/settlements/{sid}/shares/{trade['b'].id}/noshow").status_code == 200
+    assert host.post(f"/api/settlements/{sid}/complete").status_code == 409
+    location_id = _gps_session(participant, *NEAR)
+    assert participant.post(f"/api/settlements/{sid}/shares/me/gps-done", {"locationSessionId": location_id}).status_code == 200
+    _scan_settlement_qr(trade, participant)
+    assert participant.post(f"/api/settlements/{sid}/shares/me/qr-done").status_code == 200
+    assert host.post(f"/api/settlements/{sid}/complete").status_code == 200
+    with sqlite3.connect(trade["db"]) as db:
+        assert db.execute("SELECT status FROM settlement_shares WHERE settlement_id=? AND user_id=?", (sid, participant.id)).fetchone()[0] == 'paid'
+
+
+def test_changed_appointment_requires_paid_users_to_reverify(trade):
+    sid, host = trade["sid"], trade["host"]
+    _appoint(trade)
+    for user in (trade["a"], trade["b"]):
+        _complete_steps(trade, user)
+        assert user.post(f"/api/settlements/{sid}/shares/me/pay").status_code == 200
+    _appoint(trade, lat=APPT_LAT + .001, lng=APPT_LNG)
+    assert host.post(f"/api/settlements/{sid}/complete").status_code == 409
+    for user in (trade["a"], trade["b"]):
+        _complete_steps(trade, user, (APPT_LAT + .001, APPT_LNG))
+    assert host.post(f"/api/settlements/{sid}/complete").status_code == 200
 
 
 # ── 전체 흐름: 약속 → GPS → QR → 납부 → 완료 → 평가 ────────────

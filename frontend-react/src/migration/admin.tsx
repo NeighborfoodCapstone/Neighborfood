@@ -35,6 +35,29 @@ export function AdminNav() {
     </nav>
   );
 }
+function OcrControl() {
+  const state = useData("/api/admin/ocr");
+  const action = useAction();
+  return <section className="rx-card" aria-label="OCR 안전 설정">
+    <h2>영수증 OCR 사용량과 긴급 차단</h2>
+    <Load state={state}>
+      {state.data && <>
+        <p>상태: {state.data.enabled ? "사용 중" : "중단됨"}</p>
+        <p>이번 달 전체 예약: {state.data.globalMonthlyUsed} / {state.data.globalMonthlyLimit}회 (UTC)</p>
+        <p>회원별: 일 {state.data.userDailyLimit}회 · 월 {state.data.userMonthlyLimit}회</p>
+        <p className="rx-muted">실패·시간 초과 요청도 한도에 포함됩니다. 네이버 측 차단과 Firewall 사전검증 전에는 개방하지 마세요.</p>
+        <button disabled={action.busy} onClick={() => action.run(async () => {
+          const enabled = !state.data.enabled;
+          if (enabled && !confirm("NAVER 측 보호수단과 Firewall 사전검증을 완료했습니까? 확인 전에는 개방하지 마세요.")) return;
+          await send("/api/admin/ocr", { enabled, acknowledgeExternalSafety: enabled }, "PATCH");
+          state.reload();
+        }, "OCR 설정이 변경되었습니다.")}>{state.data.enabled ? "OCR 긴급 중단" : "사전검증 후 OCR 사용"}</button>
+      </>}
+    </Load>
+    <Feedback {...action} />
+  </section>;
+}
+
 export function Dashboard() {
   const s = useData("/api/admin/dashboard"),
     r = useData("/api/admin/reports"),
@@ -42,6 +65,7 @@ export function Dashboard() {
   return (
     <Page title="관리자 대시보드">
       <AdminNav />
+      <OcrControl />
       <Load state={s}>
         {s.data && (
           <dl className="rx-stats">

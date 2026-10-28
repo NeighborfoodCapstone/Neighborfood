@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from app.core.utils import now_utc, to_iso
 from app.db.transaction_db import get_conn
+from app.db import trade_verification as tv
 
 
 # ── 스키마 마이그레이션 (멱등, 안전망) ────────────────────────────────────────
@@ -101,11 +102,12 @@ def create_settlement(post_id: int, requester_id: int, total_amount: int,
     now = to_iso(now_utc())
 
     with get_conn() as conn:
-        # 게시글에 이미 확정된 약속(장소·시간·좌표)이 있으면 정산이 승계
-        post_appt = conn.execute("""
-            SELECT appointment_place, appointment_at, appointment_lat, appointment_lng
-              FROM posts WHERE id = ?
-        """, (post_id,)).fetchone()
+        tv.begin(conn)
+        # Serialize creation with post-appointment changes and other creations.
+        post_appt = tv.lock_row(conn, "posts", post_id)
+        if conn.execute("SELECT id FROM settlements WHERE post_id = ? AND status IN ('pending', 'completed')",
+                        (post_id,)).fetchone():
+            raise ValueError("이미 이 게시글에 정산이 있습니다.")
         appt_place = post_appt["appointment_place"] if post_appt else None
         appt_at    = post_appt["appointment_at"]    if post_appt else None
         appt_lat   = post_appt["appointment_lat"]   if post_appt else None
@@ -132,90 +134,6 @@ def create_settlement(post_id: int, requester_id: int, total_amount: int,
     return get_settlement(sid)
 
 
-# ── 상태 변경 ────────────────────────────────────────────────────────────────
-
-def mark_paid(settlement_id: int, user_id: int) -> None:
-    """참여자 본인이 납부했음을 표시합니다."""
-    now = to_iso(now_utc())
-    with get_conn() as conn:
-        conn.execute("""
-            UPDATE settlement_shares
-               SET status = 'paid', paid_at = ?
-             WHERE settlement_id = ? AND user_id = ? AND status = 'unpaid'
-        """, (now, settlement_id, user_id))
-        conn.commit()
-
-
-def mark_noshow(settlement_id: int, user_id: int) -> None:
-    """참여자를 노쇼 처리합니다(주최자만 호출)."""
-    with get_conn() as conn:
-        conn.execute("""
-            UPDATE settlement_shares
-               SET status = 'noshow'
-             WHERE settlement_id = ? AND user_id = ?
-        """, (settlement_id, user_id))
-        conn.commit()
-
-
-def revert_noshow(settlement_id: int, user_id: int) -> None:
-    """노쇼 처리를 취소해 unpaid(납부 대기)로 되돌립니다(주최자만 호출).
-    trust_score 복원 및 연결된 pending 노쇼 신고 삭제는 라우터에서 같은 트랜잭션으로 처리합니다."""
-    with get_conn() as conn:
-        conn.execute("""
-            UPDATE settlement_shares
-               SET status = 'unpaid'
-             WHERE settlement_id = ? AND user_id = ? AND status = 'noshow'
-        """, (settlement_id, user_id))
-        conn.commit()
-
-
-def set_quality_agreed(settlement_id: int, user_id: int) -> None:
-    with get_conn() as conn:
-        conn.execute("""
-            UPDATE settlement_shares SET quality_agreed = 1
-             WHERE settlement_id = ? AND user_id = ?
-        """, (settlement_id, user_id))
-        conn.commit()
-
-
-def complete_settlement(settlement_id: int) -> None:
-    now = to_iso(now_utc())
-    with get_conn() as conn:
-        conn.execute("""
-            UPDATE settlements SET status = 'completed', completed_at = ?
-             WHERE id = ? AND status = 'pending'
-        """, (now, settlement_id))
-        conn.commit()
-
-
-def cancel_settlement(settlement_id: int) -> None:
-    with get_conn() as conn:
-        conn.execute("""
-            UPDATE settlements SET status = 'canceled'
-             WHERE id = ? AND status = 'pending'
-        """, (settlement_id,))
-        conn.commit()
-
-
-# ── QR 연동 (품질 동의) ──────────────────────────────────────────────────────
-
-def apply_quality_agreed_for_user(post_id: int, user_id: int) -> None:
-    """해당 게시글의 진행 중 정산에서 user의 share에 quality_agreed=1을 세팅.
-    QR 인증 성공 시 qr.py에서 호출. 정산이 없으면 no-op."""
-    with get_conn() as conn:
-        conn.execute("""
-            UPDATE settlement_shares
-               SET quality_agreed = 1
-             WHERE user_id = ?
-               AND settlement_id IN (
-                   SELECT id FROM settlements
-                    WHERE post_id = ? AND status = 'pending'
-               )
-        """, (user_id, post_id))
-        conn.commit()
-
-
-# ── GPS 자동 확인 ────────────────────────────────────────────────────────────
 
 # ── 약속 장소·시간 (주최자 확정) ─────────────────────────────────────────────
 
@@ -229,7 +147,7 @@ def set_appointment(settlement_id: int,
     실제 100m 이내 여부를 서버에서 검증할 수 있다.
     """
     with get_conn() as conn:
-        conn.execute("""
+        updated = conn.execute("""
             UPDATE settlements
                SET appointment_place = ?,
                    appointment_at    = ?,
@@ -238,164 +156,13 @@ def set_appointment(settlement_id: int,
              WHERE id = ? AND status = 'pending'
         """, ((place or "").strip() or None, (at_iso or "").strip() or None,
                lat, lng, settlement_id))
+        if updated.rowcount != 1:
+            raise ValueError("진행 중인 정산에서만 약속을 변경할 수 있습니다.")
+        conn.execute("""UPDATE settlement_shares SET gps_verified = 0, quality_agreed = 0
+                        WHERE settlement_id = ? AND status IN ('unpaid', 'paid')""", (settlement_id,))
         conn.commit()
 
 
-# ── Step 1: GPS 인증 확인 ────────────────────────────────────────────────────
-
-def has_verified_gps_session(user_id: int) -> bool:
-    """해당 사용자가 소유한 GPS 세션 중 LOCATION_VERIFIED 이상 상태가 있으면 True.
-    location_verify_sessions.subject_id 는 문자열(user_id)로 바인딩된다고 가정한다.
-    QR_ISSUED / QR_VERIFIED 도 GPS 통과 이후 단계이므로 인정한다."""
-    with get_conn() as conn:
-        row = conn.execute("""
-            SELECT 1 FROM location_verify_sessions
-             WHERE subject_id = ?
-               AND status IN ('LOCATION_VERIFIED','QR_ISSUED','QR_VERIFIED')
-               AND verified_at IS NOT NULL
-             LIMIT 1
-        """, (str(user_id),)).fetchone()
-        return row is not None
-
-
-def set_gps_verified(settlement_id: int, user_id: int) -> None:
-    """참여자의 GPS 인증 완료를 기록한다(Step 1)."""
-    with get_conn() as conn:
-        conn.execute("""
-            UPDATE settlement_shares SET gps_verified = 1
-             WHERE settlement_id = ? AND user_id = ?
-        """, (settlement_id, user_id))
-        conn.commit()
-
-
-def verify_participant_gps(user_id: int, appt_lat: float, appt_lng: float,
-                           threshold_m: float = 100.0) -> dict:
-    """참여자의 최근 LOCATION_VERIFIED 세션 좌표와 약속 좌표 간 거리를 서버에서 재검증한다.
-
-    - subject_id = str(user_id) 인 세션 중 가장 최근 인증 성공 기록을 사용한다.
-    - Haversine 거리가 threshold_m(기본 100m) 이내이면 ok=True.
-    - 프론트가 보낸 값을 신뢰하지 않고 DB에 저장된 current_lat/lng으로 재계산한다.
-    """
-    from app.db.location_verify_db import distance_meters
-    with get_conn() as conn:
-        sess = conn.execute("""
-            SELECT current_lat, current_lng, verified_at
-              FROM location_verify_sessions
-             WHERE subject_id = ?
-               AND current_lat  IS NOT NULL
-               AND current_lng  IS NOT NULL
-               AND verified_at  IS NOT NULL
-               AND status IN ('LOCATION_VERIFIED', 'QR_ISSUED', 'QR_VERIFIED')
-             ORDER BY datetime(verified_at) DESC
-             LIMIT 1
-        """, (str(user_id),)).fetchone()
-
-    if not sess:
-        return {
-            "ok": False,
-            "distanceM": None,
-            "reason": (
-                "GPS 인증 기록을 찾을 수 없어요. "
-                "약속 장소 근처에서 GPS 인증을 먼저 완료해 주세요."
-            ),
-        }
-
-    dist = distance_meters(
-        float(sess["current_lat"]), float(sess["current_lng"]),
-        appt_lat, appt_lng,
-    )
-    ok = dist <= threshold_m
-    return {
-        "ok":         ok,
-        "distanceM":  round(dist, 1),
-        "verifiedAt": sess["verified_at"],
-        "reason":     None if ok else (
-            f"약속 장소에서 {round(dist)}m 떨어진 위치에서 인증했어요. "
-            f"허용 반경 {round(threshold_m)}m 이내에서 다시 인증해 주세요."
-        ),
-    }
-
-
-# ── Step 2: QR 인증 확인 ─────────────────────────────────────────────────────
-
-def has_verified_qr_session(user_id: int) -> bool:
-    """해당 사용자를 subject 로 하는 qr_sessions 중 VERIFIED 상태가 있으면 True.
-    subject_id 포맷은 'user_<id>' 또는 순수 '<id>' 를 모두 허용한다."""
-    with get_conn() as conn:
-        row = conn.execute("""
-            SELECT 1 FROM qr_sessions
-             WHERE status = 'VERIFIED'
-               AND (subject_id = ? OR subject_id = ?)
-             LIMIT 1
-        """, (str(user_id), f"user_{user_id}")).fetchone()
-        return row is not None
-
-
-def set_qr_verified(settlement_id: int, user_id: int) -> None:
-    """참여자의 QR 인증 완료(품질 동의)를 기록한다(Step 2)."""
-    with get_conn() as conn:
-        conn.execute("""
-            UPDATE settlement_shares SET quality_agreed = 1
-             WHERE settlement_id = ? AND user_id = ?
-        """, (settlement_id, user_id))
-        conn.commit()
-
-
-# ── 정산 완료 → transactions 연동 ────────────────────────────────────────────
-
-def create_transactions_for_settlement(settlement_id: int) -> List[int]:
-    """정산 완료 시 paid 상태인 참여자마다 transactions 행을 생성합니다.
-
-    - provider_id = 정산 주최자(requester_id)
-    - receiver_id = paid 상태 참여자(settlement_shares.user_id)
-    - status      = 'completed' (즉시 완료 처리 → ratings 평가 가능)
-
-    멱등성: 이미 같은 (post_id, provider_id, receiver_id) 조합이 있으면 생성하지 않고
-    기존 id를 반환합니다.
-
-    noshow 참여자는 제외합니다 (실제 수령이 없으므로 거래 내역 불포함).
-    """
-    now = to_iso(now_utc())
-    tx_ids: List[int] = []
-
-    with get_conn() as conn:
-        stl = conn.execute(
-            "SELECT id, post_id, requester_id, appointment_at FROM settlements WHERE id = ?",
-            (settlement_id,),
-        ).fetchone()
-        if not stl:
-            return []
-
-        paid_shares = conn.execute(
-            "SELECT user_id FROM settlement_shares WHERE settlement_id = ? AND status = 'paid'",
-            (settlement_id,),
-        ).fetchall()
-
-        for share in paid_shares:
-            participant_id = share["user_id"]
-            # 멱등 체크: 동일 조합 행이 이미 있으면 기존 id 반환
-            existing = conn.execute(
-                """SELECT id FROM transactions
-                    WHERE post_id = ? AND provider_id = ? AND receiver_id = ?""",
-                (stl["post_id"], stl["requester_id"], participant_id),
-            ).fetchone()
-            if existing:
-                tx_ids.append(existing["id"])
-                continue
-
-            cur = conn.execute(
-                """INSERT INTO transactions
-                       (post_id, provider_id, receiver_id, status,
-                        appointment_at, completed_at, created_at)
-                   VALUES (?, ?, ?, 'completed', ?, ?, ?)""",
-                (stl["post_id"], stl["requester_id"], participant_id,
-                 stl["appointment_at"], now, now),
-            )
-            tx_ids.append(cur.lastrowid)
-
-        conn.commit()
-
-    return tx_ids
 
 
 # ── 참여 차단 체크 ───────────────────────────────────────────────────────────
@@ -444,12 +211,12 @@ def get_participant_gps_details(settlement_id: int) -> List[Dict[str, Any]]:
             sess = conn.execute("""
                 SELECT distance_m, radius_m, verified_at, status
                   FROM location_verify_sessions
-                 WHERE subject_id = ?
+                 WHERE subject_id = ? AND settlement_id = ?
                    AND status IN ('LOCATION_VERIFIED','QR_ISSUED','QR_VERIFIED')
                    AND verified_at IS NOT NULL
                  ORDER BY datetime(verified_at) DESC
                  LIMIT 1
-            """, (str(uid),)).fetchone()
+            """, (str(uid), settlement_id)).fetchone()
 
             dist   = float(sess["distance_m"]) if sess and sess["distance_m"] is not None else None
             radius = float(sess["radius_m"])   if sess and sess["radius_m"]   is not None else None
