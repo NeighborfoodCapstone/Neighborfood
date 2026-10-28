@@ -22,6 +22,8 @@ export function QR({ q }: { q: URLSearchParams }) {
   const [now,setNow] = useState(Date.now());
   const history = useData("/api/qr/my-history?limit=50");
   const settlement=q.get("settlementId");
+  const tradeId=q.get("transactionId");
+  const scope = settlement ? { settlementId: Number(settlement) } : tradeId ? { transactionId: Number(tradeId) } : {};
   const transaction = useData(settlement ? `/api/settlements/${encodeURIComponent(settlement)}` : null);
   const myShare = transaction.data?.settlement?.shares?.find((s:Row)=>s.userId===uid());
   const paymentFlow=q.get("returnTo")==="payment";
@@ -42,20 +44,21 @@ export function QR({ q }: { q: URLSearchParams }) {
       let token=value.trim();
       try { const url=new URL(token); const params=new URLSearchParams(url.hash.split("?")[1]);token=params.get("token") || url.pathname.split("/verify/")[1] || token; } catch { /* token input */ }
       try {
-        const d=await send("/api/qr/verify",{rawValue:token});
+        const d=await send("/api/qr/verify",{rawValue:token,...scope});
         setScanStatus("success");setResult(d);setLocalScans(xs=>[{id:d.session?.id,at:new Date().toISOString(),message:d.message,ok:true},...xs].slice(0,20));history.reload();
       } catch(e) {setScanStatus("error");setLocalScans(xs=>[{at:new Date().toISOString(),message:e instanceof Error?e.message:"인증 실패",ok:false},...xs].slice(0,20));throw e;}
     },"QR 인증이 완료되었습니다.");
   }
   async function issue() {
     setLinkWarning("");
-    const d=await send("/api/qr/request",{subjectId:String(uid()),purpose,ttlSeconds:Number(ttl)});
+    const d=await send("/api/qr/request",{subjectId:String(uid()),purpose,ttlSeconds:Number(ttl),...scope});
     setIssued(d.session);setNow(Date.now());setImage("");setCopied("");history.reload();
-    setImage(await QRCode.toDataURL(location.origin+location.pathname+href("QR_Scan",{token:d.session.token}),{width:400,margin:3,errorCorrectionLevel:"M"}));
-    if(loc)try {await send(`/api/location-verify/${encodeURIComponent(loc)}/qr-issued`,{qrSessionId:d.session.id});}catch {setLinkWarning("QR은 발급됐지만 위치 인증 기록 연결에 실패했습니다. GPS 인증 상태를 확인해 주세요.");}
+    setImage(await QRCode.toDataURL(location.origin+location.pathname+href("QR_Scan",{token:d.session.token,transactionId:tradeId,settlementId:settlement}),{width:400,margin:3,errorCorrectionLevel:"M"}));
+    if(loc && !tradeId && !settlement)try {await send(`/api/location-verify/${encodeURIComponent(loc)}/qr-issued`,{qrSessionId:d.session.id});}catch {setLinkWarning("QR은 발급됐지만 위치 인증 기록 연결에 실패했습니다. GPS 인증 상태를 확인해 주세요.");}
   }
   return <Page title="QR 거래 인증">
     <div className="rx-qr-workspace">
+    {tradeId && <p className="rx-muted">거래 #{tradeId} · 신청자는 위치 인증 후 QR을 발급하고 제공자가 스캔합니다.</p>}
     {settlement && <p className="rx-muted">정산 #{settlement} · 내 QR을 발급해 거래 상대에게 보여 주세요. 상대방이 스캔하면 인증 상태를 확인할 수 있습니다.</p>}
     {myShare && <section className="rx-card"><strong>공동구매 정산 #{settlement}</strong><p>{myShare.nickname} · {Number(myShare.amount).toLocaleString("ko-KR")}원</p><p>거래 QR 인증: {myShare.qualityAgreed ? "완료" : "대기"}</p></section>}
     <Feedback error={transaction.error} />
@@ -118,6 +121,7 @@ export function QR({ q }: { q: URLSearchParams }) {
       await api(`/api/settlements/${settlement}/shares/me/qr-done`,{method:"POST"});
       location.hash=href(paymentFlow?"Payment_Checkout":"Settlement",{settlementId:settlement});
     })}>{paymentFlow?"인증 확인 후 결제로 계속":"정산에 인증 결과 반영"}</button><a href={href(paymentFlow?"Payment_Checkout":"Settlement",{settlementId:settlement})}>돌아가기</a></div>}
+    {tradeId && <a href={href("My_Activity")}>거래 상태로 돌아가기</a>}
     </div>
   </Page>;
 }

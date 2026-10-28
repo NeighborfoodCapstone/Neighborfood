@@ -1,5 +1,7 @@
 # Neighborfood Supabase 전환 패치 적용 안내
 
+> **후속 변경:** 이 문서는 초기 `001` 전환 당시의 이력이다. 현재 코드에는 `002_ocr_guard.sql`과 `003_trade_verification.sql`도 필요하다. 기존 `scripts/supabase_migrate.py`는 `001` 전용이며 후속 파일을 적용하지 않는다. 백업·격리 리허설·배포 순서·실환경 미검증 사항은 [`INTEGRATION_REPORT.md`](INTEGRATION_REPORT.md)를 먼저 확인한다. OCR은 사전검증 전 중단한다.
+
 기준: GitHub main `28190b45ab4d17684c021252a39193a9acd39440`.
 기존 화면·URL·필드·Bear​​er 로그인·테스트 결제 흐름을 유지한다. PostgreSQL을 사용할 때만 공통 DB 연결 계층에서 현재 SQL의 SQLite 문법을 변환한다. 기존 SQLite 모드도 유지한다.
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Scanner } from "./Scanner";
 import {
   Page,
@@ -21,12 +21,14 @@ export function Receipt() {
     [added, setAdded] = useState(false);
   const [preview, setPreview] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
+  const requestKey = useRef("");
   useEffect(() => {
     if (!file) { setPreview(""); return; }
     const url = URL.createObjectURL(file); setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
   function chooseFile(next: File | null) {
+    requestKey.current = next ? crypto.randomUUID() : "";
     setFile(next); setScan(null); setItems([]); setReceipt(null); setAdded(false);
   }
   const update = (i: number, k: string, v: unknown) =>
@@ -45,6 +47,7 @@ export function Receipt() {
             fd.append("file", file);
             const d = await api("/api/receipt/scan?subjectId=" + uid(), {
               method: "POST",
+              headers: { "Idempotency-Key": requestKey.current },
               body: fd,
             });
             setScan(d.scan);
@@ -59,7 +62,7 @@ export function Receipt() {
           저장된 영수증 사진 선택
           <input
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/tiff"
             onChange={(e) => chooseFile(e.target.files?.[0] || null)}
             disabled={a.busy}
           />
@@ -71,12 +74,17 @@ export function Receipt() {
         </button>
       </Form>
       <Feedback {...a} busyLabel={analyzing ? "영수증 인식 중…" : "인증 정보를 저장하는 중…"} />
+      <button type="button" disabled={a.busy} onClick={() => {
+        setScan({ id: null, store: "", purchasedAt: "", total: 0 });
+        setItems([{ name: "", qty: 1, price: 0, selected: true }]);
+        setReceipt(null); setAdded(false);
+      }}>자동 분석 대신 직접 입력</button>
+      <p className="rx-muted">자동 분석이 중단되었거나 한도를 초과한 경우 품목을 직접 입력할 수 있습니다. 수동 입력이나 품목이 인식되지 않은 영수증은 신뢰온도를 올리지 않습니다.</p>
       {scan && (
         <>
-          <h2>{scan.store || "매장명 미인식"}</h2>
-          <p>
-            {scan.purchasedAt} · {money(scan.total)}
-          </p>
+          <h2>{scan.store || (scan.id ? "매장명 미인식" : "품목 직접 입력")}</h2>
+          {scan.id ? <p>{scan.purchasedAt} · {money(scan.total)}</p> :
+            <p>품목명과 금액을 확인한 뒤 인증하세요.</p>}
           {!items.length && (
             <p>인식된 품목이 없습니다. 사진을 다시 촬영해 주세요.</p>
           )}
@@ -141,9 +149,14 @@ export function Receipt() {
               </tbody>
             </table>
           </div>
+          {!receipt && <button type="button" onClick={() =>
+            setItems((xs) => [...xs, { name: "", qty: 1, price: 0, selected: true }])
+          }>품목 추가</button>}
+          {!receipt && !items.some((x) => x.selected && x.name.trim()) &&
+            <p className="rx-muted" role="status">인증하려면 품목명을 입력하고 하나 이상 선택해 주세요.</p>}
           <button
             className="rx-primary"
-            disabled={a.busy || !!receipt || !items.some((x) => x.selected)}
+            disabled={a.busy || !!receipt || !items.some((x) => x.selected && x.name.trim())}
             onClick={() =>
               a.run(async () => {
                 const d = await send("/api/receipt/verify", {
@@ -152,7 +165,7 @@ export function Receipt() {
                   store: scan.store,
                   purchasedAt: scan.purchasedAt,
                   items: items
-                    .filter((x) => x.selected)
+                    .filter((x) => x.selected && x.name.trim())
                     .map(({ name, qty, price }) => ({ name, qty, price })),
                 });
                 setReceipt(d.receipt);

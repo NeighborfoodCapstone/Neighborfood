@@ -317,22 +317,24 @@ export function Neighborhood() {
 export function LocationVerify({ q }: { q: URLSearchParams }) {
   const a = useAction(),
     settlementId = q.get("settlementId"),
-    s = useData(settlementId ? "/api/settlements/" + settlementId : null),
+    transactionId = q.get("transactionId"),
+    s = useData(settlementId ? "/api/settlements/" + settlementId : transactionId ? "/api/transactions" : null),
     [target, setTarget] = useState<{ lat: number; lng: number }>(),
     [session, setSession] = useState<Row | null>(null),
     [verified, setVerified] = useState(false);
-  const lat = s.data?.settlement?.appointmentLat,
-    lng = s.data?.settlement?.appointmentLng;
+  const transaction = transactionId ? s.data?.items?.find((item: Row) => String(item.id) === transactionId) : null;
+  const lat = settlementId ? s.data?.settlement?.appointmentLat : transaction?.targetLat,
+    lng = settlementId ? s.data?.settlement?.appointmentLng : transaction?.targetLng;
   const point =
-    settlementId && lat != null && lng != null
+    (settlementId || transactionId) && lat != null && lng != null
       ? { lat: Number(lat), lng: Number(lng) }
       : target;
   return (
     <Page title="GPS 위치 인증">
       <Load state={s}>
-        <p>약속 장소 반경 100m 이내인지 확인합니다.</p>
+        <p>약속 장소 반경 100m 이내와 GPS 정확도 ±100m 이내를 확인합니다.</p>
         {point && <MapView points={[point]} center={point} />}{" "}
-        {!settlementId && (
+        {!settlementId && !transactionId && (
           <Form
             onSubmit={(f) => {
               const lat = String(f.get("lat") || ""),
@@ -347,8 +349,8 @@ export function LocationVerify({ q }: { q: URLSearchParams }) {
             <button>거래 장소 설정</button>
           </Form>
         )}
-        {settlementId && !point && (
-          <p>주최자가 약속 좌표를 먼저 설정해야 합니다.</p>
+        {(settlementId || transactionId) && !point && (
+          <p>제공자가 약속 좌표를 먼저 설정해야 합니다.</p>
         )}
         <Feedback {...a} />
         <button
@@ -358,26 +360,27 @@ export function LocationVerify({ q }: { q: URLSearchParams }) {
             a.run(async () => {
               if (!point) return;
               const p = await locate();
-              const issued =
-                session ||
-                (
-                  await send("/api/location-verify/dummy-target", {
-                    ...point,
-                    radiusM: 100,
-                    address: s.data?.settlement?.appointmentPlace || "",
-                  })
-                ).session;
+              if (transactionId) {
+                const result = await send("/api/transactions/" + transactionId + "/gps", p);
+                setSession({ id: result.sessionId });
+                setVerified(true);
+                return;
+              }
+              const issued = (await send("/api/location-verify/dummy-target", {
+                ...point,
+                radiusM: 100,
+                address: s.data?.settlement?.appointmentPlace || "",
+              })).session;
               setSession(issued);
               await send("/api/location-verify/" + issued.id + "/gps-check", {
                 ...p,
                 radiusM: 100,
-                accuracyLimitM: 1500,
+                accuracyLimitM: 100,
               });
               if (settlementId)
-                await api(
-                  "/api/settlements/" + settlementId + "/shares/me/gps-done",
-                  { method: "POST" },
-                );
+                await send("/api/settlements/" + settlementId + "/shares/me/gps-done", {
+                  locationSessionId: issued.id,
+                });
               sessionStorage.setItem("nf_location_session", issued.id);
               setVerified(true);
             }, "위치 인증이 완료되었습니다.")
@@ -390,6 +393,7 @@ export function LocationVerify({ q }: { q: URLSearchParams }) {
             className="rx-primary"
             href={href("QR_Scan", {
               locationSessionId: session.id,
+              transactionId,
               settlementId,
               mode: "issue",
               returnTo: q.get("returnTo"),

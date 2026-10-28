@@ -4,6 +4,7 @@ from pydantic          import BaseModel, Field
 from app.core.deps     import get_current_admin
 from app.core.utils    import now_utc, to_iso
 from app.db.admin_db   import get_conn
+from app.db            import ocr_guard
 
 router = APIRouter()
 
@@ -18,6 +19,33 @@ class UserPatch(BaseModel):
 
 class ReportPatch(BaseModel):
     status: str = Field(..., pattern=r"^(resolved|dismissed)$")
+
+class OcrSwitch(BaseModel):
+    enabled: bool
+    acknowledgeExternalSafety: bool = False
+
+
+@router.get("/ocr")
+async def ocr_usage(admin: dict = Depends(get_current_admin)):
+    try:
+        return ocr_guard.usage()
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(503, "OCR 안전 설정을 확인할 수 없습니다.") from None
+
+
+@router.patch("/ocr")
+async def ocr_switch(body: OcrSwitch, admin: dict = Depends(get_current_admin)):
+    if body.enabled and not body.acknowledgeExternalSafety:
+        raise HTTPException(400, "NAVER 보호수단과 Firewall 사전검증 확인이 필요합니다.")
+    try:
+        ocr_guard.set_enabled(admin["id"], body.enabled)
+        return ocr_guard.usage()
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(503, "OCR 설정을 변경할 수 없습니다.") from None
 
 
 # ── 대시보드 요약 ────────────────────────────────────────────────────────

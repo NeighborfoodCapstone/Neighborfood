@@ -176,8 +176,8 @@
     </div>
     <form id="issueForm" class="mt-4 grid grid-cols-2 gap-2">
      <label class="col-span-2 block">
-      <span class="text-[11px] font-bold text-on-surface-variant">거래/사용자 ID</span>
-      <input id="subjectId" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 text-[13px] outline-none focus:border-primary" value="pickup_001" />
+      <span class="text-[11px] font-bold text-on-surface-variant">발급 계정 ID</span>
+      <input id="subjectId" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 text-[13px] outline-none focus:border-primary" readonly />
      </label>
      <label class="block">
       <span class="text-[11px] font-bold text-on-surface-variant">목적</span>
@@ -230,6 +230,11 @@ const API_ENDPOINTS = {
  // 404를 유발하던 미사용 정의를 삭제. 상태 확인은 /api/qr/history 로 대체 가능.
 };
 const LOCAL_HISTORY_KEY = "neighborfood.qrScan.localHistory.v1";
+const qrScope = new URLSearchParams(location.search);
+function tradeScope() {
+ const transactionId = qrScope.get("transactionId"), settlementId = qrScope.get("settlementId");
+ return transactionId ? { transactionId: Number(transactionId) } : settlementId ? { settlementId: Number(settlementId) } : {};
+}
 
 let currentMode = "scan";
 let qrScanner = null;
@@ -412,7 +417,7 @@ async function setMode(mode) {
 async function apiJson(url, options = {}) {
  const res = await fetch(url, {
   ...options,
-  headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+  headers: { "Content-Type": "application/json", ...((localStorage.getItem("nf_token") || sessionStorage.getItem("nf_token")) ? { Authorization: "Bearer " + (localStorage.getItem("nf_token") || sessionStorage.getItem("nf_token")) } : {}), ...(options.headers || {}) }
  });
  const data = await res.json().catch(() => ({}));
  if (!res.ok) throw new Error(data.detail || data.message || `HTTP ${res.status}`);
@@ -421,18 +426,13 @@ async function apiJson(url, options = {}) {
 async function issueSession({ subjectId, purpose, ttlSeconds }) {
  const data = await apiJson(API_ENDPOINTS.request, {
   method:"POST",
-  body: JSON.stringify({ subjectId, purpose, ttlSeconds })
+  body: JSON.stringify({ subjectId, purpose, ttlSeconds, ...tradeScope() })
  });
  if (!data.ok || !data.session) throw new Error(data.message || "QR 발급 실패");
  return data.session;
 }
 
-// GPS 위치 인증 세션과 방금 발급한 QR 세션을 연결한다.
-// - locationSessionId가 URL로 전달됐고(=GPS 인증을 거쳐 온 흐름), 로그인 상태일 때만 호출한다.
-//   (선택 2-A: 비로그인 스캔/발급 기능은 그대로 유지. 인증 실패는 QR 발급을 막지 않는다.)
-// - 성공 시 백엔드가 GPS 세션에 qr_session_id를 기록하고 상태를 QR_ISSUED로 바꾼다.
-//   이후 상대가 이 QR을 검증하면 qr.py가 GPS 세션을 QR_VERIFIED로 갱신한다.
-// - Authorization 헤더는 shared/auth.js의 fetch 래퍼가 자동 주입한다.
+// 일반 GPS 세션과 본인이 발급한 QR을 선택적으로 연결한다.
 async function linkLocationSessionToQr(qrSession) {
  try {
   if (!nfLocationSessionId) return;                       // GPS 흐름이 아니면 skip
@@ -538,7 +538,7 @@ async function verifyRaw(rawValue, options = {}) {
  $("statusText").textContent = "검증 요청 중...";
  const data = await apiJson(API_ENDPOINTS.verify, {
   method:"POST",
-  body: JSON.stringify({ rawValue: value })
+  body: JSON.stringify({ rawValue: value, ...tradeScope() })
  });
  showVerifyResult(data, value, { source });
  renderHistory();
@@ -728,7 +728,7 @@ $("issueForm").addEventListener("submit", async (event) => {
  const subjectId = $("subjectId").value.trim();
  const purpose = $("purpose").value;
  const ttlSeconds = Number($("ttlSeconds").value);
- if (!subjectId || subjectId.length < 2) {
+ if (!subjectId) {
   alert("거래/사용자 ID를 입력하세요.");
   return;
  }
@@ -784,8 +784,7 @@ function nfSetupSettlementFlow() {
  const q = new URLSearchParams(location.search);
  const settlementId = q.get("settlementId");
  if (!settlementId) return;
- const subjectId = q.get("subjectId") || "";
- // 참여자 subjectId 프리필 (QR 발급 대상)
+ const subjectId = localStorage.getItem("nf_userId") || sessionStorage.getItem("nf_userId") || "";
  if (subjectId) { const el = $("subjectId"); if (el) el.value = subjectId; }
  // 상단에 정산 복귀 바 삽입
  const bar = document.createElement("div");
@@ -802,6 +801,7 @@ function nfSetupSettlementFlow() {
 }
 
 async function initPage() {
+ $("subjectId").value = localStorage.getItem("nf_userId") || sessionStorage.getItem("nf_userId") || "";
  initSheetDrag();
  renderHistory();
  setSheetHeight(24);

@@ -8,7 +8,7 @@
 import os
 from contextlib              import asynccontextmanager
 from pathlib                 import Path
-from fastapi                 import FastAPI
+from fastapi                 import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles     import StaticFiles
 from fastapi.responses       import FileResponse, HTMLResponse, RedirectResponse
@@ -68,12 +68,20 @@ app = FastAPI(
 # ── 정적 파일 서빙 ─────────────────────────────────────────────────────────
 if os.getenv("VERCEL") and not storage.enabled():
     raise RuntimeError("SUPABASE_URL and SUPABASE_SECRET_KEY are required on Vercel")
-if storage.enabled():
-    storage.config()
-    @app.get("/uploads/{filename}")
-    def upload_image(filename: str):
+@app.get("/uploads/{filename}")
+def upload_image(filename: str):
+    # Legacy local receipts used this public directory; serve them only through
+    # the authenticated receipt image endpoint, including on case-insensitive FS.
+    if filename.lower().startswith("receipt_") or filename != os.path.basename(filename):
+        raise HTTPException(404, "이미지를 찾을 수 없습니다.")
+    if storage.enabled():
         return RedirectResponse(storage.public_url(filename), status_code=307)
-else:
+    path = os.path.join(UPLOAD_DIR, filename)
+    if not os.path.isfile(path):
+        raise HTTPException(404, "이미지를 찾을 수 없습니다.")
+    return FileResponse(path)
+
+if not storage.enabled():
     app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.mount("/frontend", StaticFiles(directory=PAGE_DIR),   name="frontend")
 app.mount("/shared",   StaticFiles(directory=os.path.join(PAGE_DIR, "shared")), name="shared")

@@ -103,15 +103,15 @@
 - (해결됨) **공동구매 인원 정합성**: `posts.py`의 `join_groupbuy`가 `SET gb_current = gb_current + 1 WHERE ... AND gb_current < gb_target` 원자적 UPDATE로 전환 완료(2026-07-09). 단, 참여 취소(cancel) 흐름은 아직 미정의.
 - (해결됨) **trust_score 레이스**: `ratings.py`에서 `SET trust_score = MIN(99, MAX(0, trust_score + ?))` 원자적 UPDATE 적용 완료. 매너 평가 기능 자체도 구현 완료.
 - **SQLite 동시성**: 채팅 폴링(4초) + 정산·평가 쓰기 경합 시 `database is locked` 드물게 발생 가능. WAL + `busy_timeout`으로 완화 중.
-- **배포 보안**: 도메인 제한·토큰 취급 정책은 시연/개발 수준. `main.py`가 `.env`의 `ALLOWED_ORIGINS`로 CORS를 동적 분기하도록 준비 완료(2026-09-12, 미설정 시 `*` 유지) — **배포 시 실제 도메인 값 입력 필요**(2026-09-14: `frontend-react/`가 서빙되는 도메인도 함께 추가해야 함. 2026-09-21: 정적 빌드(`dist`) 배포 시에는 Vite 프록시가 없으므로 같은 API 프록시를 배포 서버에 구성하거나 `VITE_API_BASE_URL`로 공개 API 주소를 지정해야 함). **2026-09-30 진행**: 배포 서버(Oracle Cloud Micro)에 백엔드를 systemd 서비스로 배치하고 서버 `.env`에 `ALLOWED_ORIGINS=https://neighborfood.duckdns.org`를 반영함(도메인 `neighborfood.duckdns.org` 확정). Nginx 프록시·HTTPS·`dist/` 서빙은 미완료. `seed_admin.py` 기본 비밀번호(`admin0000`)는 앱에 비밀번호 변경 API가 없어 바꾸기 어려우므로, 기본 계정을 만들지 말고 일반 가입 후 `python seed_admin.py <login_id>`로 승격하는 방식을 권장.
+- **배포 보안**: CORS·토큰 정책과 실제 배포 도메인을 운영 환경에서 확인해야 한다. 관리자 계정은 일반 가입 후 `python seed_admin.py promote`로 대화형 승격하고 시연 종료 후 `revoke`로 회수한다. 과거 기본 자격증명 사용 여부는 관리자가 확인한다.
 - **배포 방식 미확정 (2026-10-12 신규)**: Oracle 유지 / Vercel+Supabase 전환 중 하나를 10/16에 확정(부하테스트 후). 두 방식 모두 코드에서 지원되지만 Supabase 쪽은 실제 연결·Vercel 배포가 검증되지 않았음. 확정 전에는 **기존 SQLite·로컬 `uploads/` 동작을 깨지 않는 변경만** 한다.
 - **PostgreSQL 모드 스키마 누락 가능성 (2026-10-12, 정적 점검)**: `migrations/001_supabase.sql`은 `28190b4` 시점 초기화 스키마라 SQLite에서만 지연 `ALTER`로 추가되는 `messages.is_system`이 빠져 있고, PostgreSQL 모드는 DDL을 실행하지 않으므로 공동구매 참여 취소(그룹 채팅방이 있는 경우)의 시스템 메시지 삽입이 실패할 수 있음. 향후 스키마 변경(컬럼 추가)이 생기면 SQLite용 `ALTER`와 별개로 `migrations/`에도 반영해야 함. 실제 Supabase에서 검증·보완 필요.
 - **이미지 업로드 4MB 제한 (2026-10-12)**: 한 요청의 이미지 합계가 4MB를 넘으면 413. Oracle(Nginx 20MB) 방식에서도 코드 제한이 적용되므로 최대 10장 사진 등록 시 합계 용량에 주의.
-- **OCR 환경 의존**: 실제 OCR 구동을 위해 서버에 `tesseract` 설치 필요. 미설치 시 데모 폴백.
+- **OCR 환경 의존**: 자동 분석은 기본 중단이며 CLOVA 서버 설정과 전역 한도 및 외부 보호수단 사전검증이 필요하다. 미설정·오류 시 수동 입력을 사용한다.
 - (해결됨) **Kakao 키 하드코딩**: 전 화면 `/api/config/kakao-key` 동적 로드로 전환 완료(2026-08-03). 단, 이미 노출된 이력이 있는 키라면 GitHub 공개 전 카카오 개발자 콘솔에서 키 재발급 권장.
 - (해결됨) **GPS 위치 인증 무인증 공개**: 전 API 인증 필수 + 소유자 검증 + 이력 본인 필터로 전환 완료(2026-08-03).
 - (해결됨) **GPS self-referencing 버그**: 기존엔 참여자가 자신의 현재 위치를 target으로 만들어 항상 통과됐으나, 2026-08-07 수정으로 주최자 약속 좌표를 target으로 고정하고 서버 Haversine 재검증(≤100m)으로 전환 완료.
-- (해결됨) 관리자 계정 생성 → `seed_admin.py`: `python seed_admin.py`(admin 생성) / `python seed_admin.py <login_id>`(기존 계정 승격). 전화번호 충돌 시 명확한 에러 메시지, 재실행해도 안전(멱등). 2026-09-12 복원 및 테스트 완료.
+- **시연 관리자**: `seed_admin.py promote` / `revoke`는 기존 계정의 권한을 대화형으로 변경한다. 기본 계정이나 비밀번호를 생성하지 않는다.
 - **프런트엔드 이원화 (2026-09-14 신규, 2026-09-21 갱신)**: `frontend/`(정적 HTML)와 `frontend-react/`(React, 화면 39개 이전)가 병행 보존됨. React는 자체 로그인(`auth.tsx`)과 토큰 처리(`core.tsx`)를 가지며, 두 프런트엔드는 접속 출처가 달라 `localStorage` 토큰이 공유되지 않으므로 React에서 별도 로그인이 필요함(인증 공유 문제는 각자 로그인 방식으로 정리). 정적 HTML은 최종 점검 전까지 유지하며 이후 처리 방식은 미결정.
 # Response Rules
  
@@ -327,11 +327,11 @@ NEIGHBORFOOD/
 * **Frontend(React, 2026-09-14 신규 → 2026-09-20~21 전체 이전):** `cd frontend-react && npm ci && npm run dev` → [http://localhost:5173](http://localhost:5173) (Vite 기본 포트, 화면은 `/#/화면명` 해시 경로). 백엔드(`uvicorn main:app`, 8000번)가 먼저 실행 중이어야 하며 Vite 서버가 API 요청을 프록시함. 프록시 대상은 `NEIGHBORFOOD_BACKEND`, 공개 API 주소 직접 지정은 `VITE_API_BASE_URL`(필요 시 `frontend-react/.env.local`). React와 정적 HTML은 접속 출처가 달라 로그인 상태가 공유되지 않으므로 React에서 별도 로그인. 기타: `npm run build`(`tsc -b && vite build`), `npm run lint`(oxlint), `npm run preview`
 * **Backend / AI:** `uvicorn main:app --reload`
 * **더미 데이터:** ~~`python seed_posts.py`~~ (⚠️ 2026-09-08 기준 저장소에 미존재)
-* **관리자 계정:** `python seed_admin.py` (신규 생성, login_id=Admin/pw=admin0000) / `python seed_admin.py <login_id>` (기존 계정 승격) — 2026-09-12 복원
+* **관리자 계정:** 일반 가입 후 `python seed_admin.py promote`, 시연 종료 후 `python seed_admin.py revoke` (대화형).
 * **영수증 파서 테스트 [신규]:** `python tests/test_receipt_parser_v212.py`
 * **PortOne 테스트 결제 테스트 [신규 2026-10-05]:** `python -m pytest tests/test_portone.py` (pytest 필요 — `requirements.txt`에 없으므로 `pip install pytest`, 외부 API mock, 팀원 문서 `docs/PORTONE_TEST_SETUP.md` — ⚠️ 2026-09-28 기준 작성본이라 `quick-prepare`·`Payment_Quick`/`Payment_Preview`(2026-10-05 추가)를 반영하지 않고 API를 3종으로 기술함 — 현행 API는 4종(팀원 문서는 수정하지 않음))
 * **API 자동화 테스트 [신규 2026-10-08, 2026-10-12 갱신]:** `pip install pytest httpx` 후 `python -m pytest tests -q` — 임시 SQLite DB 사용(실제 `data/neighborfood.db` 미변경). 비밀번호 변경·공개 공지·게시글 수정 확장·정산 흐름 12개(10/08) + Supabase 저장소 라우팅·영수증 소유권 3개(10/12, 외부 서비스 mock — 실제 Supabase 연결 검증 아님). **전체 32개 통과(2026-10-12 확인)**
 * **Supabase 선택 모드 [신규 2026-10-12]:** `python scripts/configure_supabase.py`(비밀번호·secret key 숨김 입력, `.env` 기록) → `python scripts/supabase_migrate.py`(빈 DB에 스키마 적용) → `python scripts/check_supabase.py`(연결·버전·버킷 점검) → (선택) `python scripts/import_sqlite.py data/neighborfood.db` · `python scripts/import_uploads.py uploads`. 전체 절차·롤백·Vercel 환경변수는 `docs/SUPABASE_MIGRATION.md`
 * **API 문서:** `http://127.0.0.1:8000/docs`
 * **DB 초기화:** 서버 startup 시 `init_all_databases()`가 `neighborfood.db`를 자동 생성
-* **DB 데이터 전체 삭제 + Admin 재생성:** `python reset_db.py` (`--yes` 확인 생략, `--pw <비밀번호>` Admin 비밀번호 지정) — ⚠️ 전 데이터 삭제, 서버 종료 후 실행
+* **DB 데이터 전체 삭제:** `python reset_db.py` — 테스트용 SQLite만, 비밀번호 대화형 입력. 운영 데이터에는 실행하지 않는다.

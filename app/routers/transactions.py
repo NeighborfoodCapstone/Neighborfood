@@ -1,6 +1,9 @@
 import json
+import secrets
 from fastapi              import APIRouter, HTTPException, Depends, Query
 from typing               import Optional
+from pydantic            import BaseModel
+from app.db              import trade_verification as tv
 from app.core.deps        import get_current_user
 from app.core.utils       import now_utc, to_iso
 from app.db.transaction_db import get_conn, row_to_dict
@@ -21,12 +24,15 @@ def _enrich(conn, row) -> dict:
     """거래 행에 게시글 제목·이미지·유형, 상대방 닉네임을 붙여 응답용으로 가공."""
     d = row_to_dict(row)
     post = conn.execute(
-        "SELECT title, type, images, status FROM posts WHERE id = ?", (row["post_id"],)
+        "SELECT title, type, images, status, appointment_lat, appointment_lng, appointment_place FROM posts WHERE id = ?", (row["post_id"],)
     ).fetchone()
     if post:
         d["postTitle"]  = post["title"]
         d["postType"]   = post["type"]
         d["postStatus"] = post["status"]
+        d["targetLat"] = post["appointment_lat"]
+        d["targetLng"] = post["appointment_lng"]
+        d["appointmentPlace"] = post["appointment_place"]
         try:
             imgs = json.loads(post["images"] or "[]")
         except json.JSONDecodeError:
@@ -44,6 +50,10 @@ def _enrich(conn, row) -> dict:
 
     d["providerNickname"] = _nick(row["provider_id"])
     d["receiverNickname"] = _nick(row["receiver_id"])
+    gps = conn.execute("""SELECT verified_at FROM location_verify_sessions
+        WHERE transaction_id = ? AND subject_id = ? AND verified_at IS NOT NULL
+        ORDER BY verified_at DESC LIMIT 1""", (row["id"], str(row["receiver_id"]))).fetchone()
+    d["gpsVerifiedAt"] = gps["verified_at"] if gps else None
     return d
 
 
@@ -84,9 +94,8 @@ async def create_transaction(body: TransactionCreate, user: dict = Depends(get_c
     """게시글에 대해 거래를 생성합니다. provider = 글 작성자, receiver = 신청자(나)."""
     now = to_iso(now_utc())
     with get_conn() as conn:
-        post = conn.execute(
-            "SELECT author_id, status FROM posts WHERE id = ?", (body.post_id,)
-        ).fetchone()
+        tv.begin(conn)
+        post = tv.lock_row(conn, "posts", body.post_id)
         if not post or post["status"] == "deleted":
             raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
         if post["author_id"] == user["id"]:
@@ -118,13 +127,18 @@ async def update_transaction(tx_id: int, body: TransactionUpdate,
                              user: dict = Depends(get_current_user)):
     """거래 상태를 전환합니다. 거래 당사자만 가능하며 허용된 전이만 적용됩니다."""
     with get_conn() as conn:
-        tx = conn.execute("SELECT * FROM transactions WHERE id = ?", (tx_id,)).fetchone()
+        tv.begin(conn)
+        tx = tv.lock_row(conn, "transactions", tx_id)
         if tx is None:
             raise HTTPException(status_code=404, detail="거래를 찾을 수 없습니다.")
         if user["id"] not in (tx["provider_id"], tx["receiver_id"]):
             raise HTTPException(status_code=403, detail="해당 거래의 당사자가 아닙니다.")
 
         cur_status, new_status = tx["status"], body.status
+        if new_status == "confirmed" and cur_status != new_status and user["id"] != tx["provider_id"]:
+            raise HTTPException(403, "게시글 작성자만 거래 신청을 수락할 수 있습니다.")
+        if new_status == "completed" and cur_status != new_status:
+            raise HTTPException(409, "거래 완료는 해당 거래의 GPS와 상대방 QR 인증으로만 처리됩니다.")
         if new_status != cur_status and new_status not in _ALLOWED.get(cur_status, set()):
             raise HTTPException(status_code=400,
                 detail=f"'{cur_status}'에서 '{new_status}'(으)로 변경할 수 없습니다.")
@@ -134,12 +148,42 @@ async def update_transaction(tx_id: int, body: TransactionUpdate,
         if body.appointment_at is not None:
             fields.append("appointment_at = ?")
             params.append(body.appointment_at)
-        if new_status == "completed":
-            fields.append("completed_at = ?")
-            params.append(to_iso(now_utc()))
         params.append(tx_id)
 
         conn.execute(f"UPDATE transactions SET {', '.join(fields)} WHERE id = ?", params)
         row = conn.execute("SELECT * FROM transactions WHERE id = ?", (tx_id,)).fetchone()
         conn.commit()
         return {"transactionId": tx_id, "transaction": _enrich(conn, row)}
+
+
+class TransactionGps(BaseModel):
+    lat: float
+    lng: float
+    accuracy: float
+
+
+@router.post("/{tx_id}/gps")
+async def verify_transaction_gps(tx_id: int, body: TransactionGps, user: dict = Depends(get_current_user)):
+    with get_conn() as conn:
+        tv.begin(conn)
+        tx = tv.lock_row(conn, "transactions", tx_id)
+        if not tx:
+            raise HTTPException(404, "거래를 찾을 수 없습니다.")
+        if tx["receiver_id"] != user["id"]:
+            raise HTTPException(403, "거래 신청자만 위치를 인증할 수 있습니다.")
+        if tx["status"] != "confirmed":
+            raise HTTPException(409, "수락된 거래에서만 위치를 인증할 수 있습니다.")
+        post = tv.lock_row(conn, "posts", tx["post_id"])
+        if not post or post["status"] == "deleted":
+            raise HTTPException(409, "거래 게시글을 사용할 수 없습니다.")
+        distance = tv.assert_location(body.lat, body.lng, body.accuracy, post["appointment_lat"], post["appointment_lng"])
+        now = to_iso(now_utc())
+        session_id = "locv_" + secrets.token_hex(8)
+        conn.execute("""INSERT INTO location_verify_sessions
+            (id, subject_id, transaction_id, target_lat, target_lng, radius_m, status,
+             current_lat, current_lng, current_accuracy, distance_m, verified_at, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, 100, 'LOCATION_VERIFIED', ?, ?, ?, ?, ?, ?, ?)""",
+            (session_id, str(user["id"]), tx_id, post["appointment_lat"], post["appointment_lng"],
+             body.lat, body.lng, body.accuracy, distance, now, now, now))
+        conn.commit()
+    return {"ok": True, "sessionId": session_id, "distanceM": round(distance, 1), "verifiedAt": now}

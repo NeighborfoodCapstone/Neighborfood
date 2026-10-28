@@ -1,8 +1,10 @@
 """Storage routing and receipt access checks without external keys or services."""
 import pytest
+from io import BytesIO
+from PIL import Image
 from app import storage
 @pytest.fixture
-def cloud(monkeypatch):
+def cloud(client,monkeypatch):
     monkeypatch.setenv('SUPABASE_URL','https://test.supabase.co')
     monkeypatch.setenv('SUPABASE_SECRET_KEY','sb_secret_test_only')
     calls=[]
@@ -10,6 +12,10 @@ def cloud(monkeypatch):
     monkeypatch.setattr(storage,'signed_receipt_url',lambda name:'https://test.supabase.co/private/'+name)
     from app.db import receipt_db
     monkeypatch.setattr(receipt_db,'run_ocr',lambda path: ('ocr_empty','',{}))
+    from app.db import ocr_guard
+    with ocr_guard.get_conn() as db:
+        db.execute("UPDATE ocr_guard_settings SET enabled = 1 WHERE id = 1")
+        db.commit()
     return calls
 
 def test_cloud_upload_requires_login_and_preserves_filename(client,make_user,cloud):
@@ -22,7 +28,9 @@ def test_cloud_upload_requires_login_and_preserves_filename(client,make_user,clo
 
 def test_receipt_cloud_ownership_and_history(client,make_user,cloud):
     a,b=make_user('alice'),make_user('bob')
-    response=client.post('/api/receipt/scan',headers=a.h,files={'file':('receipt.png',b'fake-image','image/png')})
+    data=BytesIO()
+    Image.new('RGB',(1,1),'white').save(data,format='PNG')
+    response=client.post('/api/receipt/scan',headers={**a.h,'Idempotency-Key':'storage_test_key_1234'},files={'file':('receipt.png',data.getvalue(),'image/png')})
     assert response.status_code==200,response.text
     record=response.json()['scan']
     assert record['imageUrl'].startswith('https://test.supabase.co/private/')

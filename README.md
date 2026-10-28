@@ -1,6 +1,8 @@
 # NeighborFood
 
 지역 기반 식재료 공동구매 플랫폼 — FastAPI 백엔드(DB·파일 저장소는 **SQLite·로컬 `uploads/`가 기본**, 환경변수 설정 시에만 **Supabase(PostgreSQL)·Supabase Storage** 사용), React(Vite) 프런트엔드(기존 화면 39개 전체 이전 구현) + 기존 정적 HTML 프런트엔드(병행 보존)
+> **거래·OCR 변경 주의:** PostgreSQL은 백업 및 격리 DB 리허설 후 `002_ocr_guard.sql`, `003_trade_verification.sql`을 순서대로 적용해야 합니다. OCR은 기본 중단 상태이며 외부 보호수단·Firewall 검증 전 개방하지 않습니다. 상세 절차와 미검증 항목은 `docs/INTEGRATION_REPORT.md`를 확인하세요.
+
 
 버전: **v2.1.0** (2026-08-22)
 문서 최종 갱신: 2026-10-12 (팀원 박준기 푸시 2건 반영 — `b6859f0`(10/12) **Supabase(PostgreSQL)·Supabase Storage 선택 지원**(`DATABASE_URL`·`SUPABASE_URL`이 있을 때만 활성, 없으면 기존 SQLite·로컬 `uploads/` 그대로), 게시글 사진 업로드·영수증 API **로그인 필수 + 본인 영수증만 처리**, 영수증 이미지 서명 URL 조회(`GET /api/receipt/image/{name}`), `migrations/001_supabase.sql`·`scripts/`·`docs/SUPABASE_MIGRATION.md`·`supabase.env.example` 신규. `fc80abd`(10/11) QR 스캔 화면 구성 변경·영수증 분석 중 상태 표시·프로필 사진 업로드·신뢰온도 게이지(`TrustTemperature.tsx`). **배포 방식은 Oracle 유지 / Vercel+Supabase 전환 두 방향을 모두 열어 두고, 부하테스트 후 10/16 체크포인트에서 확정**합니다. pytest 32개 통과(2026-10-12 확인). 미검증: Supabase 실연결·Vercel 배포·CLOVA OCR·휴대폰 카메라·PortOne 외부 호출 — 최종 결정 전에 검증 예정). 이전 갱신: 2026-10-08 (2026-10-08 구현 완료 — 그룹 채팅 거래 액션 바(B안: 약속·정산·GPS·QR 링크)·로그인 상태 비밀번호 변경 API(`PATCH /api/users/me/password`)·공개 공지 API(`GET /api/notices`)·게시글 수정 API 확장(사진·유형·인원·가격)·정산 흐름 자동화 테스트(`tests/test_settlement_flow.py` 등 pytest 12개 신규)·QR 발급 화면 토큰 표시·복사 줄 추가(`qr.tsx`). 같은 날 수동 UI 검증(액션 바·비밀번호 변경·공지·게시글 수정) 통과. 남은 작업: PWA·PortOne 서버 검증·실환경(기기) 검증·서버 운영 마무리.). 이전 갱신 내용: 2026-10-08 잔여 작업 방침 확정 — 시연·발표 전 처리(그룹 채팅 액션 바·PortOne 서버 검증·실환경 검증·서버 운영 마무리)와 구현/제외 결정 항목(비밀번호 변경·공개 공지·게시글 수정 API·PWA)은 모두 작업 예정, 정적 HTML 폐기는 구현 100% 완료 후 영향 점검 뒤 진행, 선택 사항은 별도 시점에 처리)
@@ -19,7 +21,7 @@
 - 공동구매 참여 / 취소 (원자적 카운터, 중복·정원·미납 차단)
 - 공동구매 정산 (분담금 자동 계산, GPS→QR 2단계 순차 인증 후 납부 활성화, 노쇼 신고/취소)
 - QR 코드 대면 거래 인증 (`frontend/vendor/html5-qrcode.min.js` 로컬 사본 우선 로드 → CDN 장애 시에도 스캔 동작)
-- 영수증 OCR 인증 (CLOVA OCR → Tesseract fallback, v2.1 마트형 파서 지원)
+- 영수증 OCR 인증 (서버 전역·회원별 예약 한도 및 수동 입력, CLOVA 미설정·오류 시 자동 분석 차단)
 - 냉장고 관리 (영수증 인증 품목 자동 등록, 유통기한 D-day)
 - 1:1 / 그룹 채팅 (REST 폴링, 참여 취소 시 시스템 메시지 삽입)
 - 매너 평가 (thumbs up/down → trust_score 반영)
@@ -39,7 +41,7 @@
 
 - Python 3.10 이상
 - Node.js 20 이상 (React 프런트엔드 `frontend-react/` 실행 시 필요 — `npm` 포함)
-- (선택) CLOVA OCR API 키 — 없으면 Tesseract fallback 사용
+- (선택) CLOVA OCR 서버 설정 — 자동 분석 개방 전 외부 보호수단과 Firewall 사전검증 필수
 - (선택) Kakao Developers JavaScript 키 — 지도 기능 사용 시 필요
 - (선택) Supabase 프로젝트(서울 리전) — PostgreSQL·Storage 모드 사용 시 필요 (`psycopg[binary]`, `python-dotenv`는 `requirements.txt`에 포함)
 
@@ -165,14 +167,16 @@ npm run dev
 > - PWA 설치·오프라인 기능은 구현되지 않았습니다(PWA 전환을 위한 프런트 구조 정비 단계).
 > - 정산의 "납부 표시"는 결제 승인이나 자동 송금이 아닙니다. 실결제·자동 송금은 예정되어 있지 않고, 2026-10-05 연동된 PortOne 결제는 **테스트 채널 전용**이며 납부 상태·정산 완료·판매자 지급을 바꾸지 않습니다.
 
-### 6. 관리자 계정 생성
+### 6. 시연용 관리자 권한
+
+먼저 가상 시연 계정을 일반 가입으로 생성한 뒤, 대상 DB와 백업을 확인하고 승인된 담당자가 대화형으로 승격합니다. ID를 명령 인수로 넘기거나 비밀번호를 저장소에 넣지 않습니다.
 
 ```bash
-python seed_admin.py                  # 신규 생성 (login_id=Admin, pw=admin0000)
-python seed_admin.py <login_id>       # 기존 계정을 admin 역할로 승격
+python seed_admin.py promote
+python seed_admin.py revoke  # 시연 종료 후 권한 회수
 ```
 
-> 2026-09-12: `seed_admin.py`가 복원되어 정상 동작합니다. 프로덕션 배포 전에는 기본 비밀번호(`admin0000`)를 변경하세요.
+기본 관리자 계정이나 기본 비밀번호는 생성하지 않습니다. 과거 기본 계정이 실제 배포에 사용되었는지 관리자가 확인하고 필요한 경우 비밀번호 변경 또는 비활성화해야 합니다.
 
 ### 7. (선택) 더미 데이터 주입
 
@@ -204,9 +208,7 @@ python -m pytest tests -q
 ### 9. (선택) DB 초기화
 
 ```bash
-python reset_db.py                    # 확인 프롬프트 후 모든 회원·게시글 및 연관 데이터 삭제 + Admin 재생성
-python reset_db.py --yes              # 확인 프롬프트 생략
-python reset_db.py --pw MyPass1!      # Admin 비밀번호 직접 지정 (기본 admin0000)
+python reset_db.py                    # 테스트용 SQLite만: 확인 및 비밀번호 대화형 입력
 ```
 
 > ⚠️ **전체 데이터가 삭제됩니다.** 프로젝트 루트에서 실행해야 `data/neighborfood.db`를 찾습니다. 서버가 실행 중이면 먼저 종료하세요.
@@ -422,14 +424,9 @@ Bearer 토큰 세션 인증을 사용합니다.
 
 ---
 
-## 테스트 계정 기본값
+## 시연 계정
 
-| 계정 | login_id | password | 역할 |
-|---|---|---|---|
-| 관리자 | `Admin` | `admin0000` | admin |
-| 일반1 | `Capstone_1` | `capstone1` | user |
-| 일반2 | `Capstone_2` | `capstone2` | user |
-| 일반3 | `Capstone_3` | `capstone3` | user |
+운영 데이터와 분리된 가상 계정을 사용하고 자격증명은 저장소에 기록하지 않습니다. 관리자 승격·회수는 위 6절을 따릅니다.
 
 ---
 
