@@ -4,6 +4,7 @@
 기존 정적 HTML 39개 화면을 모두 React(TypeScript)로 이전한 구현이며, **배포 시 사용자에게 보이는 UI는 이 앱**입니다.
 (루트의 `frontend/` 정적 HTML은 최종 점검 전까지 병행 보존하는 이전 버전이며, 배포 UI가 아닙니다.)
 
+> PWA 화면 구성 감사(2026-10-29): 공통 사이드 메뉴, 프로필 동네 설정 경로, 채팅·정산 상태와 냉장고 대화상자를 개선했습니다. 검증 범위와 실제 기기·외부 서비스의 미확인 사항은 `docs/UI_AUDIT_REPORT.md`를 참고하세요.
 > 상태(2026-10-12): 2026-10-11~12 팀원 작업으로 QR/영수증 화면 개선, 프로필 사진, 신뢰 온도 게이지(`TrustTemperature.tsx`)가 추가되었고, 백엔드는 환경변수로 Supabase를 선택할 수 있게 되었습니다(프런트 코드 변경 없이 API 주소만 영향). 배포 방식(Oracle 유지 / Vercel+Supabase)은 10/16에 확정 예정입니다.
 > 이전 상태(2026-10-06): 화면 39개 이전·빌드 통과 + PortOne 테스트 결제 화면 4종(`Payment_*`, 2026-10-05) 추가, 운영 서버(`https://neighborfood.duckdns.org`)에 `dist/` 배포됨(PortOne 반영본은 서버 재배포 확인 필요). 실제 모바일·카메라(QR)·GPS·Kakao 지도·OCR 동작은 실환경 검증 단계입니다.
 > **PWA(설치·오프라인)는 아직 구현되지 않았습니다**(`vite-plugin-pwa` 도입 예정).
@@ -17,7 +18,7 @@
 | 주요 라이브러리 | `qrcode`(QR 생성), `jsqr`(QR 스캔), `@portone/browser-sdk`(PortOne V2 테스트 결제창, 2026-10-05) |
 | 라우팅 | 해시 라우팅 (`#/화면이름?쿼리`) — 새로고침·직접 접속에 서버 설정이 필요 없음 |
 | 백엔드 | FastAPI + SQLite 기본, 선택적으로 Supabase(PostgreSQL) (저장소 루트, 이 폴더는 API만 호출) |
-| 요구 사항 | Node.js 20 이상, npm |
+| 요구 사항 | Node.js 20.19 이상(20.x), 22.12 이상(22.x), 또는 24 이상, npm |
 
 ## 빠른 시작 (로컬 개발)
 
@@ -35,7 +36,7 @@ npm run dev        # 표시되는 Local 주소(기본 http://localhost:5173)로 
 ```
 
 - 화면은 `http://localhost:5173/#/Home`, `#/Product_Detail?id=1`처럼 직접 열 수 있습니다.
-- 전체 화면 목록은 `#/Index`에서 볼 수 있습니다.
+- 일반 화면 목록은 `#/Index`에서 볼 수 있습니다. 관리자 화면은 관리자 권한 확인 후 마이페이지에서 접근합니다.
 - 개발 서버가 `/api`, `/posts`, `/uploads`, `/upload-images`, `/logout`, `/request-auth`, `/reset-password` 요청을 FastAPI(기본 `http://127.0.0.1:8000`)로 전달하므로 별도 CORS·`.env.local` 설정이 필요 없습니다.
 - 빈 화면이 나오면 새로 만든 DB에 게시글이 없는 것일 수 있습니다(`data/neighborfood.db`는 Git에 포함되지 않음).
 
@@ -47,6 +48,7 @@ npm run dev        # 표시되는 Local 주소(기본 http://localhost:5173)로 
 | `npm run build` | 타입 검사(`tsc -b`) + 프로덕션 빌드 → `dist/` |
 | `npm run preview` | 빌드 결과를 로컬에서 미리보기(API 프록시 포함) |
 | `npm run lint` | Oxlint |
+| `npm test` | Vitest/jsdom 메뉴·채팅 오류 복구·거래 상태 UI 회귀 테스트 |
 
 ## 폴더 구조
 
@@ -56,7 +58,8 @@ frontend-react/
 ├─ public/                      정적 자산(파비콘 등)
 ├─ docs/
 │  ├─ DESIGN_CONTEXT.md         공통 디자인·로딩·자동완성·게시글 상세 기준
-│  └─ MIGRATION_REPORT.md       화면 39개 이전 매핑·검증/미검증 범위
+│  ├─ MIGRATION_REPORT.md       화면 39개 이전 매핑·검증/미검증 범위
+│  └─ UI_AUDIT_REPORT.md        PWA 화면별 감사·비교 캡처·잔여 검증
 └─ src/
    ├─ main.tsx · App.tsx        진입점·라우트 연결(RouteLoading, Guard, Screen)
    ├─ neighborfood/             메인 화면과 공통 레이아웃
@@ -144,3 +147,4 @@ frontend-react/
 | `../docs/SUPABASE_MIGRATION.md` | Supabase·Vercel 선택 모드 (팀원 작성) |
 | `docs/DESIGN_CONTEXT.md` | 공통 디자인 기준 |
 | `docs/MIGRATION_REPORT.md` | 화면 이전 매핑·검증 범위 |
+| `docs/UI_AUDIT_REPORT.md` | PWA 화면 감사·전후 캡처·실환경 제약 |

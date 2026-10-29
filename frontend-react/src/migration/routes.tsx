@@ -265,7 +265,7 @@ export function Screen({ page, q }: { page: string; q: URLSearchParams }) {
         <Page title="화면 목록">
           <div className="rx-menu">
             {screens
-              .filter((p) => p !== "Index")
+              .filter((p) => p !== "Index" && !p.startsWith("Admin_"))
               .map((p) => (
                 <a key={p} href={href(p)}>
                   {p}
@@ -278,12 +278,22 @@ export function Screen({ page, q }: { page: string; q: URLSearchParams }) {
     case "Onboarding":
       return (
         <Page title="Neighborfood">
-          <div className="rx-menu">
-            <a href={href("Home")}>홈 둘러보기</a>
-            <a href={href("Login")}>로그인</a>
-            <a href={href("Signup")}>회원가입</a>
-            <a href={href("Neighborhood_Setting")}>내 동네 설정</a>
-          </div>
+          <section className="rx-card">
+            <h2>이웃과 식재료를 나누는 곳</h2>
+            <p>나눔·교환·공동구매 게시글을 살펴보고 필요한 이웃과 연결하세요.</p>
+            <div className="rx-actions">
+              <a className="rx-primary" href={href("Home")}>홈 둘러보기</a>
+              <a href={href("Login")}>로그인</a>
+              <a href={href("Signup")}>회원가입</a>
+            </div>
+          </section>
+          <h2>이렇게 시작해요</h2>
+          <ol className="rx-onboarding-steps">
+            <li>게시글에서 필요한 식재료를 찾아보세요.</li>
+            <li>채팅으로 거래 내용과 약속을 확인하세요.</li>
+            <li>거래 유형에 따라 약속 장소에서 GPS와 QR을 인증하세요.</li>
+          </ol>
+          <a href={href("Neighborhood_Setting")}>내 동네 설정</a>
         </Page>
       );
     default:

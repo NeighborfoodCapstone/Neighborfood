@@ -161,9 +161,10 @@ export function MapPage({
   const [keyword, setKeyword] = useState(""),
     [draft, setDraft] = useState(""),
     [center, setCenter] = useState<{ lat: number; lng: number }>();
+  const postId = q.get("id");
   const s = useData(
-      detail && q.get("id")
-        ? "/posts/" + q.get("id")
+      detail
+        ? postId ? "/posts/" + postId : null
         : "/posts?limit=100&keyword=" +
             encodeURIComponent(keyword) +
             "&type=" +
@@ -175,6 +176,8 @@ export function MapPage({
       ? [s.data.post || s.data]
       : s.data.items || []
     : [];
+  if (detail && !postId)
+    return <Page title="거래 장소"><p className="rx-empty" role="status">게시글을 선택한 뒤 거래 장소를 확인해 주세요.</p><a href={href("Home")}>홈으로</a></Page>;
   return (
     <Page title={detail ? "거래 장소" : "동네 지도"}>
       {!detail && (

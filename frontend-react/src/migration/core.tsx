@@ -1,5 +1,5 @@
 import { LoadingState, useLoadingTask } from "./loading";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode, FormEvent } from "react";
 import { backend } from "../neighborfood/api";
 export type Row = Record<string, any>;
@@ -70,7 +70,13 @@ export async function api(
   if (auth) headers.set("Authorization", "Bearer " + auth);
   if (options.body && !(options.body instanceof FormData))
     headers.set("Content-Type", "application/json");
-  const res = await fetch(backend + path, { ...options, headers });
+  let res: Response;
+  try {
+    res = await fetch(backend + path, { ...options, headers });
+  } catch (error) {
+    if (error instanceof TypeError) throw new ApiError("네트워크 연결을 확인한 뒤 다시 시도해 주세요.", 0);
+    throw error;
+  }
   const d = await res.json().catch(() => ({}));
   if (!res.ok || d.ok === false) {
     if (res.status === 401 && auth) logoutLocal();
@@ -97,6 +103,7 @@ export function useData(path: string | null) {
     [error, setError] = useState(""),
     [loading, setLoading] = useState(!!path),
     [revision, bump] = useState(0);
+  const reload = useCallback(() => bump((n) => n + 1), []);
   useEffect(() => {
     const foreground = revision === 0 || previousPath.current !== path;
     previousPath.current = path;
@@ -123,7 +130,7 @@ export function useData(path: string | null) {
       done();
     };
   }, [path, revision, begin]);
-  return { data, error, loading, reload: () => bump((n) => n + 1) };
+  return { data, error, loading, reload };
 }
 export function useAction() {
   const [busy, setBusy] = useState(false),

@@ -28,6 +28,9 @@
 .rx-dialog { animation:rx-ui-fade 200ms ease-out; padding:16px; }
 .rx-dialog-body { position:relative; animation:rx-ui-dialog 200ms ease-out; padding-top:16px; overscroll-behavior:contain; }
 .nf-app .rx-dialog-close { display:block; position:sticky; top:0; margin-left:auto; z-index:1; background:#fff; min-height:44px; }
+dialog.rx-dialog { width:100%; height:100%; max-width:none; max-height:none; margin:0; border:0; }
+dialog.rx-dialog:not([open]) { display:none; }
+dialog.rx-dialog::backdrop { background:transparent; }
 .rx-page details[open] > :not(summary) { animation:rx-ui-fade 180ms ease-out; }
 .rx-payment-result { min-height:300px; text-align:center; overflow-wrap:anywhere; }
 .rx-result-symbol { display:grid; place-items:center; width:64px; height:64px; margin:12px auto 20px; border:1px solid #ddd; border-radius:50%; font-size:32px; animation:rx-ui-fade 200ms ease-out; }
@@ -67,3 +70,48 @@
 .rx-receipt-workspace .rx-form { width:100%; max-width:none; margin:20px auto; }
 .rx-receipt-workspace .rx-field input[type=file] { box-sizing:border-box; }
 .rx-receipt-workspace .rx-table-wrap { max-width:100%; }
+
+/* Common menu: keep the header and bottom navigation in their existing positions. */
+:root .nf-app .nf-menu-trigger { color:#fff!important; min-height:44px; padding:0 4px; }
+.nf-drawer { position:fixed; inset:0; z-index:100; display:flex; justify-content:flex-end; }
+.nf-app .nf-drawer-backdrop { position:absolute; inset:0; width:100%; height:100%; background:#0008; }
+.nf-drawer-panel {
+  position:relative; display:flex; flex-direction:column; width:min(360px,calc(100vw - 24px));
+  height:100%; min-height:0; background:#fff; color:#444; border-left:1px solid var(--rx-line);
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px))
+    max(16px,env(safe-area-inset-bottom,0px)) 20px;
+  animation:nf-drawer-in 180ms ease-out;
+}
+.nf-drawer-header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.nf-drawer-header h2 { font-size:18px; font-weight:500; }
+.nf-app .nf-drawer-close { min-width:44px; min-height:44px; font-size:28px; line-height:1; border-radius:6px; }
+.nf-drawer-hint { color:var(--rx-muted); font-size:12px; margin:8px 0 12px!important; }
+.nf-drawer-links { min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+.nf-app .nf-drawer-links a { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:52px; padding:10px 4px; border-bottom:1px solid var(--rx-line); }
+.nf-drawer-links a:hover { background:#f7f7f7; }
+@keyframes nf-drawer-in { from { transform:translateX(100%); } to { transform:translateX(0); } }
+
+/* Conversation content is real API data; polling does not replace the scroll container. */
+.rx-chat-row-content { min-width:0; }
+.rx-chat-row-heading { display:flex; align-items:baseline; gap:12px; min-width:0; }
+.nf-app .rx-chat-row h2 { flex:1; min-width:0; margin:0; font-size:15px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rx-chat-row time { flex-shrink:0; color:var(--rx-muted); font-size:11px; white-space:nowrap; }
+.nf-app .rx-chat-row p { margin:4px 0 0; }
+.rx-chat-context { color:var(--rx-muted); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rx-chat-preview { color:#555; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rx-chat-conversation { padding:4px 0 14px; border-bottom:1px solid var(--rx-line); }
+.nf-app .rx-chat-conversation h2 { margin:0 0 8px; }
+.nf-app .rx-chat-conversation a { display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:44px; color:var(--rx-muted); }
+.rx-messages { border:1px solid var(--rx-line); border-radius:8px; overscroll-behavior:contain; }
+.rx-chat-empty { margin:auto!important; color:var(--rx-muted); text-align:center; }
+.rx-message { min-width:0; overflow-wrap:anywhere; }
+.rx-message small,.rx-message time { display:block; color:var(--rx-muted); font-size:11px; }
+.rx-message p { margin:5px 0!important; }
+.nf-app .rx-chat-new { position:sticky; z-index:3; bottom:calc(var(--rx-nav-height) + 84px + env(safe-area-inset-bottom,0px)); display:block; margin:0 0 8px auto; background:#fff; }
+.rx-chat-composer { position:sticky; z-index:2; bottom:calc(var(--rx-nav-height) + env(safe-area-inset-bottom,0px)); margin:12px 0 0; padding:8px; border:1px solid var(--rx-line); border-radius:8px; background:#fff; }
+.rx-chat-input { display:flex; align-items:flex-end; gap:8px; }
+.rx-chat-input textarea { flex:1; min-width:0; min-height:44px; max-height:160px; resize:vertical; }
+.rx-chat-input button { flex-shrink:0; }
+
+.rx-onboarding-steps { margin:12px 0 24px; padding-left:24px; }
+.rx-onboarding-steps li { padding:4px 0; line-height:1.6; }

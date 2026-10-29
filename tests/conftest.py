@@ -1,20 +1,50 @@
-"""공용 pytest 픽스처 — 테스트마다 임시 SQLite DB 로 전체 앱(main.app)을 띄웁니다.
+"""공용 pytest 픽스처 — 테스트마다 임시 SQLite DB로 전체 앱을 띄웁니다.
 
-실제 data/neighborfood.db 는 건드리지 않습니다. (DB_PATH 를 가져다 쓰는 모든 app.* 모듈을 임시 경로로 교체)
-실행: pip install pytest httpx  →  python -m pytest tests -q
+설치: python -m pip install -r requirements-test.txt
+실행: python -m pytest -q
 """
+import os
 import sys
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
 
 
+# 테스트 수집 중 app.config와 main이 환경파일을 읽지 않도록 앱 import 전에 격리합니다.
+for name in (
+    "DATABASE_URL", "VERCEL", "SUPABASE_URL", "SUPABASE_SECRET_KEY",
+    "CLOVA_OCR_INVOKE_URL", "CLOVA_OCR_SECRET", "PORTONE_TEST_ENABLED",
+    "PORTONE_STORE_ID", "PORTONE_CHANNEL_KEY", "PORTONE_API_SECRET", "KAKAO_JS_KEY",
+):
+    os.environ[name] = ""
+
+_env_file = Path(__file__).resolve().parents[1] / ".env"
+_path_exists = Path.exists
+with patch("dotenv.load_dotenv", return_value=False), patch.object(
+    Path, "exists", lambda path: path != _env_file and _path_exists(path)
+):
+    import main
+    from app.db import receipt_db
+
+# 영수증 OCR의 별도 수동 환경파일 로더도 테스트 중에는 사용하지 않습니다.
+receipt_db._DOTENV_LOADED = True
+
+
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    import main                                   # app.* 모듈을 모두 import 시킴
+    monkeypatch.setenv("DATABASE_URL", "")
+    monkeypatch.setenv("VERCEL", "")
     path = str(tmp_path / "test.db")
+    upload_dir = tmp_path / "uploads"
+    upload_dir.mkdir()
     for name, mod in list(sys.modules.items()):
-        if name.startswith("app.") and hasattr(mod, "DB_PATH"):
-            monkeypatch.setattr(mod, "DB_PATH", path)
+        if name.startswith("app."):
+            for attr, value in (("DB_PATH", path), ("DATA_DIR", str(tmp_path)), ("UPLOAD_DIR", str(upload_dir))):
+                if hasattr(mod, attr):
+                    monkeypatch.setattr(mod, attr, value)
+    monkeypatch.setattr(main, "UPLOAD_DIR", str(upload_dir))
 
     from app.db.base import init_all_databases
     from app.db import settlement_db

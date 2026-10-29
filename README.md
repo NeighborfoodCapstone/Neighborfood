@@ -188,20 +188,21 @@ python Seed_capstone_settlement.py    # Capstone_1~3 계정 + 공동구매 정�
 
 > ⚠️ `seed_posts.py`, `Seed_Account.py`, `Seed_capstone_settlement.py` 모두 2026-09-08 기준 저장소에 존재하지 않는 것으로 확인되었습니다. 더미 데이터가 필요하면 API(`POST /posts` 등)를 직접 호출하거나 스크립트 재도입을 기다려야 합니다.
 
-### 8. (선택) 영수증 파서 테스트 실행
+### 8. (선택) 영수증 파서 및 API 테스트 실행
 
 ```bash
 python tests/test_receipt_parser_v212.py
 ```
 
-API 자동화 테스트(2026-10-08 추가, 임시 DB 사용 — 실제 `data/neighborfood.db`는 변경되지 않음):
+API 전체 자동화 테스트는 위의 가상환경을 활성화한 후 실행합니다.
+`requirements-test.txt`는 실행 의존성과 고정된 pytest·httpx 버전을 함께 설치합니다.
 
 ```bash
-pip install pytest httpx
-python -m pytest tests -q
+python -m pip install -r requirements-test.txt
+python -m pytest -q
 ```
 
-2026-10-12 기준 **32개 전부 통과**를 확인했습니다(정산·계정·공지·게시글 수정·PortOne·Supabase 저장소 라우팅/영수증 소유권 테스트 포함). `tests/test_supabase_storage.py`의 3개는 외부 키·서비스 없이 저장소 호출을 mock하므로 **실제 Supabase 연결을 검증하지는 않습니다.** 모든 pytest는 임시 SQLite DB를 사용합니다.
+pytest는 환경파일을 읽지 않고 외부 DB·서비스 설정을 비활성화합니다. DB와 테스트 중 생성되는 파일은 테스트별 임시 디렉터리에 저장됩니다. Supabase Storage·OCR·PortOne 테스트의 외부 호출은 mock하므로 실제 서비스 연결은 검증하지 않습니다.
 
 위의 `python tests/test_receipt_parser_v212.py`는 `pytest` 등 외부 프레임워크 없이 단독 실행되며, 마트형(농협)·카페형(스타벅스) 영수증 구조에 대한 5개 회귀 테스트를 수행합니다.
 
