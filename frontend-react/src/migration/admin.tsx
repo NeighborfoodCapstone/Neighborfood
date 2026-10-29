@@ -202,7 +202,7 @@ export function AdminUsers({ staff = false }: { staff?: boolean }) {
                     {u.nickname}
                     <small>{u.login_id}</small>
                   </td>
-                  <td>{status[u.status] || u.status}</td>
+                  <td>{u.status === "active" ? "활동" : status[u.status] || u.status}</td>
                   <td>{u.role === "admin" ? "관리자" : "회원"}</td>
                   <td>
                     {u.id !== uid() && (
@@ -282,6 +282,7 @@ export function Notices() {
         <Feedback {...a} />
       </Form>
       <Load state={s}>
+        <Empty items={s.data?.items || []} />
         {(s.data?.items || []).map((n: Row) => (
           <article className="rx-card" key={n.id}>
             <h2>{n.title}</h2>

@@ -1,6 +1,7 @@
 import { PortOneTest } from "./portone";
 import { PlaceField } from "./location";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { LoadingState } from "./loading";
 import {
   Page,
   Form,
@@ -25,24 +26,32 @@ export function Chats() {
   const s = useData("/api/chats");
   return (
     <Page title="채팅">
+      <p className="rx-muted">거래와 공동구매에 관한 대화를 확인하세요.</p>
       <Load state={s}>
-        <Empty items={s.data?.items || []} />
-        <div className="rx-list">
+        {!s.data?.items?.length && <p className="rx-empty">아직 대화가 없습니다. 게시글에서 거래를 시작해 보세요.</p>}
+        <div className="rx-list rx-chat-list">
           {(s.data?.items || []).map((c: Row) => (
             <a
-              className="rx-row"
+              className="rx-row rx-chat-row"
               href={href(c.kind === "group" ? "Group_Chat" : "Chat_Detail", {
                 id: c.id,
               })}
               key={c.id}
             >
-              <div>
-                <h2>{c.partnerNickname}</h2>
-                <p>{c.post_title}</p>
-                <p>{c.last_message || "대화를 시작해 보세요."}</p>
+              <div className="rx-chat-row-content">
+                <div className="rx-chat-row-heading">
+                  <h2>{c.kind === "group" ? c.post_title || "공동구매 채팅" : c.partnerNickname || "이웃"}</h2>
+                  {c.last_message_at && <time dateTime={c.last_message_at}>{when(c.last_message_at)}</time>}
+                </div>
+                <p className="rx-chat-context">
+                  {c.kind === "group"
+                    ? `공동구매${c.member_count != null ? ` · ${c.member_count}명` : ""}`
+                    : c.post_title}
+                </p>
+                <p className="rx-chat-preview">{c.last_message || "대화를 시작해 보세요."}</p>
               </div>
               {c.unread_count > 0 && (
-                <span className="rx-badge">{c.unread_count}</span>
+                <span className="rx-badge" aria-label={`읽지 않은 메시지 ${c.unread_count}개`}>{c.unread_count}</span>
               )}
             </a>
           ))}
@@ -195,40 +204,77 @@ export function Chat({
     ),
     a = useAction(),
     [draft, setDraft] = useState("");
+  const messageArea = useRef<HTMLDivElement>(null);
+  const composer = useRef<HTMLFormElement>(null);
+  const initialized = useRef(false);
+  const followLatest = useRef(true);
+  const followOwnSend = useRef(false);
+  const previousLastId = useRef<unknown>(null);
+  const [newMessages, setNewMessages] = useState(false);
+  const [composerHeight, setComposerHeight] = useState(0);
+  useLayoutEffect(() => {
+    const element = composer.current;
+    if (!element) return;
+    const measure = () => setComposerHeight(element.offsetHeight);
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  useLayoutEffect(() => {
+    if (initialized.current && followLatest.current && messageArea.current)
+      messageArea.current.scrollTop = messageArea.current.scrollHeight;
+  }, [composerHeight]);
+  const messages: Row[] = s.data?.items || [];
+  const lastId = messages.length ? messages[messages.length - 1].id : null;
+  const reloadMessages = s.reload;
+  useLayoutEffect(() => {
+    const area = messageArea.current;
+    if (!s.data || !area) return;
+    if (!initialized.current || (lastId !== previousLastId.current && (followLatest.current || followOwnSend.current))) {
+      area.scrollTop = area.scrollHeight;
+      followLatest.current = true;
+      followOwnSend.current = false;
+      setNewMessages(false);
+    } else if (lastId !== null && lastId !== previousLastId.current) {
+      setNewMessages(true);
+    }
+    initialized.current = true;
+    previousLastId.current = lastId;
+  }, [s.data, lastId]);
   useEffect(() => {
     if (!id) return;
     const tick = setInterval(() => {
-      if (!document.hidden) s.reload();
+      if (!document.hidden) reloadMessages();
     }, 5000);
     return () => clearInterval(tick);
-  }, [id]);
+  }, [id, reloadMessages]);
   return (
     <Page title={group ? "공동구매 채팅" : "채팅"}>
+      {chats.error && !s.error && <div><Feedback error={chats.error} /><button type="button" onClick={chats.reload}>대화 정보 다시 불러오기</button></div>}
       {conversation && (
-        <>
-          <h2>{conversation.partnerNickname}</h2>
-          <a
-            className="rx-row"
-            href={href(group ? "Group_Buy_Detail" : "Product_Detail", {
-              id: conversation.post_id,
-            })}
-          >
-            {post.data?.title || conversation.post_title}
+        <div className="rx-chat-conversation">
+          <h2>{group ? "공동구매 대화" : conversation.partnerNickname || "이웃"}</h2>
+          <a href={href(group ? "Group_Buy_Detail" : "Product_Detail", {
+            id: conversation.post_id,
+          })}>
+            {post.data?.title || conversation.post_title} <span aria-hidden="true">›</span>
           </a>
-        </>
+        </div>
       )}
-      <Load state={members}>
-        {group && (
-          <details>
-            <summary>참여자</summary>
-            {(members.data?.items || members.data?.members || []).map(
-              (m: Row) => (
-                <p key={m.user_id || m.id}>{m.nickname}</p>
-              ),
-            )}
-          </details>
-        )}
-      </Load>
+      {group && <Load state={members}>
+        <details>
+          <summary>참여자{members.data?.members ? ` ${members.data.members.length}명` : ""}</summary>
+          {(members.data?.items || members.data?.members || []).map(
+            (m: Row) => <p key={m.user_id || m.id}>{m.nickname}</p>,
+          )}
+        </details>
+      </Load>}
+      {group && conversation && post.error && <div><Feedback error={post.error} /><button type="button" onClick={post.reload}>거래 정보 다시 불러오기</button></div>}
       {group && conversation && post.data && (
         <TradeBar
           post={post.data}
@@ -236,51 +282,56 @@ export function Chat({
           onSaved={post.reload}
         />
       )}
-      <Load state={s}>
-        <div className="rx-messages" aria-live="polite">
-          {(s.data?.items || []).map((m: Row) => (
-            <div
-              key={m.id}
-              className={"rx-message " + (m.sender_id === uid() ? "mine" : "")}
-            >
-              <small>{m.sender_nickname || ""}</small>
+      {!id && <p className="rx-empty">채팅 목록에서 대화방을 선택해 주세요. <a href={href("Chat_List")}>채팅 목록</a></p>}
+      {s.loading && !s.data && <LoadingState label="대화를 불러오는 중…" />}
+      {s.error && <div><Feedback error={s.error} /><button type="button" onClick={() => {
+        s.reload();
+        if (chats.error) chats.reload();
+      }}>대화 다시 불러오기</button></div>}
+      {s.data && <>
+        <div className="rx-messages" ref={messageArea} role="log" aria-label="대화 내용" tabIndex={0}
+          style={{ paddingBottom: composerHeight ? composerHeight + 24 : 84 }}
+          onScroll={(event) => {
+            const area = event.currentTarget;
+            followLatest.current = area.scrollHeight - area.scrollTop - area.clientHeight < 80;
+            if (followLatest.current) setNewMessages(false);
+          }}>
+          {!messages.length && <p className="rx-chat-empty">아직 메시지가 없습니다. 첫 메시지를 보내 보세요.</p>}
+          {messages.map((m: Row) => (
+            <div key={m.id} className={"rx-message " + (m.sender_id === uid() ? "mine" : "")}>
+              <small>{m.is_system ? "안내" : m.sender_id === uid() ? "나" : m.sender_nickname || conversation?.partnerNickname || "상대방"}</small>
               <p>{m.content}</p>
-              <small>
-                {m.created_at
-                  ? new Date(m.created_at).toLocaleString("ko-KR")
-                  : ""}
-              </small>
+              {m.created_at && <time dateTime={m.created_at}>{when(m.created_at)}</time>}
             </div>
           ))}
         </div>
-      </Load>
-      <Form
-        onSubmit={() =>
-          a.run(async () => {
-            if (!draft.trim()) return;
-            await send(path, { content: draft.trim() });
-            setDraft("");
-            s.reload();
-          })
-        }
-      >
-        <div className="rx-search">
-          <input
-            aria-label="메시지"
-            value={draft}
-            maxLength={1000}
-            onChange={(e) => setDraft(e.target.value)}
-            required
-          />
-          <button
-            className="rx-primary"
-            disabled={a.busy || !id || !draft.trim()}
-          >
+        {newMessages && <button type="button" className="rx-chat-new" onClick={() => {
+          const area = messageArea.current;
+          if (area) area.scrollTop = area.scrollHeight;
+          followLatest.current = true;
+          setNewMessages(false);
+        }}>새 메시지 보기</button>}
+      </>}
+      <form ref={composer} className="rx-form rx-chat-composer" onSubmit={(event) => {
+        event.preventDefault();
+        void a.run(async () => {
+          if (!draft.trim()) return;
+          await send(path, { content: draft.trim() });
+          setDraft("");
+          followOwnSend.current = true;
+          s.reload();
+        });
+      }}>
+        <div className="rx-chat-input">
+          <textarea aria-label="메시지" value={draft} maxLength={1000} rows={2}
+            onChange={(event) => setDraft(event.target.value)}
+            disabled={a.busy || !id || !s.data} placeholder="메시지를 입력하세요" required />
+          <button className="rx-primary" disabled={a.busy || !id || !s.data || !draft.trim()}>
             전송
           </button>
         </div>
         <Feedback {...a} />
-      </Form>
+      </form>
     </Page>
   );
 }
@@ -635,7 +686,9 @@ function SettlementDetail({ d, reload }: { d: Row; reload: () => void }) {
           <a href={href("Local_Verify_Demo", { settlementId: d.id, returnTo: "payment" })}>
             GPS 인증
           </a>
-          <a href={href("QR_Scan", { settlementId: d.id, mode: "issue", returnTo: "payment" })}>QR 인증</a>
+          {me.gpsVerified
+            ? <a href={href("QR_Scan", { settlementId: d.id, mode: "issue", returnTo: "payment" })}>QR 인증</a>
+            : <span className="rx-muted">GPS 인증 후 QR 인증</span>}
           <button
             className="rx-primary"
             disabled={a.busy || !me.payable}

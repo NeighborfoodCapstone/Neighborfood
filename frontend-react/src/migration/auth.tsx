@@ -173,25 +173,11 @@ export function Profile() {
               </div>
               <TrustTemperature value={p.trustScore}/>
             </div>
-            <div className="rx-menu">
-              {[
-                ["Neighborhood_Setting", "내 동네 설정"],
-                ["Fridge", "내 냉장고"],
-                ["Wishlist", "찜 목록"],
-                ["My_Activity", "내 활동"],
-                ["Chat_List", "채팅"],
-                ["Transaction_History", "거래 내역"],
-                ["Settlement", "정산"],
-                ["Receipt_Verify", "영수증 인증"],
-                ["Help", "도움말"],
-                ...(p.role === "admin" ? [["Admin_Dashboard", "관리자"]] : []),
-              ].map(([page, label]) => (
-                <a key={page} href={href(page)}>
-                  {label}
-                  <span>›</span>
-                </a>
-              ))}
-            </div>
+            {p.role === "admin" && (
+              <div className="rx-menu">
+                <a href={href("Admin_Dashboard")}>관리자 <span>›</span></a>
+              </div>
+            )}
             <Feedback {...a} />
             <div className="rx-actions">
               <button
@@ -218,7 +204,16 @@ export function EditProfile() {
   const s = useData("/api/users/me");
   return (
     <Page title="프로필 수정">
-      <Load state={s}>{s.data && <ProfileForm profile={s.data} />}</Load>
+      <Load state={s}>
+        {s.data && <>
+          <ProfileForm profile={s.data} />
+          <section className="rx-card">
+            <h2>내 동네</h2>
+            <p>{s.data.neighborhood || "동네 미설정"}</p>
+            <a href={href("Neighborhood_Setting")}>동네 설정 변경</a>
+          </section>
+        </>}
+      </Load>
       <PasswordChangeForm />
     </Page>
   );

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Page,
   Form,
@@ -20,12 +20,28 @@ export function Fridge() {
     [adding, setAdding] = useState(false);
   const s = useData("/api/fridge/items?status=" + filter + "&limit=200"),
     a = useAction();
+  const dialog = useRef<HTMLDialogElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!adding || !dialog.current) return;
+    const element = dialog.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    element.showModal();
+    element.querySelector<HTMLInputElement>('input[name="name"]')?.focus();
+    return () => {
+      if (element.open) element.close();
+      document.body.style.overflow = previousOverflow;
+      if (opener.current?.isConnected) opener.current.focus();
+    };
+  }, [adding]);
   return (
     <Page
       title="내 냉장고"
       actions={
         <button
-          onClick={() => {
+          onClick={(event) => {
+            opener.current = event.currentTarget;
             setAdding(true);
             setEdit(null);
           }}
@@ -62,7 +78,8 @@ export function Fridge() {
               <p>{x.memo}</p>
               <div className="rx-actions">
                 <button
-                  onClick={() => {
+                  onClick={(event) => {
+                    opener.current = event.currentTarget;
                     setEdit(x);
                     setAdding(true);
                   }}
@@ -123,11 +140,13 @@ export function Fridge() {
         </div>
       </Load>
       {adding && (
-        <div
+        <dialog
+          ref={dialog}
           className="rx-dialog"
-          role="dialog"
           aria-modal="true"
           aria-label="식재료 편집"
+          onCancel={(event) => { event.preventDefault(); if (!a.busy) setAdding(false); }}
+          onClick={(event) => { if (event.target === event.currentTarget && !a.busy) setAdding(false); }}
         >
           <div className="rx-dialog-body">
             <button className="rx-dialog-close" aria-label="식재료 편집 닫기" disabled={a.busy} onClick={() => setAdding(false)}>닫기 ×</button>
@@ -180,7 +199,7 @@ export function Fridge() {
               </div>
             </Form>
           </div>
-        </div>
+        </dialog>
       )}
     </Page>
   );

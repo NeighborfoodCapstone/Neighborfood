@@ -119,14 +119,21 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
-:root .nf-app .rx-primary {
+:root .nf-app .rx-primary,
+:root .nf-app .rx-page a.rx-primary {
   background: var(--rx-primary);
   color: #fff;
   border-color: var(--rx-primary);
 }
-:root .nf-app .rx-primary:hover {
+:root .nf-app .rx-primary:hover,
+:root .nf-app .rx-page a.rx-primary:hover {
   background: #424242;
   color: #fff;
+}
+:root .nf-app .rx-page a.rx-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 :root .nf-app .rx-search-button {
   background: var(--rx-search);
