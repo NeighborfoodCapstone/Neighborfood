@@ -27,6 +27,7 @@ export function AdminNav() {
         ["Admin_Notices", "공지"],
         ["Admin_Chat_History", "채팅 기록"],
         ["Admin_Staff_Invite", "운영진"],
+        ["Admin_Demo", "체험 모드"],
       ].map(([p, n]) => (
         <a key={p} href={href(p)}>
           {n}

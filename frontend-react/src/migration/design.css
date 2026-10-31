@@ -719,3 +719,6 @@
     margin-bottom: 20px;
   }
 }
+/* 관리자 체험 모드: 진행 단계 표시 */
+.rx-chip{display:inline-block;padding:2px 8px;border-radius:999px;background:#eee;font-size:.85em}
+.rx-chip-on{background:#d9f2df;font-weight:700}

@@ -413,18 +413,22 @@ export function Activity({ history = false }: { history?: boolean }) {
             </div>
             {t.status === "confirmed" && <>
               <p>약속 장소: {t.appointmentPlace || "제공자가 설정해야 합니다"}</p>
+              <p>약속 일시: {t.appointmentAt ? when(t.appointmentAt) : "제공자가 설정해야 합니다"}</p>
               {t.myRole === "provider" ? <>
                 <details>
-                  <summary>약속 장소 설정</summary>
+                  <summary>약속 장소·일시 설정</summary>
                   <Form onSubmit={(f) => a.run(async () => {
+                    const raw = text(f, "at");
                     await send("/posts/" + t.postId + "/appointment", {
                       place: text(f, "place"),
+                      appointment_at: raw ? new Date(raw).toISOString() : null,
                       lat: text(f, "lat") ? Number(text(f, "lat")) : null,
                       lng: text(f, "lng") ? Number(text(f, "lng")) : null,
                     });
                     tx.reload();
                   }, "약속 장소가 저장되었습니다.")}>
                     <PlaceField addressName="place" initial={{ address: t.appointmentPlace || "", lat: t.targetLat, lng: t.targetLng }} />
+                    <Field label="일시" name="at" type="datetime-local" required />
                     <button disabled={a.busy}>약속 저장</button>
                   </Form>
                 </details>

@@ -1,6 +1,6 @@
 # NeighborFood FastAPI — 아키텍처 현황 및 개발 이력
 
-> 최종 수정: 2026-10-12 (팀원 박준기 푸시 2건 반영 — `fc80abd`(10/11): QR 스캔 화면 구성 변경·영수증 분석 중 표시·프로필 사진 업로드·신뢰온도 게이지. `b6859f0`(10/12): **Supabase(PostgreSQL)·Supabase Storage 선택 지원**(`DATABASE_URL`·`SUPABASE_URL` 설정 시에만 활성, 미설정이면 기존 SQLite·로컬 `uploads/`), 사진 업로드·영수증 API 로그인 필수·본인 영수증 전용, 영수증 이미지 서명 URL, `migrations/001_supabase.sql`·`scripts/`·`docs/SUPABASE_MIGRATION.md` 신규. **배포 방식은 Oracle 유지 / Vercel+Supabase 전환 두 방향 모두 열어 두고 10/16 체크포인트(부하테스트 후)에서 확정**, 그 전에 배포 방안 검증 예정. pytest 32개 통과(2026-10-12 확인). 상세는 §2·§3·§4·§5·§6·§7·§8·§9·§10 참고. 이전 수정: 2026-10-08 (2026-10-08 구현 완료 — 그룹 채팅 거래 액션 바(B안: 약속·정산·GPS·QR 링크)·로그인 상태 비밀번호 변경 API(`PATCH /api/users/me/password`)·공개 공지 API(`GET /api/notices`)·게시글 수정 API 확장(사진·유형·인원·가격)·정산 흐름 자동화 테스트(`tests/test_settlement_flow.py` 등 pytest 12개 신규)·QR 발급 화면 토큰 표시·복사 줄 추가(`qr.tsx`). 같은 날 수동 UI 검증(액션 바·비밀번호 변경·공지·게시글 수정) 통과. 남은 작업: PWA·PortOne 서버 검증·실환경(기기) 검증·서버 운영 마무리. 이전 수정: 2026-10-08 (2026-10-08 잔여 작업 방침 확정 — 시연·발표 전 처리(그룹 채팅 액션 바·PortOne 서버 검증·실환경 검증·서버 운영 마무리)와 구현/제외 결정 항목(비밀번호 변경·공개 공지·게시글 수정 API·PWA)은 모두 작업 예정, 정적 HTML 폐기는 구현 100% 완료 후 영향 점검 뒤 진행, 선택 사항은 별도 시점에 처리). 이전 수정: 2026-10-07 (GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정). 이전 수정: 2026-10-06 (운영 서버 HTTPS 배포 완료(Nginx·Let's Encrypt·`dist/` 서빙)와 팀원 PortOne V2 테스트 결제 연동 반영 — 신규 API 4종·테이블 2개 추가, §9 외부 결제 정책 갱신. 상세는 §2·§3·§4·§5·§6·§7·§8·§9 참고. 이전 수정 2026-09-30 (배포 서버 백엔드 배치·도메인 연결 반영, 코드 변경 없음 — §7·§8 참고. 이전 수정 2026-09-21: React 전체 화면 이전(`frontend-react/`, 화면 39개)·공통 디자인·로딩·자동완성·게시글 상세 개선 반영, 공개 공지 API 미구현·게시글 수정 범위 정정. 상세는 §2·§3·§5·§6·§7·§8·§9·§10·§11 참고)
+> 최종 수정: 2026-10-31 (**관리자 체험 모드(전시 부스용) 추가** — 관리자가 체험자(부스 방문자가 직접 가입한 계정)에게 공동구매·나눔·교환 더미 거래를 배정하고(`/api/admin/demo/*`, 관리자 화면 `Admin_Demo`), 체험자는 주최자로 채팅 → 일시 확정(장소는 서일대 호천관 서버 고정) → 부스 노트북에서 발급한 가상 참여자 QR을 자기 폰으로 스캔 → (정산·납부) → 후기까지 체험. 기존 GPS·QR·정산 검증 코드는 수정하지 않음, DB 스키마 변경 없음. 나눔·교환 거래 카드에 약속 일시 입력칸 추가. pytest 66개·vitest 9개 통과(2026-10-31, 로컬 브라우저 흐름 확인·실제 폰 카메라/Vercel 배포는 미검증). 상세는 `docs/DEMO_MODE.md`. 이전 수정: 2026-10-12 (팀원 박준기 푸시 2건 반영 — `fc80abd`(10/11): QR 스캔 화면 구성 변경·영수증 분석 중 표시·프로필 사진 업로드·신뢰온도 게이지. `b6859f0`(10/12): **Supabase(PostgreSQL)·Supabase Storage 선택 지원**(`DATABASE_URL`·`SUPABASE_URL` 설정 시에만 활성, 미설정이면 기존 SQLite·로컬 `uploads/`), 사진 업로드·영수증 API 로그인 필수·본인 영수증 전용, 영수증 이미지 서명 URL, `migrations/001_supabase.sql`·`scripts/`·`docs/SUPABASE_MIGRATION.md` 신규. **배포 방식은 Oracle 유지 / Vercel+Supabase 전환 두 방향 모두 열어 두고 10/16 체크포인트(부하테스트 후)에서 확정**, 그 전에 배포 방안 검증 예정. pytest 32개 통과(2026-10-12 확인). 상세는 §2·§3·§4·§5·§6·§7·§8·§9·§10 참고. 이전 수정: 2026-10-08 (2026-10-08 구현 완료 — 그룹 채팅 거래 액션 바(B안: 약속·정산·GPS·QR 링크)·로그인 상태 비밀번호 변경 API(`PATCH /api/users/me/password`)·공개 공지 API(`GET /api/notices`)·게시글 수정 API 확장(사진·유형·인원·가격)·정산 흐름 자동화 테스트(`tests/test_settlement_flow.py` 등 pytest 12개 신규)·QR 발급 화면 토큰 표시·복사 줄 추가(`qr.tsx`). 같은 날 수동 UI 검증(액션 바·비밀번호 변경·공지·게시글 수정) 통과. 남은 작업: PWA·PortOne 서버 검증·실환경(기기) 검증·서버 운영 마무리. 이전 수정: 2026-10-08 (2026-10-08 잔여 작업 방침 확정 — 시연·발표 전 처리(그룹 채팅 액션 바·PortOne 서버 검증·실환경 검증·서버 운영 마무리)와 구현/제외 결정 항목(비밀번호 변경·공개 공지·게시글 수정 API·PWA)은 모두 작업 예정, 정적 HTML 폐기는 구현 100% 완료 후 영향 점검 뒤 진행, 선택 사항은 별도 시점에 처리). 이전 수정: 2026-10-07 (GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정). 이전 수정: 2026-10-06 (운영 서버 HTTPS 배포 완료(Nginx·Let's Encrypt·`dist/` 서빙)와 팀원 PortOne V2 테스트 결제 연동 반영 — 신규 API 4종·테이블 2개 추가, §9 외부 결제 정책 갱신. 상세는 §2·§3·§4·§5·§6·§7·§8·§9 참고. 이전 수정 2026-09-30 (배포 서버 백엔드 배치·도메인 연결 반영, 코드 변경 없음 — §7·§8 참고. 이전 수정 2026-09-21: React 전체 화면 이전(`frontend-react/`, 화면 39개)·공통 디자인·로딩·자동완성·게시글 상세 개선 반영, 공개 공지 API 미구현·게시글 수정 범위 정정. 상세는 §2·§3·§5·§6·§7·§8·§9·§10·§11 참고)
 > 2026-09-08 수정: 기술 스택 사용 목적 서술 추가, 디렉토리 구조를 README.md와 정합화 / 존재하지 않는 `receipt_items` 테이블 언급 2곳 정정 — 영수증 품목은 `receipts.items`/`selected_items` JSON 컬럼으로만 저장
 > 2026-09-12 업데이트: 관리자 기능 실데이터 연동 완료(가드 공용화·회원 관리·신고 상세·운영진 관리·대시보드 통계), 미납 정산 참여 차단 리팩터링, 주최자 귀책/먹튀 trust_score 자동 페널티, `seed_admin.py` 복원, CORS `.env` 동적 분기 준비. 상세는 §7 개발 이력 참고.
 > 2026-09-14 업데이트: `frontend-react/` 워크스페이스 신규 추가 — 홈 화면(`HomePage.tsx`)만 React로 재구현한 부분 마이그레이션. 기존 정적 HTML 프런트엔드(`frontend/`)와 하이브리드로 병행 운영하며, 신규 백엔드 API는 없음(기존 `GET /posts` 재사용). 상세는 §7 개발 이력 참고.
@@ -153,6 +153,7 @@ project_root/
 │   ├── test_account_notice_post.py  비밀번호 변경·공개 공지·게시글 수정 확장 API 테스트 [신규 2026-10-08]
 │   ├── test_settlement_flow.py      정산 흐름 자동화 테스트(약속→GPS 100m→QR→납부→완료→매너 평가, 노쇼·취소·미납 참여 차단) [신규 2026-10-08]
 │   ├── test_portone.py      PortOne 테스트 결제 검증(금액·권한·게이트·반복 요청·취소·오류, 외부 API는 mock) [신규 2026-10-05]
+│   ├── test_demo_mode.py            관리자 체험 모드 13개 [신규 2026-10-31] — 전체 pytest 66개 통과
 │   └── test_supabase_storage.py     Storage 라우팅·업로드/영수증 로그인 필수·본인 소유 검증·4MB 제한(외부 서비스 mock, 실제 Supabase 미연결) [신규 2026-10-12] — 전체 pytest 32개 통과(2026-10-12)
 ├── docs/SUPABASE_MIGRATION.md   Supabase 전환 패치 적용·로컬 실행·Vercel 배포 준비·롤백 안내 (팀원 작성, 2026-10-12 — 기준 커밋 `28190b4`, 작성자 PC 경로가 예시로 적혀 있음)
 ├── supabase.env.example         `DATABASE_URL`·`DATABASE_SSLMODE`·`SUPABASE_URL`·`SUPABASE_SECRET_KEY`·`ALLOWED_ORIGINS` 템플릿 — 기존 `.env`에 **추가**(OCR·PortOne·Kakao 값 보존) [신규 2026-10-12]
@@ -327,6 +328,17 @@ project_root/
 | GET | `/api/admin/chats` | 채팅방 목록 (모니터링) |
 | GET | `/api/admin/chats/{id}/messages` | 채팅 메시지 조회 |
 
+### 관리자 체험 모드 — `/api/admin/demo/*` (신규 2026-10-31, admin 가드, 전시 부스용)
+| Method | Path | 설명 |
+|---|---|---|
+| GET | `/api/admin/demo/users?q=` | 체험자 후보 검색(활성 일반 회원, 가상 이웃 제외) |
+| GET | `/api/admin/demo/trades?loginId=` | 체험자의 체험 거래·참여자별 위치/QR/납부 진행 상태·다음 단계 안내 |
+| POST | `/api/admin/demo/trades` | 더미 거래 생성 `{loginId, type: random\|groupbuy\|share\|exchange}` (체험자당 최대 5건, 장소 호천관 고정) |
+| POST | `/api/admin/demo/trades/{postId}/participants/{userId}/qr` | 가상 참여자 위치 증거(호천관 좌표) 기록 + QR 발급(5분, 일시 확정 후에만) |
+| GET | `/api/admin/demo/qr/{sessionId}` | QR 스캔(VERIFIED) 여부 폴링 |
+| POST | `/api/admin/demo/settlements/{id}/participants/{userId}/pay` | 가상 참여자 납부 처리(체험자 QR 스캔 이후에만) |
+| DELETE | `/api/admin/demo/trades?loginId=` | 체험 거래·정산·채팅·후기 삭제 + 신뢰 온도 36.5 복원 |
+
 ### PortOne 테스트 결제 — `/api/payments/portone/*` (신규 2026-10-05, 전부 로그인 필요)
 | Method | Path | 설명 |
 |---|---|---|
@@ -416,6 +428,7 @@ project_root/
 | `Admin_Notices.html` | ✅ 연동 | 공지 목록·작성·삭제 (예약·푸시는 준비 중 안내) |
 | `Admin_Chat_History.html` | ✅ 연동 | 채팅방 목록 + 메시지 조회 |
 | `Admin_Report_Detail.html` | ✅ 연동 | 신고 단건 로드 + 기각·삭제·정지 액션 (경고 발송은 스키마 미지원으로 준비 중 안내) |
+| `Admin_Demo` (React 전용) | ✅ 신규 2026-10-31 | 전시 부스 체험 모드: 체험자 선택·더미 거래 배정·가상 참여자 QR 발급·납부 처리·초기화 |
 | `Admin_Staff_Invite.html` | ✅ 연동 | 회원 검색 → 운영진 승격/권한 해제 (이메일 초대 없이 §9 정책대로 재설계, 2026-09-12) |
 
 ### React(Vite) 프런트엔드 — 화면 39개 전체 이전 (2026-09-20~21, 홈 화면은 2026-09-14)
@@ -716,7 +729,7 @@ python reset_db.py                    # 확인 프롬프트 표시
 python tests/test_receipt_parser_v212.py
 
 # API 자동화 테스트 [신규 2026-10-08, 2026-10-12 갱신] — 임시 SQLite DB 사용(실제 data/neighborfood.db 미변경). pip install pytest httpx
-python -m pytest tests -q              # 2026-10-12 기준 32개 통과 (Supabase 저장소 테스트 3개 포함 — 외부 서비스 mock)
+python -m pytest tests -q              # 2026-10-31 기준 66개 통과(체험 모드 13개 포함). 2026-10-12 기준 32개 통과 (Supabase 저장소 테스트 3개 포함 — 외부 서비스 mock)
 
 # Supabase(PostgreSQL)·Storage 선택 모드 [신규 2026-10-12] — 절차 전체: docs/SUPABASE_MIGRATION.md
 python scripts/configure_supabase.py   # DB 비밀번호·secret key 숨김 입력 → .env 기록

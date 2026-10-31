@@ -16,6 +16,7 @@ from pydantic  import BaseModel, Field
 
 from app.core.deps  import get_current_user
 from app.core.utils import now_utc, to_iso, from_iso
+from app.core.demo_spot import is_demo_title, SPOT_ADDRESS, SPOT_LAT, SPOT_LNG
 from app.db.transaction_db import get_conn
 from app.db import settlement_db as sdb, trade_verification as tv
 
@@ -382,6 +383,11 @@ async def set_appointment(settlement_id: int, body: AppointmentBody,
         raise HTTPException(400, "진행 중인 정산에서만 약속을 정할 수 있습니다.")
     if not (body.place or body.appointment_at):
         raise HTTPException(400, "약속 장소 또는 시간을 입력해 주세요.")
+    with get_conn() as conn:
+        _post = conn.execute("SELECT title FROM posts WHERE id = ?", (s["post_id"],)).fetchone()
+    if _post and is_demo_title(_post["title"]):
+        # 체험 거래는 만남 장소가 호천관으로 고정되어 있고 일시만 정할 수 있습니다.
+        body.place, body.lat, body.lng = SPOT_ADDRESS, SPOT_LAT, SPOT_LNG
     try:
         sdb.set_appointment(settlement_id, body.place, body.appointment_at, body.lat, body.lng)
     except ValueError as exc:

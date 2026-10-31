@@ -5,7 +5,7 @@
 
 
 버전: **v2.1.0** (2026-08-22)
-문서 최종 갱신: 2026-10-12 (팀원 박준기 푸시 2건 반영 — `b6859f0`(10/12) **Supabase(PostgreSQL)·Supabase Storage 선택 지원**(`DATABASE_URL`·`SUPABASE_URL`이 있을 때만 활성, 없으면 기존 SQLite·로컬 `uploads/` 그대로), 게시글 사진 업로드·영수증 API **로그인 필수 + 본인 영수증만 처리**, 영수증 이미지 서명 URL 조회(`GET /api/receipt/image/{name}`), `migrations/001_supabase.sql`·`scripts/`·`docs/SUPABASE_MIGRATION.md`·`supabase.env.example` 신규. `fc80abd`(10/11) QR 스캔 화면 구성 변경·영수증 분석 중 상태 표시·프로필 사진 업로드·신뢰온도 게이지(`TrustTemperature.tsx`). **배포 방식은 Oracle 유지 / Vercel+Supabase 전환 두 방향을 모두 열어 두고, 부하테스트 후 10/16 체크포인트에서 확정**합니다. pytest 32개 통과(2026-10-12 확인). 미검증: Supabase 실연결·Vercel 배포·CLOVA OCR·휴대폰 카메라·PortOne 외부 호출 — 최종 결정 전에 검증 예정). 이전 갱신: 2026-10-08 (2026-10-08 구현 완료 — 그룹 채팅 거래 액션 바(B안: 약속·정산·GPS·QR 링크)·로그인 상태 비밀번호 변경 API(`PATCH /api/users/me/password`)·공개 공지 API(`GET /api/notices`)·게시글 수정 API 확장(사진·유형·인원·가격)·정산 흐름 자동화 테스트(`tests/test_settlement_flow.py` 등 pytest 12개 신규)·QR 발급 화면 토큰 표시·복사 줄 추가(`qr.tsx`). 같은 날 수동 UI 검증(액션 바·비밀번호 변경·공지·게시글 수정) 통과. 남은 작업: PWA·PortOne 서버 검증·실환경(기기) 검증·서버 운영 마무리.). 이전 갱신 내용: 2026-10-08 잔여 작업 방침 확정 — 시연·발표 전 처리(그룹 채팅 액션 바·PortOne 서버 검증·실환경 검증·서버 운영 마무리)와 구현/제외 결정 항목(비밀번호 변경·공개 공지·게시글 수정 API·PWA)은 모두 작업 예정, 정적 HTML 폐기는 구현 100% 완료 후 영향 점검 뒤 진행, 선택 사항은 별도 시점에 처리)
+문서 최종 갱신: 2026-10-31 (**관리자 체험 모드(전시 부스용) 추가** — 관리자가 체험자(부스 방문자가 직접 가입한 계정)에게 공동구매·나눔·교환 더미 거래를 배정하고(`/api/admin/demo/*`, 관리자 화면 `Admin_Demo`), 체험자는 주최자로 채팅 → 일시 확정(장소는 서일대 호천관 서버 고정) → 부스 노트북에서 발급한 가상 참여자 QR을 자기 폰으로 스캔 → (정산·납부) → 후기까지 체험. 기존 GPS·QR·정산 검증 코드는 수정하지 않음, DB 스키마 변경 없음. 나눔·교환 거래 카드에 약속 일시 입력칸 추가. pytest 66개·vitest 9개 통과(2026-10-31, 로컬 브라우저 흐름 확인·실제 폰 카메라/Vercel 배포는 미검증). 상세는 `docs/DEMO_MODE.md`. 이전 갱신: 2026-10-12 (팀원 박준기 푸시 2건 반영 — `b6859f0`(10/12) **Supabase(PostgreSQL)·Supabase Storage 선택 지원**(`DATABASE_URL`·`SUPABASE_URL`이 있을 때만 활성, 없으면 기존 SQLite·로컬 `uploads/` 그대로), 게시글 사진 업로드·영수증 API **로그인 필수 + 본인 영수증만 처리**, 영수증 이미지 서명 URL 조회(`GET /api/receipt/image/{name}`), `migrations/001_supabase.sql`·`scripts/`·`docs/SUPABASE_MIGRATION.md`·`supabase.env.example` 신규. `fc80abd`(10/11) QR 스캔 화면 구성 변경·영수증 분석 중 상태 표시·프로필 사진 업로드·신뢰온도 게이지(`TrustTemperature.tsx`). **배포 방식은 Oracle 유지 / Vercel+Supabase 전환 두 방향을 모두 열어 두고, 부하테스트 후 10/16 체크포인트에서 확정**합니다. pytest 32개 통과(2026-10-12 확인). 미검증: Supabase 실연결·Vercel 배포·CLOVA OCR·휴대폰 카메라·PortOne 외부 호출 — 최종 결정 전에 검증 예정). 이전 갱신: 2026-10-08 (2026-10-08 구현 완료 — 그룹 채팅 거래 액션 바(B안: 약속·정산·GPS·QR 링크)·로그인 상태 비밀번호 변경 API(`PATCH /api/users/me/password`)·공개 공지 API(`GET /api/notices`)·게시글 수정 API 확장(사진·유형·인원·가격)·정산 흐름 자동화 테스트(`tests/test_settlement_flow.py` 등 pytest 12개 신규)·QR 발급 화면 토큰 표시·복사 줄 추가(`qr.tsx`). 같은 날 수동 UI 검증(액션 바·비밀번호 변경·공지·게시글 수정) 통과. 남은 작업: PWA·PortOne 서버 검증·실환경(기기) 검증·서버 운영 마무리.). 이전 갱신 내용: 2026-10-08 잔여 작업 방침 확정 — 시연·발표 전 처리(그룹 채팅 액션 바·PortOne 서버 검증·실환경 검증·서버 운영 마무리)와 구현/제외 결정 항목(비밀번호 변경·공개 공지·게시글 수정 API·PWA)은 모두 작업 예정, 정적 HTML 폐기는 구현 100% 완료 후 영향 점검 뒤 진행, 선택 사항은 별도 시점에 처리)
 이전 갱신: 2026-10-07 (GitHub `ec1da57`(main) 기준 문서-저장소 정합성 점검 — 저장소에 없는 문서 참조 표기, 화면 수(39+4) 표기, 팀원 `PORTONE_TEST_SETUP.md` 시점 차이 주석, 낡은 문구 정정·`frontend/shared/profile.js` 부재 정정)
 이전 갱신: 2026-10-06 (운영 서버 HTTPS 배포 완료·PortOne V2 테스트 결제 연동 반영: 주요 기능·라우터 표·폴더 구조·알려진 제한·관련 문서 갱신)
 이전 갱신: 2026-09-21 (React 전체 화면 이전·공통 디자인·로딩·자동완성·게시글 상세 개선 반영, 공개 공지 API 미구현 정정, 게시글 수정 범위 정정, `frontend-react/docs/` 문서 추가)
@@ -178,6 +178,17 @@ python seed_admin.py revoke  # 시연 종료 후 권한 회수
 
 기본 관리자 계정이나 기본 비밀번호는 생성하지 않습니다. 과거 기본 계정이 실제 배포에 사용되었는지 관리자가 확인하고 필요한 경우 비밀번호 변경 또는 비활성화해야 합니다.
 
+### 6-1. (선택) 전시 부스 관리자 체험 모드 — 2026-10-31
+
+부스 방문자가 앱에 직접 가입한 계정(체험자)에게 관리자가 더미 거래를 배정해 거래 전 과정을 체험시키는 기능입니다. 별도 환경변수 스위치는 없으며 **관리자 계정만** 사용할 수 있습니다(승격·회수는 위 6절).
+
+1. 관리자 화면 **체험 모드**(`#/Admin_Demo`)에서 체험자 로그인 ID와 유형(랜덤·공동구매·나눔·교환) 선택 → **더미 거래 생성**
+2. 체험자(폰): 채팅방에서 주최자로 참여 → 약속 **일시** 저장(공동구매는 채팅방 "거래 진행", 나눔·교환은 내 활동 거래 카드). 장소는 서일대 호천관(서울 중랑구 용마산로90길 28)으로 서버가 고정
+3. 관리자(노트북): 가상 참여자 옆 **위치 인증 + QR 발급**(위치는 호천관 고정 좌표로 기록) → 체험자 폰이 QR 스캔(공동구매는 정산 경로 `settlementId`, 나눔·교환은 거래 경로 `transactionId`)
+4. 공동구매만 관리자 **납부 처리** → 체험자 **정산 완료** → 후기. 끝나면 **이 체험자 거래 초기화**
+
+호천관 좌표 기본값은 근사값이므로 `DEMO_SPOT_LAT`·`DEMO_SPOT_LNG` 환경변수로 덮어쓸 수 있습니다. 폰 카메라 QR 스캔은 HTTPS(배포 주소)가 필요합니다. 전체 절차·안전장치·API는 `docs/DEMO_MODE.md`.
+
 ### 7. (선택) 더미 데이터 주입
 
 ```bash
@@ -201,6 +212,8 @@ API 전체 자동화 테스트는 위의 가상환경을 활성화한 후 실행
 python -m pip install -r requirements-test.txt
 python -m pytest -q
 ```
+
+2026-10-31 기준 pytest 66개(관리자 체험 모드 13개 포함)가 통과하며, 프런트엔드는 `frontend-react`에서 `npm test`(vitest 9개)로 확인합니다.
 
 pytest는 환경파일을 읽지 않고 외부 DB·서비스 설정을 비활성화합니다. DB와 테스트 중 생성되는 파일은 테스트별 임시 디렉터리에 저장됩니다. Supabase Storage·OCR·PortOne 테스트의 외부 호출은 mock하므로 실제 서비스 연결은 검증하지 않습니다.
 
@@ -343,7 +356,8 @@ Neighborfood/
 │   ├── test_account_notice_post.py  # 비밀번호 변경·공개 공지·게시글 수정 확장 테스트 [신규 2026-10-08]
 │   ├── test_settlement_flow.py      # 정산 흐름 자동화 테스트 [신규 2026-10-08]
 │   ├── test_portone.py              # PortOne 테스트 결제 검증 (외부 API mock) [신규 2026-10-05]
-│   └── test_supabase_storage.py     # Storage 라우팅·영수증 소유권·4MB 제한 (외부 서비스 mock) [신규 2026-10-12]
+│   ├── test_supabase_storage.py     # Storage 라우팅·영수증 소유권·4MB 제한 (외부 서비스 mock) [신규 2026-10-12]
+│   └── test_demo_mode.py            # 관리자 체험 모드: 권한·유형별 생성·호천관 고정·가상 참여자 QR 스캔·초기화 [신규 2026-10-31]
 ├── docs/PORTONE_TEST_SETUP.md   # PortOne 테스트 연동 범위·설정·제한
 ├── docs/SUPABASE_MIGRATION.md   # Supabase 전환 패치 적용·로컬 실행·Vercel 배포 준비·롤백 안내 (팀원 작성, 2026-10-12)
 ├── README.md  Capstone.md  NeighborFood_Architecture_Plan.md  neighborfood_ERD.md
@@ -415,6 +429,7 @@ Bearer 토큰 세션 인증을 사용합니다.
 | `/api/qr` | QR 거래 인증 | QR 세션 발급·검증, 이력(`/history`, `/my-history`) |
 | `/api/receipt` | 영수증 인증 | `GET /health`, OCR 업로드 `POST /scan`, 품목 선택·인증 `POST /verify`, 내 이력 `GET /history`, 이미지 조회 `GET /image/{name}`. 2026-10-12부터 `health` 외 **모두 로그인 필요·본인 영수증만**(타인 `subjectId`는 403, 이미지는 소유자만 서명 URL로 307 리다이렉트) |
 | `/api/admin` | 관리자 | 회원·신고·공지 관리, 채팅 모니터링, 대시보드 통계(`/stats`) |
+| `/api/admin/demo` | 관리자 체험 모드 | 전시 부스용: 체험자 검색, 더미 거래 생성(공동구매·나눔·교환·랜덤)·진행 조회·초기화, 가상 참여자 위치 인증(호천관 고정)+QR 발급·스캔 확인, 납부 처리 (관리자 전용, 상세 `docs/DEMO_MODE.md`) |
 | `/api/reports` | 신고 | 게시글·회원 신고 접수·취소, 내 신고 목록(`GET /my`) |
 | `/api/location-verify` | GPS 위치 인증 | 위치 인증 세션 생성·검증 (Haversine 100m) |
 | `/api/payments/portone` | PortOne 테스트 결제 | `GET /config`, `POST /prepare`(정산 분담금 주문), `POST /{payment_id}/verify`(PortOne 조회 검증), `POST /quick-prepare`(1,000원 빠른 테스트). 테스트 채널 전용, 설정(`PORTONE_*`) 없으면 503, 정산 납부 상태 불변 (2026-10-05) |
@@ -438,6 +453,7 @@ Bearer 토큰 세션 인증을 사용합니다.
 | `Capstone.md` | 개발 컨텍스트·제약사항·범위(포함/제외) 요약 |
 | `NeighborFood_Architecture_Plan.md` | 아키텍처 현황, API 전체 목록, 개발 이력, 잔여 작업 |
 | `neighborfood_ERD.md` | DB 구조(ERD)와 디렉토리 구조 |
+| `docs/DEMO_MODE.md` | 전시 부스 관리자 체험 모드 사용 절차·안전장치·API |
 | `Settlement_Implementation_Plan.md` | 공동구매 정산 시스템 설계·구현 계획 |
 | `Neighborfood_React_실행_안내.md` | 백엔드 + React(`frontend-react/`) 로컬 실행 안내서 |
 | `NeighborFood_서버_실행_점검_가이드.md` | 운영 서버(Oracle Cloud) 실행·점검·갱신 배포·백업·장애 대응 | *(저장소 미포함 — 개별 보관)*
