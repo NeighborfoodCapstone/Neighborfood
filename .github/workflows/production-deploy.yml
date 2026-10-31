@@ -1,0 +1,95 @@
+name: Migrate and deploy production API
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: neighborfood-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Repository variable is intentionally unset by default. Enable only after
+    # the first migration, access controls and deployment guard are verified.
+    if: ${{ github.ref == 'refs/heads/main' && vars.PRODUCTION_DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+      - name: Reject outdated main revision
+        run: |
+          git fetch --no-tags --depth=1 origin main
+          if [ "$(git rev-parse FETCH_HEAD)" != "$GITHUB_SHA" ]; then
+            echo "A newer main revision exists; skip this deployment."
+            exit 1
+          fi
+      - name: Apply pending migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_ID"
+          supabase db push --yes
+      - name: Build production deployment without promotion
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          url=$(npx --yes vercel@65.9.0 deploy --prod --skip-domain --yes)
+          printf 'url=%s\n' "$url" >> "$GITHUB_OUTPUT"
+      - name: Check staged API before promotion
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          node --input-type=module <<'NODE'
+          try {
+            const headers = {};
+            if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) {
+              headers['x-vercel-protection-bypass'] = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+            }
+            const response = await fetch(`${process.env.DEPLOY_URL}/posts`, {
+              headers, redirect: 'manual', signal: AbortSignal.timeout(30000)
+            });
+            if (response.status !== 200) throw new Error('Unexpected API status');
+            const result = await response.json();
+            if (!Array.isArray(result.items) || typeof result.count !== 'number') {
+              throw new Error('Unexpected API response');
+            }
+          } catch {
+            console.error('Staged API check failed; production will not be promoted.');
+            process.exit(1);
+          }
+          NODE
+      - name: Recheck main before promotion
+        run: |
+          git fetch --no-tags --depth=1 origin main
+          if [ "$(git rev-parse FETCH_HEAD)" != "$GITHUB_SHA" ]; then
+            echo "A newer main revision exists; do not promote this deployment."
+            exit 1
+          fi
+      - name: Promote verified deployment
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: npx --yes vercel@65.9.0 promote "$DEPLOY_URL" --yes

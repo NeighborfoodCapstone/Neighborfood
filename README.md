@@ -1,7 +1,7 @@
 # NeighborFood
 
 지역 기반 식재료 공동구매 플랫폼 — FastAPI 백엔드(DB·파일 저장소는 **SQLite·로컬 `uploads/`가 기본**, 환경변수 설정 시에만 **Supabase(PostgreSQL)·Supabase Storage** 사용), React(Vite) 프런트엔드(기존 화면 39개 전체 이전 구현) + 기존 정적 HTML 프런트엔드(병행 보존)
-> **거래·OCR 변경 주의:** PostgreSQL은 백업 및 격리 DB 리허설 후 `002_ocr_guard.sql`, `003_trade_verification.sql`을 순서대로 적용해야 합니다. OCR은 기본 중단 상태이며 외부 보호수단·Firewall 검증 전 개방하지 않습니다. 상세 절차와 미검증 항목은 `docs/INTEGRATION_REPORT.md`를 확인하세요.
+> **PostgreSQL 배포 주의:** 정식 마이그레이션은 `supabase/migrations/`의 001→002→003 순서입니다. 운영 DB의 실제 스키마·이력과 백업을 확인하고 [`docs/SUPABASE_MIGRATION.md`](docs/SUPABASE_MIGRATION.md)의 순서를 따르세요. OCR과 기존 Firewall 차단은 유지합니다.
 
 
 버전: **v2.1.0** (2026-08-22)
@@ -126,16 +126,17 @@ uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```bash
 python -m pip install -r requirements.txt     # psycopg[binary], python-dotenv 포함
 python scripts/configure_supabase.py          # DB 비밀번호·secret key를 숨김 입력으로 .env에 기록
-python scripts/supabase_migrate.py            # 빈 DB에 migrations/001_supabase.sql 적용 (버전 28190b4-v1)
-python scripts/check_supabase.py              # 연결·스키마 버전·버킷(food-images 공개 / receipts 비공개) 읽기 전용 점검
-# 기존 데이터를 옮길 때만:
-python scripts/import_sqlite.py data/neighborfood.db
-python scripts/import_uploads.py uploads
+supabase migration list --linked             # 적용 이력 확인(불일치 시 중단)
+supabase db push --linked --dry-run          # 적용 대상 미리 확인
+# 승인된 백업과 운영 변경 승인 후에만: supabase db push --linked
+python scripts/check_supabase.py              # 필수 컬럼·버킷(food-images 공개 / receipts 비공개) 읽기 전용 점검
 ```
 
+기존 SQLite 데이터의 가져오기는 현재 OCR 설정 초기 행과 충돌하므로 바로 실행하지 않습니다. 별도 백업·검토가 필요합니다.
+
 > ⚠️ **PostgreSQL 모드 주의사항 (2026-10-12 정적 점검, 실제 Supabase 연결 검증 전)**
-> - PostgreSQL 모드에서는 서버가 `CREATE TABLE`·`ALTER TABLE`·`CREATE INDEX`를 실행하지 않습니다(테이블이 없으면 "Run scripts/supabase_migrate.py" 오류). 스키마 변경은 마이그레이션 파일로만 적용합니다. `migrations/001_supabase.sql`은 커밋 `28190b4` 시점의 초기화 스키마(앱 테이블 21개 + `neighborfood_schema_version`)입니다.
-> - `messages.is_system` 컬럼은 SQLite에서 공동구매 참여 취소 시 `posts.py`가 `ALTER TABLE`로 지연 추가하는 컬럼이라 **마이그레이션 SQL에 포함되어 있지 않습니다**. PostgreSQL 모드에서는 그 `ALTER`가 실행되지 않으므로, 그룹 채팅방이 있는 공동구매의 **참여 취소 시스템 메시지 삽입이 실패할 수 있습니다**. 실제 Supabase에서 확인하고, 필요하면 마이그레이션에 컬럼을 추가해야 합니다(§8·`NeighborFood_Architecture_Plan.md` §8).
+> - PostgreSQL 모드의 앱 서버는 테이블·인덱스·컬럼 DDL을 실행하지 않습니다. 시작 전에 필수 테이블과 컬럼을 읽기 전용으로 검사합니다. 마이그레이션 이력·제약·RLS의 운영 검증은 별도입니다.
+> - `messages.is_system`, `transactions.settlement_id`, GPS·QR 연결 컬럼은 `20261031000300_trade_verification.sql`에 포함됩니다. 기존 DB에는 이력을 확인하지 않고 SQL을 재실행하지 마세요.
 > - 이미지 한 요청의 합계는 **4MB 이하**입니다(Vercel 요청 크기 제한 대비). Oracle(Nginx 20MB) 방식에서도 같은 코드 제한이 적용됩니다.
 > - `DATABASE_URL`·`SUPABASE_*`를 쓰지 않으면 이 절의 내용은 동작에 영향을 주지 않습니다.
 
@@ -243,13 +244,14 @@ Neighborfood/
 ├── .gitignore               # .env.*·.supabase_patch_backups/ 추가 (2026-10-12)
 ├── sql/
 │   └── neighborfood_schema.sql   # 스키마 참조 문서 (SQLite 기준 Source of Truth)
-├── migrations/
-│   └── 001_supabase.sql     # PostgreSQL(Supabase)용 초기 스키마 — 28190b4 시점, 앱 테이블 21개 + neighborfood_schema_version [신규 2026-10-12]
-├── scripts/                 # Supabase 적용·점검·이전 스크립트 [신규 2026-10-12]
-│   ├── configure_supabase.py   # DB 비밀번호·secret key 숨김 입력 → .env 기록(기존 값 보존, .env.supabase.bak 백업)
-│   ├── supabase_migrate.py     # 빈 DB에 migrations/001_supabase.sql 적용(재실행 안전)
-│   ├── check_supabase.py       # 연결·스키마 버전·버킷 읽기 전용 점검
-│   ├── import_sqlite.py        # (선택) 기존 SQLite 데이터를 빈 PostgreSQL 테이블로 복사
+├── supabase/
+│   ├── config.toml           # Supabase CLI 및 GitHub Integration 설정
+│   └── migrations/           # 정식 001·002·003 마이그레이션
+├── migrations/               # 검증을 위해 보존한 과거 SQL(중복 실행 금지)
+├── scripts/                  # Supabase 설정·점검·이전 스크립트
+│   ├── configure_supabase.py   # DB 비밀번호·secret key 숨김 입력 → .env 기록(기존 값 보존)
+│   ├── check_supabase.py       # 필수 컬럼·버킷 읽기 전용 점검
+│   ├── import_sqlite.py        # 기존 도구: OCR 초기 행 포함 DB에서는 별도 검토 필요
 │   └── import_uploads.py       # (선택) 기존 uploads/ 이미지를 Storage 버킷으로 업로드
 ├── data/
 │   └── neighborfood.db      # SQLite 단일 DB (자동 생성, SQLite 모드)
@@ -407,7 +409,7 @@ Bearer 토큰 세션 인증을 사용합니다.
 - (SQLite) WAL 모드 + `busy_timeout=5000` 으로 동시 접근 안정성 확보
 - (SQLite) 앱 시작 시 `init_all_databases()`가 모든 테이블을 `CREATE TABLE IF NOT EXISTS`로 생성
 - (SQLite) 기존 DB에 신규 컬럼이 추가될 경우 `ALTER TABLE … ADD COLUMN` 멱등 마이그레이션 자동 실행
-- (PostgreSQL) 스키마는 `scripts/supabase_migrate.py`가 `migrations/001_supabase.sql`로 한 번 적용하며, 서버는 DDL을 실행하지 않습니다. 모든 앱 테이블에 RLS를 켜고 공개 역할 권한을 제거하며, 회원 권한 검사는 기존처럼 서버가 담당합니다.
+- (PostgreSQL) `supabase/migrations/`과 Supabase 이력으로 스키마를 관리하며, 서버는 DDL을 실행하지 않습니다. 모든 앱 테이블에 RLS를 켜고 공개 역할 권한을 제거하며 회원 권한 검사는 서버가 담당합니다.
 - 전체 스키마 정의는 `sql/neighborfood_schema.sql`(SQLite 기준) 참조. 테이블·컬럼 상세는 `neighborfood_ERD.md`
 
 ---

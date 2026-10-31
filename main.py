@@ -52,7 +52,8 @@ _SERVE_SPA = (_DIST_DIR / "index.html").is_file()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_all_databases()   # startup
-    portone.init_db()
+    if not os.getenv("DATABASE_URL", "").strip():
+        portone.init_db()
     yield
     # (shutdown 시 정리할 자원이 있으면 여기에)
 

@@ -47,3 +47,8 @@ Neighborfood_design_backups/
 .env.*
 !.env.example
 !*.env.example
+
+# Supabase/Vercel CLI local state may contain project-specific information.
+supabase/.temp/
+supabase/.branches/
+.vercel/

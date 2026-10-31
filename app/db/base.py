@@ -22,6 +22,13 @@ def make_conn(path: str, foreign_keys: bool = False) -> sqlite3.Connection:
 def init_all_databases() -> None:
     """서버 시작 시 1회 호출: 모든 DB 테이블을 생성/마이그레이션합니다.
     부모 테이블을 먼저 초기화하도록 순서를 유지해야 합니다."""
+    if os.getenv("DATABASE_URL", "").strip():
+        from app.db.postgres import Connection
+        from app.db.schema import validate_postgres_schema
+        with Connection() as conn:
+            validate_postgres_schema(conn)
+        return
+
     from app.db.auth_db            import init_auth_db
     from app.db.qr_db              import init_qr_db
     from app.db.receipt_db         import init_receipt_db
