@@ -1,0 +1,5 @@
+# Local CLI identifier only; no production remotes, auth, or Storage settings.
+project_id = "neighborfood"
+
+[db.seed]
+enabled = false

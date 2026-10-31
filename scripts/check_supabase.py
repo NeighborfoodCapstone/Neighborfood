@@ -4,13 +4,12 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import app.config
 from app.db.postgres import Connection
+from app.db.schema import validate_postgres_schema
 from app import storage
 import requests
 with Connection() as db:
-    row=db.conn.execute('SELECT version FROM public.neighborfood_schema_version').fetchone()
-    if not row or row['version']!='28190b4-v1': raise SystemExit('Schema version mismatch')
-    count=db.conn.execute("SELECT count(*) AS n FROM pg_tables WHERE schemaname='public' AND tablename <> 'neighborfood_schema_version'").fetchone()['n']
-    print(f'PostgreSQL connected; {count} app tables; schema version OK')
+    validate_postgres_schema(db)
+    print('PostgreSQL required schema check passed')
 url,headers=storage.config()
 for bucket,public in [('food-images',True),('receipts',False)]:
     response=requests.get(url+'/storage/v1/bucket/'+bucket,headers=headers,timeout=15)

@@ -91,11 +91,11 @@ class Connection:
         if pragma:
             cur=self.conn.execute("SELECT ordinal_position-1 AS cid, column_name AS name, data_type AS type FROM information_schema.columns WHERE table_schema='public' AND table_name=%s ORDER BY ordinal_position", (pragma[1],))
             return Cursor(cur)
-        if re.match(r'\s*(CREATE TABLE|CREATE INDEX|ALTER TABLE)',sql,re.I):
+        if re.match(r'\s*(CREATE TABLE|CREATE (?:UNIQUE\s+)?INDEX|ALTER TABLE)',sql,re.I):
             # Migration script owns DDL. Missing schema must fail visibly.
             table=re.search(r'(?:TABLE(?: IF NOT EXISTS)?|ON)\s+(\w+)',sql,re.I)
             if table and not self.conn.execute('SELECT to_regclass(%s) AS name',('public.'+table[1],)).fetchone()['name']:
-                raise RuntimeError('Run scripts/supabase_migrate.py before starting the API')
+                raise RuntimeError('PostgreSQL schema is missing or inaccessible; see docs/SUPABASE_MIGRATION.md')
             return Cursor(rows=[])
         if 'sqlite_master' in sql:
             sql="SELECT table_name AS name FROM information_schema.tables WHERE table_schema='public' AND table_name='receipts'"

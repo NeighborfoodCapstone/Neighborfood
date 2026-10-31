@@ -47,4 +47,4 @@ old_front=frontend.read_text(encoding='utf-8-sig') if frontend.exists() else ''
 if not re.search(r'^VITE_API_BASE_URL=',old_front,re.M):
     frontend.write_text(old_front+'\nVITE_API_BASE_URL=http://127.0.0.1:8000\n',encoding='utf-8')
 print('Server .env configured. Existing service settings preserved. No secret values printed.')
-print('Next: python scripts/supabase_migrate.py')
+print('Next: review docs/SUPABASE_MIGRATION.md before using the Supabase CLI.')

@@ -1,119 +1,129 @@
-# Neighborfood Supabase 전환 패치 적용 안내
+# Supabase 스키마 복구와 배포 절차
 
-> **후속 변경:** 이 문서는 초기 `001` 전환 당시의 이력이다. 현재 코드에는 `002_ocr_guard.sql`과 `003_trade_verification.sql`도 필요하다. 기존 `scripts/supabase_migrate.py`는 `001` 전용이며 후속 파일을 적용하지 않는다. 백업·격리 리허설·배포 순서·실환경 미검증 사항은 [`INTEGRATION_REPORT.md`](INTEGRATION_REPORT.md)를 먼저 확인한다. OCR은 사전검증 전 중단한다.
+## 현재 상태와 안전 경계
 
-기준: GitHub main `28190b45ab4d17684c021252a39193a9acd39440`.
-기존 화면·URL·필드·Bear​​er 로그인·테스트 결제 흐름을 유지한다. PostgreSQL을 사용할 때만 공통 DB 연결 계층에서 현재 SQL의 SQLite 문법을 변환한다. 기존 SQLite 모드도 유지한다.
+이 저장소의 기준 경로는 `supabase/migrations/`다. `migrations/001_supabase.sql`, `002_ocr_guard.sql`, `003_trade_verification.sql`은 비교·검증을 위해 보존한 **이전 원본**이며, 새 파일과 함께 직접 실행하지 않는다. 과거의 001 전용 `scripts/supabase_migrate.py`는 Supabase 이력을 기록하지 않아 제거했다.
 
-## 1. 최신 코드 받기와 패치 적용
+실제 운영 `public` 스키마, Supabase 마이그레이션 이력, Storage 버킷·정책, Vercel 배포는 아직 확인되지 않았다. 코드와 격리 테스트만으로 운영 DB 복구가 완료된 것은 아니다. 운영 자동 배포는 비활성 상태로 두고, 운영 DB의 파괴적 변경이나 자동 배포 활성화는 별도 승인 없이 수행하지 않는다. 기존 Vercel OCR Firewall을 해제하지 않는다.
 
-패치 파일을 `C:\Users\bluem\Downloads\apply_neighborfood_supabase.py`에 저장한다.
-Git Bash에서:
+| 순서 | 정식 마이그레이션 | 내용 |
+| --- | --- | --- |
+| 1 | `20261031000100_initial.sql` | 앱 테이블 21개 및 버전 표식, 인덱스·관계·RLS |
+| 2 | `20261031000200_ocr_guard.sql` | OCR 설정·호출·관리 감사 테이블 3개, 기본 비활성 |
+| 3 | `20261031000300_trade_verification.sql` | 정산·거래별 GPS/QR 연결, 제약·인덱스, QR 감사 테이블 |
 
-```bash
-cd /c/Users/bluem/Neighborfood
-git pull --rebase origin main
-python /c/Users/bluem/Downloads/apply_neighborfood_supabase.py --root /c/Users/bluem/Neighborfood --check
-python /c/Users/bluem/Downloads/apply_neighborfood_supabase.py --root /c/Users/bluem/Neighborfood
+세 파일은 `auth`·`storage` 스키마와 Storage 버킷을 생성·초기화하지 않는다. 원본 001의 `public` 전체 테이블·시퀀스에 대한 역할 권한 회수를 앱 소유 객체만 대상으로 한정했다. 원본 002/003의 명시적 `BEGIN`/`COMMIT`은 제거하고 Supabase 실행기의 파일별 트랜잭션에 맡긴다. 기존 앱 테이블의 RLS와 `anon`/`authenticated` 접근 차단은 유지한다.
+
+`public.neighborfood_schema_version`의 `28190b4-v1`은 초기 스키마의 과거 표식일 뿐 002/003의 적용 이력이 아니다. 실제 마이그레이션 이력은 `supabase_migrations.schema_migrations`에서 확인한다.
+
+## 1. 운영자가 먼저 수행할 읽기 전용 점검
+
+1. 대상이 올바른 서울 프로젝트인지 확인한다. DB 백업을 만들고 복원 가능성을 격리 환경에서 확인한다. **Storage 객체는 DB 백업과 별도로 보존**한다. 사용자·게시글 등 데이터 행, 접속 문자열, 키, 세션 토큰을 로그나 GitHub에 올리지 않는다.
+2. Supabase SQL Editor에서 아래 쿼리를 실행한다. 모두 조회 전용이다. 테이블·컬럼·정책 이름과 집계 결과만 공유하고 비밀정보나 서비스 데이터를 공유하지 않는다.
+
+```sql
+-- public 테이블과 각 테이블의 RLS 상태. auth/storage 자체는 변경하지 않는다.
+SELECT c.relname AS table_name, c.relrowsecurity AS rls_enabled
+FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+ORDER BY c.relname;
+
+-- 앱 RLS 정책과 anon/authenticated 테이블 권한을 확인한다.
+SELECT tablename, policyname, roles, cmd FROM pg_policies
+WHERE schemaname = 'public' ORDER BY tablename, policyname;
+SELECT table_name, grantee, privilege_type
+FROM information_schema.role_table_grants
+WHERE table_schema = 'public' AND grantee IN ('anon', 'authenticated')
+ORDER BY table_name, grantee, privilege_type;
+
+-- 앱 필수 컬럼, 특히 거래·정산·GPS·QR 및 OCR 설정을 확인한다.
+SELECT table_name, column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_schema = 'public'
+ORDER BY table_name, ordinal_position;
+
+-- 인덱스와 제약·외래키를 정식 마이그레이션과 대조한다.
+SELECT tablename, indexname, indexdef
+FROM pg_indexes WHERE schemaname = 'public'
+ORDER BY tablename, indexname;
+SELECT t.relname AS table_name, c.conname, c.contype, pg_get_constraintdef(c.oid) AS definition
+FROM pg_constraint c
+JOIN pg_class t ON t.oid = c.conrelid
+JOIN pg_namespace n ON n.oid = t.relnamespace
+WHERE n.nspname = 'public'
+ORDER BY t.relname, c.conname;
+
+-- 이력 테이블의 존재부터 확인한다. 없으면 다음 이력 SELECT는 실행하지 않는다.
+SELECT to_regclass('supabase_migrations.schema_migrations') AS migration_history;
+
+-- 기존 버킷의 공개 여부와 정책 이름만 확인한다. 객체와 정책은 수정하지 않는다.
+SELECT id, public FROM storage.buckets WHERE id IN ('food-images', 'receipts');
+SELECT tablename, policyname, roles, cmd FROM pg_policies
+WHERE schemaname = 'storage' ORDER BY tablename, policyname;
 ```
 
-`python`이 없으면 `py`를 사용한다. 충돌이나 원본 불일치가 나오면 중단하고 출력 내용을 확인한다. 강제 push나 hard reset을 하지 않는다.
+이력 테이블이 있을 때만 별도로 `SELECT version FROM supabase_migrations.schema_migrations ORDER BY version;`을 실행한다. `public.ocr_guard_settings`가 있을 때만 `SELECT enabled, user_daily_limit, user_monthly_limit, global_monthly_limit FROM public.ocr_guard_settings WHERE id = 1;`을 실행한다. 예상 기본값은 `0, 3, 30, 300`이다. 기존 값이 다르다고 자동으로 덮어쓰지 않는다.
 
-원본 파일과 기존 SQLite DB의 일관된 스냅샷은 `.supabase_patch_backups/<시각>/`에 백업한다. `.env`는 패치가 열거나 수정하지 않는다. 업로드 폴더는 삭제하지 않으며, 기존 이미지는 별도 복사해 보관한다. 같은 패치 재실행은 변경 없이 종료한다. 수정 대상 파일 내용이 기준과 다르면 적용을 거부한다. 적용 전에 임시 복사본에 파일을 반영하고 Python 구문을 검사한다.
+`food-images`는 공개, `receipts`는 비공개여야 한다. 실제 기존 정책과 버킷이 예상과 다르면 중단하고 운영자가 확인한다. RLS가 켜져 있다는 사실만으로 앱 DB 역할에 올바른 권한이 있다고 단정하지 않는다. 실제 클라이언트 권한·RLS 정책과 서버 역할도 별도로 확인한다.
 
-## 2. 의존성 설치
+## 2. 최초 DB 구축과 이력 불일치 처리
 
-기존 프로젝트 가상환경을 활성화한 상태에서:
+1. GitHub Integration의 Working directory는 `.`, production branch는 `main`으로 둔다. 현재 **Deploy to production은 끈 상태**다. `supabase/config.toml`에는 운영 `[remotes]`, Storage 버킷, Auth 설정을 선언하지 않는다.
+2. Supabase CLI 설치 후 운영자가 대화형으로 로그인하고 프로젝트를 연결한다. 프로젝트 참조는 대시보드에서 확인하고, 비밀번호·토큰은 명령행 인자나 로그에 넣지 않는다.
 
-```bash
-python -m pip install -r requirements.txt
+```sh
+supabase login
+supabase link --project-ref <대시보드에서_확인한_프로젝트_참조>
+supabase migration list --linked
+supabase db push --linked --dry-run
 ```
 
-## 3. 비밀번호·서버 키를 PC에서 입력
+3. 세 버전의 이력과 실제 객체를 대조한다. 앱 객체가 전혀 없고 세 버전이 모두 미적용일 때만 세 파일이 순서대로 적용 대상인지 확인한다. 다른 `public` 객체가 존재하면 이름 충돌·권한을 함께 검토한다. 이력에 기존 원격 버전이 있는데 저장소에 파일이 없거나, 일부 앱 객체가 남아 있거나, 이력상 적용됐지만 실제 객체가 없으면 **중단**한다. 기존 수동 실행은 Supabase 이력을 남기지 않았을 수 있다.
+4. 불일치 상황에서는 SQL·컬럼·타입·기본값·인덱스·FK·CHECK·RLS·역할 권한을 모두 대조하고 백업과 데이터 보존 방안을 검토한다. 무조건 `migration repair`로 applied/reverted를 찍거나 기존 SQL을 재실행하지 않는다. 정확한 보정 계획을 별도로 승인받아야 한다. 특히 앱 테이블만 지웠는데 이력은 남은 경우 CLI는 이미 적용된 파일을 건너뛸 수 있다.
+5. 검증된 백업, 격리 리허설과 **운영 변경 승인 후에만** 운영자가 아래 명령을 실행한다. 실패하면 중단하고 이력과 실제 스키마를 다시 읽기 전용으로 조사한다. 각 파일이 성공할 때마다 이력이 기록되므로 앞 파일이 이미 완료된 경우 전체가 한 번에 롤백된 것으로 가정하지 않는다.
 
-```bash
-python scripts/configure_supabase.py
-```
-
-서울 프로젝트의 **DB 비밀번호**, `sb_secret_`까지 포함한 **Secret key 전체**를 차례로 입력한다. 입력은 화면에 표시되지 않는다. Git Bash가 숨김 입력을 지원하지 않는다는 메시지를 내면 PowerShell에서 프로젝트 폴더로 이동해 같은 명령을 실행한다.
-
-프로젝트 URL·Transaction pooler 주소는 이번 대화에서 확인한 서울 프로젝트 값을 사용한다. DB 비밀번호의 특수문자는 스크립트가 URL 인코딩한다. 기존 OCR·PortOne·Kakao 값은 보존한다. 기존 `.env`가 있으면 `.env.supabase.bak`에 보존하며 둘 다 Git 추적 제외 대상이다. `.env`가 Git 추적 중이면 실행을 거부한다. React `.env.local`에 API 주소가 없으면 로컬 주소를 추가한다. 기존 주소가 있다면 확인해 `http://127.0.0.1:8000`으로 맞춘다.
-
-직접 설정하려면 `supabase.env.example`을 참고해 기존 서버 `.env`에 값을 추가한다. 예시 전체를 복사해서 기존 OCR·결제 설정을 지우지 않는다. Data API는 계속 꺼둔다.
-
-## 4. 새 DB에 스키마 적용
-
-```bash
-python scripts/supabase_migrate.py
+```sh
+supabase db push --linked
+supabase migration list --linked
 python scripts/check_supabase.py
 ```
 
-`001_supabase.sql`은 현재 21개 앱 테이블, 인덱스, 관계, ID 시퀀스를 생성한다. public 스키마에 기존 테이블이 있으면 덮어쓰지 않고 중단한다. 전체를 트랜잭션으로 적용한다. 완료한 버전의 재실행은 변경 없이 종료한다.
+`check_supabase.py`는 필수 테이블·컬럼 접근성과 두 버킷의 존재·공개 여부를 읽기 전용으로 확인한다. 이력·모든 제약·RLS 정책 전체를 검증하지는 않는다. 앱은 PostgreSQL 시작 시 26개 앱/표식 테이블의 필수 컬럼을 확인하고 누락 또는 접근 불가 항목을 명시한다. 인덱스·FK·RLS·이력의 일치 여부는 위 운영 점검이 별도로 필요하다. 오류 메시지를 없애기 위해 DDL을 서버 시작 시 자동 실행하지 않는다.
 
-각 앱 테이블은 RLS를 켜고 공개 역할 권한을 제거한다. 기존처럼 서버에서 회원 권한을 확인한다. PostgreSQL 연결은 대시보드에서 제공한 `postgres.<프로젝트ID>` 계정으로 하며 브라우저에 전달하지 않는다. 요청마다 테이블을 새로 만들거나 스키마를 자동 변경하지 않는다.
+기존 `scripts/import_sqlite.py`는 대상의 모든 `public` 테이블이 비어 있어야 한다. 002가 만드는 `ocr_guard_settings`에는 초기 행이 있으므로 현재 정식 001→003 적용 직후에는 이 도구가 중단된다. OCR 기본 차단을 지우거나 기존 값을 덮어쓰며 강행하지 않는다. 기존 SQLite 데이터 복구가 필요하면 데이터·감사 보존을 별도 설계하고 백업·승인을 거쳐 진행한다. `scripts/import_uploads.py`의 Storage 이전도 별도 작업이며 DB 가져오기와 서로 자동 롤백되지 않는다.
 
-버킷은 `food-images`: 공개, `receipts`: 비공개여야 한다. 점검 스크립트는 연결·스키마 버전·버킷 존재·공개 여부를 읽기 전용으로 확인한다.
+## 3. GitHub 자동 동기화와 Vercel 순서
 
-## 5. 기존 데이터를 가져올 경우에만
+Supabase 공식 GitHub Integration은 `supabase/migrations/`와 이력을 인식하며, production 자동 배포를 켜면 `main`의 새 마이그레이션을 적용한다. 그러나 Supabase와 Vercel이 같은 push를 독립적으로 감시하면 **DB 적용 성공 전에 새 API가 배포될 수 있다**. 따라서 이 저장소의 운영 경로는 아래 **단일 실행자**를 사용한다.
 
-새 계정으로 테스트하려면 이 단계는 건너뛴다. 기존 회원·게시글·거래를 유지하려면 앱 사용을 잠시 멈추고, 기존 DB·uploads를 별도 백업한 뒤:
+1. Supabase Integration은 연결하되 **Deploy to production을 계속 끈다**. preview 브랜치 기능은 별도 설정과 요금제에 따른다. 이 상태에서 GitHub Actions의 Supabase CLI만 운영 마이그레이션을 실행한다. Integration의 production 자동 실행과 Actions를 동시에 켜지 않는다.
+2. 루트 `vercel.json`은 `main`의 API 프로젝트 Git 자동 배포를 비활성화하도록 설정한다. Vercel 프로젝트의 실제 Root Directory가 저장소 루트이고 이 설정이 적용되는지 대시보드에서 먼저 확인한다. 다른 Vercel 프로젝트·수동 배포·Deploy Hook·우회 워크플로는 별도이며, 그 경로가 `main`을 자동 배포하면 순서 보장은 성립하지 않는다.
+3. `.github/workflows/production-deploy.yml`은 `main` push 또는 수동 실행에서만 동작한다. 저장소 변수 `PRODUCTION_DEPLOY_ENABLED`가 정확히 `true`가 아니면 운영 작업은 **실패가 아닌 skipped**로 표시된다. push 전 저장소에서 이 변수가 설정되지 않았는지 확인한다. GitHub Environment `production`에 승인자와 배포 브랜치 제한을 설정하고, 아래 Secrets를 운영자가 직접 등록한다.
 
-```bash
-python scripts/import_sqlite.py data/neighborfood.db
-python scripts/import_uploads.py uploads
-```
+| GitHub Environment secret | 용도 |
+| --- | --- |
+| `SUPABASE_ACCESS_TOKEN` | 해당 프로젝트 범위의 Supabase CLI 토큰 |
+| `SUPABASE_DB_PASSWORD` | 해당 프로젝트 DB 비밀번호 |
+| `SUPABASE_PROJECT_ID` | 대상 프로젝트 참조 |
+| `VERCEL_TOKEN` | 해당 API 프로젝트 배포·승격 권한 토큰 |
+| `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` | 대상 API 팀·프로젝트 식별자 |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | 스테이징된 배포에 Vercel Deployment Protection이 있을 때만 필요 |
 
-대상 앱 테이블이 비어 있을 때만 DB를 가져온다. 원본 SQLite는 읽기 전용으로 열고 스냅샷을 만들어 사용한다. 행 수를 확인하고 FK·UNIQUE 제약을 적용하며 ID 시퀀스를 조정한다. 기존 원본은 수정하지 않는다. 이전 데이터가 제약을 위반하면 전체 DB 가져오기를 롤백하고 오류를 확인한다.
+Supabase 공식 문서는 `supabase link`용 토큰에 Project Settings, API Keys, API Key Secrets의 읽기 권한을 명시한다. DB 비밀번호와 Vercel 토큰은 각 해당 대상에 필요한 최소 권한으로 관리한다. Vercel bypass secret은 보호된 배포뿐 아니라 일부 Firewall 검사를 우회할 수 있으므로 신뢰된 환경에만 보관하며 워크플로의 `/posts` 점검에만 사용한다. 기존 OCR 경로의 Firewall 규칙은 변경하거나 테스트 호출하지 않는다.
 
-이미지 가져오기는 별도 작업이다. 원본 파일명은 유지하고 영수증은 비공개 버킷으로 옮긴다. 이미 같은 이름이 업로드돼 있거나 파일 제한을 넘기면 중단한다. DB 롤백과 Storage 롤백은 별개이며, 실패 후 재시도 전에 이미 옮긴 파일 목록을 확인한다.
+4. 별도 운영 승인과 전체 격리·운영 최초 구축 검증 후에만 저장소 변수 `PRODUCTION_DEPLOY_ENABLED=true`를 설정한다. 이후 한 `main` push는 `supabase db push` 성공 → Vercel production 환경의 비승격 배포(`--skip-domain`) → 그 배포의 `GET /posts`가 정상 JSON 응답인지 확인 → 성공 시에만 승격한다. 하나라도 실패하면 다음 단계는 실행되지 않는다. 같은 워크플로의 운영 배포는 직렬화하고 DB 적용 전과 승격 전에 해당 커밋이 현재 `main`인지 확인한다. 마지막 확인 직후 새 push가 발생하는 경쟁까지 원자적으로 막지는 못하므로 다른 배포 경로를 차단하고 운영 상태를 관찰한다. `/posts` 확인은 인증·거래·RLS·Storage 전체의 검증을 대신하지 않는다.
+5. 이미 성공한 DB 마이그레이션은 이후 Vercel 빌드·점검 실패로 자동 롤백되지 않는다. 호환되는 이전 API를 유지하고 원인·이력·실제 스키마를 조사한다. 코드 롤백이나 DB 복원은 별도 승인과 검증된 절차로 진행한다. 향후 스키마 변경은 이전 API와 호환되는 추가 → 배포·이전 → 별도 승인된 제거 순서로 설계한다.
 
-## 6. 로컬 실행
+운영 설정·Secrets·승인, 실제 GitHub Actions 실행, Supabase Integration 상태와 Vercel 프로젝트 설정은 이 저장소에서 자동으로 완료되지 않는다. GitHub Actions를 사용하지 않고 Integration의 production 자동 배포를 선택한다면 Actions 운영 작업은 끄고, Vercel 자동 배포도 계속 차단한 뒤 Supabase 적용 성공을 확인하고 별도로 Vercel을 배포해야 한다. 독립된 두 자동 배포만으로는 순서를 보장할 수 없다.
 
-터미널 1:
+## 4. 검증 결과와 남은 확인
 
-```bash
-cd /c/Users/bluem/Neighborfood
-python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
-```
+격리된 PostgreSQL 17에서 Supabase CLI로 001→002→003을 적용하고 재실행 시 이력이 중복되지 않음을 확인했다. 별도 DB에 적용한 과거 SQL과 235개 컬럼, 68개 인덱스, 92개 제약을 대조했고, 앱/표식 테이블 26개 RLS, 공개 역할의 테이블·시퀀스 권한 차단, 합성 `auth`·`storage` 객체와 무관한 `public` 권한 보존, OCR 기본 비활성을 확인했다. 별도 실패 유발 마이그레이션에서는 CLI가 실패하고 해당 파일의 테이블 생성과 이력 기록이 롤백됐다. 이 검증은 실제 Supabase의 Storage 정책이나 운영 DB를 확인한 것이 아니다.
 
-터미널 2:
+격리 PostgreSQL에 연결한 실제 FastAPI 서버에서 `/posts`, 합성 회원가입·로그인·채팅·거래·GPS·QR·정산 및 OCR 차단을 확인했다. 스키마 생성 권한이 없는 합성 서버 역할(`BYPASSRLS` 및 필요한 테이블·시퀀스 권한 부여)로도 같은 흐름을 확인했다. 이는 운영 서버 역할을 확인했다는 뜻이 아니다. SQLite 회귀 테스트 53개와 명시적으로 활성화한 PostgreSQL 회귀 테스트 1개가 통과했다. 해당 PostgreSQL 테스트는 `NEIGHBORFOOD_TEST_POSTGRES_DSN`을 지정하지 않으면 건너뛰며, 지정할 때는 사전 마이그레이션된 로컬 `nf_test_*` DB만 허용하고 테스트 DDL을 롤백한다.
 
-```bash
-cd /c/Users/bluem/Neighborfood/frontend-react
-npm install
-npm run dev
-```
+워크플로는 `actionlint`로 검사했고, 로컬 HTTP 점검에서 정상 응답만 통과하고 503·잘못된 JSON·리다이렉트는 승격을 차단함을 확인했다. 실제 GitHub Actions/Vercel 실행은 아니다.
 
-`http://localhost:5173/#/Home`에서 새 회원 가입 또는 이전 회원 로그인 → 게시글 등록·조회·수정 → 사진 → OCR → GPS → QR → 정산·PortOne 테스트를 확인한다. 서버를 재시작해 DB와 사진이 유지되는지도 확인한다.
+**미완료:** 실제 운영 스키마·이력 조회 및 복원, 실제 Storage/RLS·버킷 정책 확인, GitHub Actions/Integration 운영 실행과 Vercel 배포·API 확인, 실기기·외부 서비스 검증. 이 항목은 운영자 권한·승인과 실제 프로젝트 연결 후 별도로 확인한다.
 
-### 의도적으로 강화한 접근 제어
-
-- 게시글 사진 업로드는 로그인 필요. 기존 React 요청은 Bearer 토큰을 전송한다.
-- 영수증 촬영·인증·내역은 로그인한 본인의 데이터만 처리한다. 다른 회원의 subjectId를 보내면 거부한다.
-- 영수증 DB에는 만료되는 서명 URL 대신 기존 파일명을 저장한다. 촬영 응답의 imageUrl은 5분짜리 서명 URL이며, 다시 볼 때 `/api/receipt/image/{파일명}`에 인증 토큰으로 요청하면 서버가 소유권을 확인해 새 URL로 리다이렉트한다.
-- 공개 `/uploads/{파일명}`은 게시글 사진용 공개 버킷으로만 연결한다. 영수증 버킷을 공개로 바꾸지 않는다.
-
-## 7. Vercel 배포 준비
-
-로컬 기능 확인 후 코드만 커밋·push한다. 서버 프로젝트는 저장소 루트의 `main.py`를 FastAPI 진입점으로 사용한다. React 프로젝트는 `frontend-react`, Vite, `npm run build`, `dist`를 사용한다.
-
-API 환경변수: `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `ALLOWED_ORIGINS`와 기존 OCR·PortOne·Kakao 변수. SSL은 기본 require이며 prepared statements는 Transaction pooler에 맞춰 비활성화한다.
-React 환경변수: `VITE_API_BASE_URL`에 실제 API 배포 주소만 입력한다. 비밀 값은 넣지 않는다.
-
-Vercel에서는 SQLite fallback을 거부한다. 임시 OCR 파일은 `/tmp`에서 처리하고 삭제한다. 이미지·DB는 Supabase에 유지된다. 데이터 마이그레이션은 배포 전에 별도로 실행한다. 두 프로젝트의 주소가 확정되면 API의 ALLOWED_ORIGINS, 지도 허용 도메인, PortOne 설정을 실제 주소로 맞춘다.
-
-이미지 한 요청의 합계는 4MiB 이하로 제한한다. Vercel은 multipart overhead를 포함한 요청 크기 제한이 있으므로 실제 사진은 여유 있게 4MB 미만을 권장한다. 더 큰 원본 업로드를 하려면 별도의 브라우저 직접 업로드 흐름이 필요하며 이번 패치에는 포함하지 않았다. Clova는 기존 HTTP OCR을 사용하고 Tesseract 설치는 Vercel 전제가 아니다.
-
-## 8. 파일만 되돌리기
-
-적용 시 출력된 백업 경로로:
-
-```bash
-python /c/Users/bluem/Downloads/apply_neighborfood_supabase.py --root /c/Users/bluem/Neighborfood --rollback BACKUP_DIRECTORY
-```
-
-패치 후 수정된 파일은 덮어쓰지 않고 중단한다. 이 명령은 코드 파일만 되돌린다. Supabase의 DB·Storage나 설정 스크립트가 만든 `.env`는 되돌리지 않는다. `.env`를 원래 상태로 되돌리려면 별도 보관한 `.env.supabase.bak`을 사용한다. DB·이미지를 삭제하지 않는다.
-
-## 검증 범위
-
-기존 자동화와 추가 Storage 인증 테스트를 실행했다. 실제 서울 Supabase 연결·업로드·Clova·휴대폰 카메라·PortOne 외부 호출·Vercel 배포는 사용자 환경에서 다음 단계로 검증해야 한다. 모든 기능의 실제 서비스 검증이 끝났다는 뜻은 아니다.
+참고: [Supabase GitHub Integration](https://supabase.com/docs/guides/deployment/branching/github-integration), [Supabase CLI 환경·권한](https://supabase.com/docs/guides/deployment/managing-environments), [Vercel Git 배포 설정](https://vercel.com/docs/project-configuration/git-configuration), [Vercel 단계별 배포·승격](https://vercel.com/docs/deployments/promoting-a-deployment).
