@@ -1,4 +1,6 @@
 # Local CLI identifier only; no production remotes, auth, or Storage settings.
+# Production migrations: Supabase GitHub Integration on main.
+# Keep the alternative PRODUCTION_DEPLOY_ENABLED Actions runner disabled.
 project_id = "neighborfood"
 
 [db.seed]

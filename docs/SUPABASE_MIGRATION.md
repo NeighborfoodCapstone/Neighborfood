@@ -94,7 +94,17 @@ python scripts/check_supabase.py
 
 ## 3. GitHub 자동 동기화와 Vercel 순서
 
-Supabase 공식 GitHub Integration은 `supabase/migrations/`와 이력을 인식하며, production 자동 배포를 켜면 `main`의 새 마이그레이션을 적용한다. 그러나 Supabase와 Vercel이 같은 push를 독립적으로 감시하면 **DB 적용 성공 전에 새 API가 배포될 수 있다**. 따라서 이 저장소의 운영 경로는 아래 **단일 실행자**를 사용한다.
+Supabase 공식 GitHub Integration은 `supabase/migrations/`와 이력을 인식하며, production 자동 배포를 켜면 `main`의 새 마이그레이션을 적용한다. 그러나 Supabase와 Vercel이 같은 push를 독립적으로 감시하면 **DB 적용 성공 전에 새 API가 배포될 수 있다**. 따라서 운영 마이그레이션은 아래 두 경로 중 **하나만** 사용한다.
+
+### 현재 선택: Supabase GitHub Integration
+
+`main`의 DB 마이그레이션은 Supabase GitHub Integration이 실행한다. 운영자가 대시보드에서 저장소, Working directory `.`, production branch `main`을 확인하고 **Deploy to production**을 저장한 뒤 새 push의 적용 로그를 확인한다. 설정 저장 자체를 기존 커밋의 DB 적용 완료로 간주하지 않는다.
+
+이 경로에서는 `PRODUCTION_DEPLOY_ENABLED`를 설정하지 않거나 `false`로 유지하여 GitHub Actions의 별도 마이그레이션·Vercel 배포를 실행하지 않는다. DB 적용 성공과 SQL 조회 결과를 확인한 뒤 Vercel 배포는 별도로 진행한다. 기존 DB·마이그레이션 이력이 불일치하면 앞 절의 점검 절차에 따라 중단한다.
+
+### 대안: GitHub Actions로 DB와 API를 순차 배포
+
+아래는 **Actions 경로로 전환할 때만** 사용하는 절차다. 현재 선택한 Integration 경로와 동시에 활성화하지 않는다.
 
 1. Supabase Integration은 연결하되 **Deploy to production을 계속 끈다**. preview 브랜치 기능은 별도 설정과 요금제에 따른다. 이 상태에서 GitHub Actions의 Supabase CLI만 운영 마이그레이션을 실행한다. Integration의 production 자동 실행과 Actions를 동시에 켜지 않는다.
 2. 루트 `vercel.json`은 `main`의 API 프로젝트 Git 자동 배포를 비활성화하도록 설정한다. Vercel 프로젝트의 실제 Root Directory가 저장소 루트이고 이 설정이 적용되는지 대시보드에서 먼저 확인한다. 다른 Vercel 프로젝트·수동 배포·Deploy Hook·우회 워크플로는 별도이며, 그 경로가 `main`을 자동 배포하면 순서 보장은 성립하지 않는다.
