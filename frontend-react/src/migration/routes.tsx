@@ -27,6 +27,7 @@ import {
   AdminReport,
   AdminChats,
 } from "./admin";
+import { AdminDemo } from "./demo";
 import { Page, href, token, useData, Load } from "./core";
 export const screens = [
   "Home",
@@ -72,6 +73,7 @@ export const screens = [
   "Admin_Report_Detail",
   "Admin_Chat_History",
   "Admin_Staff_Invite",
+  "Admin_Demo",
 ];
 const publicScreens = new Set([
   "Payment_Preview",
@@ -258,6 +260,8 @@ export function Screen({ page, q }: { page: string; q: URLSearchParams }) {
       return <AdminReport q={q} />;
     case "Admin_Chat_History":
       return <AdminChats />;
+    case "Admin_Demo":
+      return <AdminDemo />;
     case "Help":
       return <Help />;
     case "Index":

@@ -7,6 +7,7 @@ from fastapi         import APIRouter, HTTPException, UploadFile, File, Query, D
 from app.config      import UPLOAD_DIR
 from app import storage
 from app.core.deps   import get_current_user
+from app.core.demo_spot import is_demo_title, SPOT_ADDRESS, SPOT_LAT, SPOT_LNG
 from app.core.utils  import now_utc, to_iso
 from app.db.auth_db  import get_conn
 from app.db          import settlement_db, trade_verification as tv
@@ -190,6 +191,9 @@ async def set_post_appointment(post_id: int, body: PostAppointment,
             raise HTTPException(403, "게시글 작성자만 약속을 정할 수 있습니다.")
         if not (body.place or body.appointment_at):
             raise HTTPException(400, "약속 장소 또는 시간을 입력해 주세요.")
+        if is_demo_title(row["title"]):
+            # 체험 거래는 만남 장소가 호천관으로 고정되어 있고 일시만 정할 수 있습니다.
+            body.place, body.lat, body.lng = SPOT_ADDRESS, SPOT_LAT, SPOT_LNG
 
         conn.execute("""
             UPDATE posts

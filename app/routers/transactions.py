@@ -24,7 +24,7 @@ def _enrich(conn, row) -> dict:
     """거래 행에 게시글 제목·이미지·유형, 상대방 닉네임을 붙여 응답용으로 가공."""
     d = row_to_dict(row)
     post = conn.execute(
-        "SELECT title, type, images, status, appointment_lat, appointment_lng, appointment_place FROM posts WHERE id = ?", (row["post_id"],)
+        "SELECT title, type, images, status, appointment_lat, appointment_lng, appointment_place, appointment_at FROM posts WHERE id = ?", (row["post_id"],)
     ).fetchone()
     if post:
         d["postTitle"]  = post["title"]
@@ -33,6 +33,7 @@ def _enrich(conn, row) -> dict:
         d["targetLat"] = post["appointment_lat"]
         d["targetLng"] = post["appointment_lng"]
         d["appointmentPlace"] = post["appointment_place"]
+        d["appointmentAt"] = d.get("appointmentAt") or post["appointment_at"]
         try:
             imgs = json.loads(post["images"] or "[]")
         except json.JSONDecodeError:
