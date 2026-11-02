@@ -153,7 +153,11 @@ def verify_receipt(body: ReceiptVerifyRequest, user: dict = Depends(get_current_
     if body.subjectId and body.subjectId != str(user["id"]):
         raise HTTPException(403, "본인의 영수증만 인증할 수 있습니다.")
     body.subjectId = str(user["id"])
-    selected = [item.dict() for item in body.items]
+    selected = [
+        {**item.dict(exclude={"priceMissing"}),
+         **({"priceMissing": True} if item.priceMissing else {})}
+        for item in body.items
+    ]
     if not selected:
         return {"ok": False, "result": "no_items", "message": "인증할 항목을 1개 이상 선택하세요."}
 

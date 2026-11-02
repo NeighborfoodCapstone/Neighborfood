@@ -311,6 +311,52 @@ def _rc_to_int(value: str) -> int:
         return 0
 
 
+def _parse_order_slip_items(lines: List[str]) -> Optional[List[Dict[str, Any]]]:
+    """Parse a quantity/status order slip when OCR reads the names column first.
+
+    None means a different layout; [] means this layout is too ambiguous to
+    split safely. Order slips do not provide individual prices.
+    """
+    header = next((i for i, line in enumerate(lines)
+                   if re.sub(r"\s+", "", line) == "주문내역"), None)
+    if header is None:
+        return None
+    content = "\n".join(lines[header + 1:])
+    match = re.match(r"\s*상품명\s+수량\s+구분\s+", content)
+    if not match:
+        return None
+    content = content[match.end():]
+    content = re.split(r"주문\s*금액|결제\s*금액|받은\s*금액|합\s*계", content, maxsplit=1)[0]
+    first_qty = re.search(r"(?<!\S)\d{1,2}\s*신규(?=\s|$)", content)
+    if not first_qty:
+        return []
+    names_part, quantities_part = content[:first_qty.start()], content[first_qty.start():]
+    matches = list(re.finditer(r"(?<!\S)(\d{1,2})\s*신규(?=\s|$)", quantities_part))
+    if not matches or re.sub(r"(?<!\S)\d{1,2}\s*신규(?=\s|$)", "", quantities_part).strip():
+        return []
+    quantities = [int(match.group(1)) for match in matches]
+    if any(qty < 1 for qty in quantities):
+        return []
+    names: List[str] = []
+    prefix: Optional[str] = None
+    for part in names_part.splitlines():
+        name = re.sub(r"\s+", " ", part.strip())
+        if not name:
+            continue
+        if prefix:
+            name, prefix = f"{prefix} {name}", None
+        elif name.casefold() in {"아이스", "핫", "ice", "iced", "hot"}:
+            prefix = name
+            continue
+        if not re.search(r"[가-힣A-Za-z]", name) or len(name) > 60:
+            return []
+        names.append(name)
+    if prefix or len(names) != len(quantities):
+        return []
+    return [{"name": name, "qty": qty, "price": 0, "priceMissing": True}
+            for name, qty in zip(names, quantities)]
+
+
 def parse_receipt(text: str) -> dict:
     """OCR 텍스트에서 매장명·구매일시·품목·합계를 추출합니다.
 
@@ -356,7 +402,7 @@ def parse_receipt(text: str) -> dict:
         compact = compact_line(s)
         return bool(
             re.search(
-                r"판매총액|합계|총액|결제금액|받을금액|받은금액|판매금액|청구액",
+                r"판매총액|합계|총액|주문금액|결제금액|받을금액|받은금액|판매금액|청구액",
                 compact,
             )
         )
@@ -375,7 +421,7 @@ def parse_receipt(text: str) -> dict:
         compact = compact_line(s)
         return bool(
             re.search(
-                r"판매총액|판매금액|받을금액|받은금액|결제금액|결제수단|"
+                r"판매총액|판매금액|주문금액|받을금액|받은금액|결제금액|결제수단|"
                 r"합계|총액|부가세|회원|포인트|신용카드|카드매출|승인|할부|현금영수증",
                 compact,
                 re.I,
@@ -508,6 +554,8 @@ def parse_receipt(text: str) -> dict:
             purchased_at = match.group(0).replace(".", "-").replace("/", "-")
             break
 
+    order_slip_items = _parse_order_slip_items(lines)
+
     # 상호명
     for ln in lines:
         value = clean_line(ln)
@@ -521,7 +569,7 @@ def parse_receipt(text: str) -> dict:
                 store = value
                 break
 
-    if not store:
+    if not store and order_slip_items is None:
         for ln in lines[:10]:
             value = clean_line(ln)
             if len(value) >= 2 and is_possible_name(value):
@@ -545,6 +593,10 @@ def parse_receipt(text: str) -> dict:
                 break
         if total is not None:
             break
+
+    if order_slip_items is not None:
+        return {"store": store, "purchasedAt": purchased_at,
+                "total": total, "items": order_slip_items}
 
     # 품목 헤더가 있으면 그 뒤부터 시작한다.
     start_idx = 0
