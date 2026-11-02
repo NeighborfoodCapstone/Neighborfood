@@ -88,6 +88,9 @@ export function Receipt() {
           {!items.length && (
             <p>인식된 품목이 없습니다. 사진을 다시 촬영해 주세요.</p>
           )}
+          {items.some((x) => x.priceMissing) && (
+            <p className="rx-muted" role="status">영수증에 품목별 금액이 없어 비워두었습니다. 금액을 입력하지 않으면 저장 시 0원으로 처리됩니다.</p>
+          )}
           <div className="rx-table-wrap rx-receipt-items rx-result-update">
             <table>
               <thead>
@@ -137,11 +140,15 @@ export function Receipt() {
                         aria-label="금액"
                         type="number"
                         min={0}
-                        value={x.price}
+                        value={x.priceMissing ? "" : x.price}
+                        placeholder={x.priceMissing ? "미표기" : undefined}
                         disabled={!!receipt}
-                        onChange={(e) =>
-                          update(i, "price", Number(e.target.value))
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setItems((xs) => xs.map((item, n) => n === i
+                            ? { ...item, price: value === "" ? 0 : Number(value), priceMissing: value === "" }
+                            : item));
+                        }}
                       />
                     </td>
                   </tr>
@@ -166,7 +173,7 @@ export function Receipt() {
                   purchasedAt: scan.purchasedAt,
                   items: items
                     .filter((x) => x.selected && x.name.trim())
-                    .map(({ name, qty, price }) => ({ name, qty, price })),
+                    .map(({ name, qty, price, priceMissing }) => ({ name, qty, price, priceMissing: !!priceMissing })),
                 });
                 setReceipt(d.receipt);
               }, "영수증 인증이 완료되었습니다.")

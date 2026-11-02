@@ -7,6 +7,7 @@ class ReceiptItem(BaseModel):
     name:  str
     qty:   int   = 1
     price: int   = 0
+    priceMissing: bool = False
     unit:  Optional[str] = None
     category: Optional[str] = None
 
