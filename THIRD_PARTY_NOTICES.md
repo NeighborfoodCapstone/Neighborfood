@@ -10,6 +10,8 @@
 ## 패키지 의존성 및 외부 서비스
 
 - `frontend-react/package.json`, `frontend-react/package-lock.json`, `requirements.txt`에 나열된 패키지에는 각각 고유한 라이선스가 적용됩니다. 배포 번들 또는 복사된 코드에는 원 저작권 표시·라이선스·NOTICE 의무가 별도로 적용될 수 있습니다.
+- 프런트엔드 직접 의존성 중 잠금 파일에 표기된 라이선스는 `jsqr` 1.4.0 **Apache-2.0**, `qrcode` 1.5.4 **MIT**, `react` 19.3.0 및 `react-dom` 19.3.0 **MIT**입니다. 이 표기는 각 구성요소의 저작권 고지와 배포물 검토를 대체하지 않습니다.
+- Python 고정 직접 의존성의 PyPI 메타데이터는 [FastAPI 0.115.14](https://pypi.org/project/fastapi/0.115.14/) **MIT**, [Uvicorn 0.34.3](https://pypi.org/project/uvicorn/0.34.3/) **BSD-3-Clause**, [python-multipart 0.0.9](https://pypi.org/project/python-multipart/0.0.9/) 및 [Requests 2.31.0](https://pypi.org/project/requests/2.31.0/) **Apache-2.0**을 표시합니다. 범위로 지정된 패키지와 간접 의존성은 실제 설치 버전별로 추가 확인해야 합니다.
 - `frontend-react/package-lock.json`의 `@portone/browser-sdk` 0.1.11은 잠금 파일과 확인된 설치 패키지 및 [npm 레지스트리 메타데이터](https://registry.npmjs.org/%40portone%2Fbrowser-sdk/0.1.11)에 라이선스 표기가 없습니다. 이 버전의 권리와 재배포 조건은 권리자 자료로 확인해야 하며 MIT 호환성을 확정하지 않았습니다.
 - 잠금 파일에는 `lightningcss` 및 플랫폼별 패키지의 **MPL-2.0** 표기가 있습니다. 별도 파일의 프로젝트 코드를 MIT로 배포하는 것과 MPL 구성요소의 조건은 구별해야 합니다. 해당 구성요소를 배포하는 경우 원문 고지 및 소스 제공 등 적용 의무를 확인하세요. [Mozilla MPL FAQ](https://www.mozilla.org/en-US/MPL/2.0/FAQ/)
 - 정적 HTML은 Google Fonts의 글꼴과 [Material Symbols](https://developers.google.com/fonts/docs/material_symbols)를 불러옵니다. Material Symbols는 Apache-2.0이며, [Plus Jakarta Sans](https://github.com/google/fonts/blob/main/ofl/plusjakartasans/OFL.txt)와 [Noto Sans KR](https://github.com/google/fonts/blob/main/ofl/notosanskr/OFL.txt)은 SIL Open Font License 1.1입니다. 실제 배포 방식에 따른 고지 의무는 별도로 확인해야 합니다.
