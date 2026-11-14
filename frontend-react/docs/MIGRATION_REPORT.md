@@ -78,7 +78,7 @@ py -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 승인된 HomePage.tsx와 home.css는 교체하지 않는다. 새로운 화면 소스 11개와 App.tsx, AppLayout.tsx, api.ts, vite.config.ts, 문서 2개, package.json을 처리한다. 기존 의존성과 npm 스크립트는 보존하며 QR 관련 의존성만 병합한다. package-lock.json은 npm install이 갱신한다.
 
-백업은 저장소 밖 C:/Users/bluem/Neighborfood_react_backups/날짜_시간에 생성한다. 기존 수정 대상에 예상하지 못한 로컬 변경이 있으면 전체 적용 전에 중단한다. --check 옵션으로 변경 없이 확인할 수 있다. --restore에 출력된 실제 백업 경로를 넣으면 복원할 수 있다. 복원 후 npm install로 잠금 파일을 맞춘다. 적용 이후 추가 수정이 있으면 복원도 중단해 보호한다.
+백업은 저장소 밖 C:/Users/<USER>/Neighborfood_react_backups/날짜_시간에 생성한다. 기존 수정 대상에 예상하지 못한 로컬 변경이 있으면 전체 적용 전에 중단한다. --check 옵션으로 변경 없이 확인할 수 있다. --restore에 출력된 실제 백업 경로를 넣으면 복원할 수 있다. 복원 후 npm install로 잠금 파일을 맞춘다. 적용 이후 추가 수정이 있으면 복원도 중단해 보호한다.
 
 ## Git 반영
 

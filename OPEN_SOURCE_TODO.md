@@ -16,6 +16,7 @@
 - [x] 정적 HTML의 Plus Jakarta Sans·Noto Sans KR 원본 라이선스 확인: SIL OFL 1.1. Material Symbols는 Apache-2.0.
 - [x] `react.svg`가 Vite React TypeScript 템플릿과 동일함을 해시로 확인. 로고 재배포·상표 조건은 별도 확인.
 - [x] `frontend-react/docs/ui-audit/` PNG 74장에 한국어 OCR 및 전화번호·이메일·주민등록번호 형식 검사: 해당 패턴 미탐지. 원문은 저장하지 않음.
+- [x] 문서 2곳의 특정 PC 사용자 계정명을 일반 표기로 대체. 기존 Git 이력에는 이전 내용이 남아 있음.
 - [ ] 스크린샷과 기타 이미지의 이름·주소 등 개인정보를 추가 검토. OCR 결과만으로 개인정보가 없다고 확정할 수 없음.
 - [ ] 보안 제보 채널 및 문서 간 링크·정합성 재확인.
 - [ ] 해결된 항목을 문서에 반영하고 감사·Draft PR을 재검토.
