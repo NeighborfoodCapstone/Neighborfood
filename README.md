@@ -1,6 +1,6 @@
 # NeighborFood
 
-> **오픈소스 전환 준비:** 프로젝트의 자체 코드·문서에 [MIT License](LICENSE)를 적용하는 방안을 준비하고 있습니다. 기존 기여자의 권리·동의와 제3자 자산의 재배포 권리는 아직 확인 중입니다. 제3자 구성요소에는 각자의 조건이 적용되며 확인된 내용과 남은 항목은 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)를 참조하세요. 기여 전 [CONTRIBUTING.md](CONTRIBUTING.md), 취약점 제보 시 [SECURITY.md](SECURITY.md)를 확인해 주세요.
+> **오픈소스 전환 준비:** 프로젝트의 자체 코드·문서에 [MIT License](LICENSE)를 적용하는 방안을 준비하고 있습니다. 프로젝트 팀원들의 전환 동의는 확보했으며, 제3자 자산의 재배포 권리는 확인 중입니다. 제3자 구성요소에는 각자의 조건이 적용되며 확인된 내용과 남은 항목은 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)를 참조하세요. 기여 전 [CONTRIBUTING.md](CONTRIBUTING.md), 취약점 제보 시 [SECURITY.md](SECURITY.md)를 확인해 주세요.
 
 지역 기반 식재료 공동구매 플랫폼 — FastAPI 백엔드(DB·파일 저장소는 **SQLite·로컬 `uploads/`가 기본**, 환경변수 설정 시에만 **Supabase(PostgreSQL)·Supabase Storage** 사용), React(Vite) 프런트엔드(기존 화면 39개 전체 이전 구현) + 기존 정적 HTML 프런트엔드(병행 보존)
 > **PostgreSQL 배포 주의:** 정식 마이그레이션은 `supabase/migrations/`의 001→002→003 순서입니다. 운영 DB의 실제 스키마·이력과 백업을 확인하고 [`docs/SUPABASE_MIGRATION.md`](docs/SUPABASE_MIGRATION.md)의 순서를 따르세요. OCR과 기존 Firewall 차단은 유지합니다.
