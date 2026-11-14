@@ -657,7 +657,7 @@ project_root/
 | 🔴 **필수 (신규 2026-10-12, 기준일 10/16)** | **배포 방식 최종 결정** | Oracle 유지 / Vercel+Supabase 전환 중 선택. **두 방향 모두 열어 둔 상태**: Vercel+Supabase 쪽 코드·마이그레이션·적용 안내는 팀원이 준비 완료, Oracle 쪽은 부하테스트(`ab -n 100 -c 6`, 5~6명 동시·OCR 겹침)로 판단. **10/16 이전에 두 방안의 검증을 마치고 결정**. 결정 전에는 SQLite·로컬 `uploads/` 기본 동작을 깨지 않는 변경만 허용 |
 | 🔴 **필수 (신규 2026-10-12)** | **Supabase·Vercel 실환경 검증** | 서울 Supabase 연결, `scripts/check_supabase.py`, 마이그레이션 적용, Storage 업로드·서명 URL(영수증 소유자 확인), 기존 데이터 이전(`import_sqlite.py`·`import_uploads.py`), Vercel 두 프로젝트 배포(`ALLOWED_ORIGINS`·카카오 지도 허용 도메인·PortOne 허용 도메인), 4MB 업로드 제한, Clova OCR·휴대폰 카메라·PortOne 외부 호출 |
 | 🟡 **권장 (신규 2026-10-12)** | **`messages.is_system` 마이그레이션 보완 확인** | PostgreSQL 모드에서 공동구매 참여 취소(그룹 채팅방 존재 시) 시스템 메시지 삽입이 실패할 수 있음(§4 정적 점검). 실제 Supabase에서 재현 확인 후 마이그레이션에 컬럼 추가(또는 동등한 보완). 이후 컬럼 추가 시 SQLite용 `ALTER`와 `migrations/`를 함께 갱신하는 규칙 필요 |
-| 🟢 **선택 (신규 2026-10-12)** | **`docs/SUPABASE_MIGRATION.md` 정합화** | 팀원 문서의 기준 커밋이 `28190b4`이고 작성자 PC 경로(`C:\Users\...`)·패치 스크립트(`apply_neighborfood_supabase.py`, `.gitignore`의 `apply_*.py`로 커밋 금지) 안내가 포함됨. 팀원 문서는 수정하지 않고 필요 시 본인 확인 후 갱신 |
+| 🟢 **선택 (신규 2026-10-12)** | **`docs/SUPABASE_MIGRATION.md` 정합화** | 팀원 문서의 기준 커밋이 `28190b4`이고 작성자 PC 경로(`C:\Users\<USER>`)·패치 스크립트(`apply_neighborfood_supabase.py`, `.gitignore`의 `apply_*.py`로 커밋 금지) 안내가 포함됨. 팀원 문서는 수정하지 않고 필요 시 본인 확인 후 갱신 |
 | 🟢 **선택 (신규 2026-10-06)** | **ERD·원고 정합성** | 졸업작품집 ERD 그림은 핵심 18개 테이블(`auth_codes`·결제 테이블 제외). 결제 테이블까지 보이려면 그림 갱신 필요(그림은 별도 작업, 문서 `neighborfood_ERD.md`는 2026-10-12 최신 코드 기준으로 갱신 완료)<br>**[2026-10-08 방침] 작업 동기가 그림을 갱신한 뒤 문서에 반영 예정** |
 
 > 완료된 항목(미납 정산 참여 차단, `Admin_Staff_Invite.html` 연동, 관리자 사이드바 배지 동적화)은 §7 "2026-09-12" 절 참고. React 홈 화면 추가 경과는 §7 "2026-09-14" 절, 전체 화면 이전은 §7 "2026-09-20"·"2026-09-21" 절 참고.

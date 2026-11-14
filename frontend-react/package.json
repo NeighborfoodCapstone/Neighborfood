@@ -11,7 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@portone/browser-sdk": "^0.1.11",
+    "@portone/browser-sdk": "^0.1.12",
     "jsqr": "^1.4.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",
