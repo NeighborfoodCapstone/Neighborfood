@@ -10,7 +10,8 @@
 - [x] `html5-qrcode` 번들의 원본 버전 확인: 공식 v2.3.8의 minified 파일과 SHA-256 일치. 두 CDN의 같은 버전도 일치하므로 최초 다운로드 위치는 미확인. 해당 태그에는 별도 NOTICE 파일이 없음.
 - [x] `html5-qrcode`에 포함된 ZXing-js 파생 파일의 `OutputStream`, `ByteArrayOutputStream` 구현이 축소 번들에 남아 있음을 확인. 원본 파일의 해당 코드 헤더는 Oracle GPL-2.0-only/Classpath 예외를 언급함.
 - [x] 위 두 Oracle 저작권 헤더 원문과 GPL-2.0·Classpath 예외 OpenJDK 참고 원문을 별도 파일로 보존. 완전한 준수 여부는 미확인.
-- [ ] ZXing UMD의 정확한 upstream 커밋 및 위 코드의 라이선스 적용 범위·Classpath 예외·원문 고지·해당 소스 제공 의무를 확인하고 실제 배포 방식에 맞게 처리. 단순 고지는 준수 완료가 아님.
+- [x] upstream PR #501의 ZXing UMD와 npm `@zxing/library` 0.19.1을 줄바꿈 정규화 후 일치 확인. 문제의 두 클래스는 v0.19.1 태그의 대응 TypeScript 소스 및 현재 UMD와 메서드 단위로 비교하고 원본 소스를 참고용 보존.
+- [ ] html5-qrcode v2.3.8 UMD 전체의 정확한 대응 소스 및 수정 이력과 라이선스 적용 범위·Classpath 예외·원문 고지·해당 소스 제공 의무를 확인하고 실제 배포 방식에 맞게 처리. 두 소스 파일과 고지만으로 준수 완료가 아님.
 - [ ] `@portone/browser-sdk` 0.1.11의 라이선스와 재배포 조건 확인. 공식 npm 메타데이터 및 설치 패키지에 라이선스 표기가 없어 권리자 자료 확인 필요.
 - [x] 프런트엔드 직접 의존성 중 라이선스가 표기된 4개와 Python 고정 직접 의존성 4개의 메타데이터 확인 및 고지.
 - [ ] 프런트엔드 및 Python 의존성의 라이선스와 실제 배포물의 고지 의무 조사.
