@@ -13,7 +13,10 @@
 - [x] upstream PR #501의 ZXing UMD와 npm `@zxing/library` 0.19.1을 줄바꿈 정규화 후 일치 확인. 문제의 두 클래스는 v0.19.1 태그의 대응 TypeScript 소스 및 현재 UMD와 메서드 단위로 비교하고 원본 소스를 참고용 보존.
 - [x] `@portone/browser-sdk`를 라이선스를 명시한 0.1.12로 전환하고 MIT 라이선스 원문 및 저작권 고지 보존. 공식 npm tarball을 SHA-512 검증 후 비교했으며, 이전 0.1.11의 248개 파일 중 `package.json`만 다르고 나머지 247개는 0.1.12와 바이트 일치. 0.1.12에는 라이선스 파일 2개가 추가됨.
 - [x] 프런트엔드 직접 의존성 중 라이선스가 표기된 4개와 Python 고정 직접 의존성 4개의 메타데이터 확인 및 고지.
-- [ ] 프런트엔드 및 Python 의존성의 라이선스와 실제 배포물의 고지 의무 조사.
+- [x] 프런트엔드 잠금 파일 185개 항목의 라이선스 표기 확인 및 시험 빌드의 브라우저 JS 포함 패키지 7개 추적. 원본 고지를 보존하고 빌드 산출물에 고지 파일·HTML 링크가 포함됨을 검증. 자세한 범위는 [의존성 감사 기록](docs/DEPENDENCY_LICENSE_AUDIT.md) 참조.
+- [x] Python 요구사항을 격리된 Windows/Python 3.14 환경에 설치하여 27개 패키지의 라이선스 표기 조사. 이는 실제 서버의 설치 버전이나 Linux 바이너리의 검증이 아님.
+- [ ] 실제 서버·배포 환경의 Python 의존성 및 플랫폼별 바이너리·내장 라이브러리의 고지와 소스 제공 조건 확인. 특히 `psycopg[binary]`의 LGPL-3.0-only와 `certifi`의 MPL-2.0을 실제 배포물 기준으로 검토.
+- [ ] 프런트엔드 실제 배포 경로에서 고지 파일의 전달 여부 확인 및 전체 배포물의 고지 의무 재검토.
 - [x] 이미지·아이콘과 화면 캡처에 대한 사용자 판단 확인. 사용자는 아이콘·로고가 자동 생성된 기본 요소이며 상품명 중복은 문제 삼지 않겠다고 설명함(2026-11-15). 별도의 상표 권리 검증이 완료됐다는 뜻은 아님.
 - [x] 정적 HTML의 Plus Jakarta Sans·Noto Sans KR 원본 라이선스 확인: SIL OFL 1.1. Material Symbols는 Apache-2.0.
 - [x] `hero.png`, `react.svg`, `vite.svg`, `favicon.svg`, `icons.svg`가 Vite React TypeScript 템플릿과 동일함을 Git blob 해시로 확인. 로고 재배포·상표 조건은 별도 확인.
