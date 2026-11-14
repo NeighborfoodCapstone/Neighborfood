@@ -4,14 +4,16 @@
 
 ## 저장소에 포함된 라이브러리
 
-- `frontend/vendor/html5-qrcode.min.js`: [html5-qrcode](https://github.com/mebjas/html5-qrcode) 프로젝트에서 배포하는 QR/바코드 스캔 라이브러리의 로컬 번들입니다. 원 저작권은 해당 프로젝트 기여자에게 있으며 라이선스는 **Apache License 2.0**입니다. 라이선스 전문은 [third_party_licenses/html5-qrcode-APACHE-2.0.txt](third_party_licenses/html5-qrcode-APACHE-2.0.txt)를 참조하세요. 번들 파일의 정확한 원본 버전과 NOTICE 의무는 최종 배포 전 추가 검증 대상입니다.
+- `frontend/vendor/html5-qrcode.min.js`: [html5-qrcode v2.3.8](https://github.com/mebjas/html5-qrcode/tree/v2.3.8)의 `minified/html5-qrcode.min.js`와 SHA-256이 일치하는 QR/바코드 스캔 번들입니다. 원 프로젝트의 [라이선스](https://github.com/mebjas/html5-qrcode/blob/v2.3.8/LICENSE)는 **Apache License 2.0**, 저작권 표시는 Copyright 2020 MINHAZ입니다. 라이선스 전문은 [third_party_licenses/html5-qrcode-APACHE-2.0.txt](third_party_licenses/html5-qrcode-APACHE-2.0.txt)를 참조하세요. 해당 태그의 파일 목록에는 별도 NOTICE 파일이 없습니다. 이 버전의 소스는 [ZXing-js에서 파생된 코드](https://github.com/mebjas/html5-qrcode/blob/v2.3.8/src/zxing-html5-qrcode-decoder.ts)를 포함하므로 그 정확한 출처와 별도 고지 의무는 추가 확인이 필요합니다.
+- 위 버전의 [ZXing 배포 파일](https://github.com/mebjas/html5-qrcode/blob/v2.3.8/third_party/zxing-js.umd.js)에는 Apache-2.0 표기 외에 Oracle의 GPL-2.0-only 및 Classpath 예외를 언급하는 파일 헤더도 있습니다. 해당 코드의 최종 축소 번들 포함 여부와 적용 조건은 아직 확인되지 않았으며, 재배포 전에 검토해야 합니다.
 
 ## 패키지 의존성 및 외부 서비스
 
 - `frontend-react/package.json`, `frontend-react/package-lock.json`, `requirements.txt`에 나열된 패키지에는 각각 고유한 라이선스가 적용됩니다. 배포 번들 또는 복사된 코드에는 원 저작권 표시·라이선스·NOTICE 의무가 별도로 적용될 수 있습니다.
-- `frontend-react/package-lock.json`의 `@portone/browser-sdk` 0.1.11은 잠금 파일과 확인된 설치 패키지에 라이선스 표기가 없습니다. 이 버전의 권리와 재배포 조건은 권리자 자료로 확인해야 하며 MIT 호환성을 확정하지 않았습니다.
+- `frontend-react/package-lock.json`의 `@portone/browser-sdk` 0.1.11은 잠금 파일과 확인된 설치 패키지 및 [npm 레지스트리 메타데이터](https://registry.npmjs.org/%40portone%2Fbrowser-sdk/0.1.11)에 라이선스 표기가 없습니다. 이 버전의 권리와 재배포 조건은 권리자 자료로 확인해야 하며 MIT 호환성을 확정하지 않았습니다.
 - 잠금 파일에는 `lightningcss` 및 플랫폼별 패키지의 **MPL-2.0** 표기가 있습니다. 별도 파일의 프로젝트 코드를 MIT로 배포하는 것과 MPL 구성요소의 조건은 구별해야 합니다. 해당 구성요소를 배포하는 경우 원문 고지 및 소스 제공 등 적용 의무를 확인하세요. [Mozilla MPL FAQ](https://www.mozilla.org/en-US/MPL/2.0/FAQ/)
-- 정적 HTML은 Google Fonts의 글꼴과 [Material Symbols](https://developers.google.com/fonts/docs/material_symbols)를 불러옵니다. Material Symbols는 Apache-2.0이며, 각 글꼴의 원 라이선스와 실제 배포 방식에 따른 고지 의무는 별도로 확인해야 합니다.
+- 정적 HTML은 Google Fonts의 글꼴과 [Material Symbols](https://developers.google.com/fonts/docs/material_symbols)를 불러옵니다. Material Symbols는 Apache-2.0이며, [Plus Jakarta Sans](https://github.com/google/fonts/blob/main/ofl/plusjakartasans/OFL.txt)와 [Noto Sans KR](https://github.com/google/fonts/blob/main/ofl/notosanskr/OFL.txt)은 SIL Open Font License 1.1입니다. 실제 배포 방식에 따른 고지 의무는 별도로 확인해야 합니다.
+- `frontend-react/src/assets/react.svg`는 Vite React TypeScript 템플릿의 [동일 파일](https://github.com/vitejs/vite/blob/main/packages/create-vite/template-react-ts/src/assets/react.svg)과 Git blob 해시가 일치합니다. 로고의 재배포·상표 조건은 별도로 확인해야 합니다.
 - Supabase, PortOne, Kakao Maps, CLOVA OCR 등 외부 API/서비스는 Neighborfood의 MIT 라이선스로 공개되거나 서비스 이용 조건이 변경되는 것이 아닙니다.
 - `frontend-react/src/assets/hero.png`, `react.svg`, `vite.svg`, `frontend-react/public/`의 아이콘과 `frontend-react/docs/ui-audit/` 스크린샷 등 이미지·아이콘·브랜드 자산은 출처와 재배포 권리를 각각 확인해야 합니다. 스크린샷에 실제 사용자 정보가 없는지도 확인하세요.
 
