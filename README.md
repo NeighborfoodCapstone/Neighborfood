@@ -1,5 +1,7 @@
 # NeighborFood
 
+> **오픈소스 라이선스:** 본 저장소의 프로젝트 기여자 보유 코드·문서는 [MIT License](LICENSE)로 제공됩니다. 저장소에 포함된 제3자 소프트웨어는 각 원래 라이선스를 따르며 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에 고지합니다. 기여 전 [CONTRIBUTING.md](CONTRIBUTING.md), 취약점 제보 시 [SECURITY.md](SECURITY.md)를 확인해 주세요.
+
 지역 기반 식재료 공동구매 플랫폼 — FastAPI 백엔드(DB·파일 저장소는 **SQLite·로컬 `uploads/`가 기본**, 환경변수 설정 시에만 **Supabase(PostgreSQL)·Supabase Storage** 사용), React(Vite) 프런트엔드(기존 화면 39개 전체 이전 구현) + 기존 정적 HTML 프런트엔드(병행 보존)
 > **PostgreSQL 배포 주의:** 정식 마이그레이션은 `supabase/migrations/`의 001→002→003 순서입니다. 운영 DB의 실제 스키마·이력과 백업을 확인하고 [`docs/SUPABASE_MIGRATION.md`](docs/SUPABASE_MIGRATION.md)의 순서를 따르세요. OCR과 기존 Firewall 차단은 유지합니다.
 
